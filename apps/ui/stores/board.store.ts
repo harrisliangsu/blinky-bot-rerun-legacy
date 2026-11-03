@@ -233,7 +233,18 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             const body = (await res.json()) as { agents: BoardState['agents']; spaces: BoardState['spaces']; sessions: BoardState['sessions'] }
             const onlineMap: Record<string, boolean> = {}
             for (const agent of body.agents) onlineMap[agent.id] = true
-            set({ agents: body.agents, spaces: body.spaces, sessions: body.sessions, agentOnlineMap: onlineMap, hydrated: true })
+            set(state => {
+                const previous = new Map(state.agents.map(agent => [agent.id, agent]))
+                const agents = body.agents.map(agent => {
+                    const prior = previous.get(agent.id)
+                    return prior ? { ...agent, position: prior.position, spaceId: prior.spaceId } : agent
+                })
+                const sessions = body.sessions
+                const sameAgents = state.hydrated && state.agents.length === agents.length && state.agents.every((agent, index) => agent.id === agents[index]?.id && agent.name === agents[index].name && agent.status === agents[index].status && agent.position.col === agents[index].position.col && agent.position.row === agents[index].position.row && agent.spaceId === agents[index].spaceId)
+                const sameSessions = state.sessions.length === sessions.length && state.sessions.every((session, index) => sessions[index] !== undefined && sameSession(session, sessions[index]))
+                if (sameAgents && sameSessions) return {}
+                return { agents, spaces: body.spaces, sessions, agentOnlineMap: onlineMap, hydrated: true }
+            })
             return
         }
         const supabase = supabaseClient()

@@ -11,9 +11,8 @@ export const BRIDGE_SERVER_NAME = 'rerun'
 
 // Providers that delegate the whole agentic loop to a local CLI: they run their own tools, so
 // Rerun's tools reach them bridged as an MCP server rather than through the AI SDK `tools` param.
-// Spawn specs for Codex, Kimi, Grok, and Claude Code live in ./cli-adapters. Kimi and Grok are
-// not members of this set: a member is a Provider the run loop resolves.
-export const CLI_PROVIDERS = new Set<Provider>(['claude', 'codex'])
+// Spawn specs live in ./cli-adapters. Kimi and Grok stream through `cli-language-model`.
+export const CLI_PROVIDERS = new Set<Provider>(['claude', 'codex', 'kimi', 'grok'])
 
 export type LoadedAgent = {
     id: string

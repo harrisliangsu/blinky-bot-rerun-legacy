@@ -1,7 +1,8 @@
 import { notFound } from '../lib/errors.js'
 import { clearAgentCache } from '../agents/registry.js'
 import { isPathSegment } from '../config/paths.js'
-import { connectionExists, listConnectionIds, loadConnectionFromDisk } from './loader.js'
+import { connectionExists, isConnected, listConnectionIds, loadConnectionFromDisk } from './loader.js'
+import { installedLocalCliConnections, localCliConnection } from './local-cli.js'
 import type { LoadedConnection } from './types.js'
 
 // One instance per connection, shared by every agent pointing at it. Deliberate: a token refresh
@@ -19,13 +20,19 @@ export async function getConnection(id: string): Promise<LoadedConnection> {
 }
 
 export async function findConnection(id: string | null | undefined): Promise<LoadedConnection | null> {
-    if (!id || !isPathSegment(id) || !connectionExists(id)) return null
+    if (!id || !isPathSegment(id)) return null
+    const local = localCliConnection(id)
+    if (local) return local
+    if (!connectionExists(id)) return null
     return getConnection(id)
 }
 
 export async function listConnections(): Promise<LoadedConnection[]> {
     const ids = await listConnectionIds()
-    return Promise.all(ids.map(id => getConnection(id)))
+    const disk = await Promise.all(ids.map(id => getConnection(id)))
+    const covered = new Set(disk.filter(connection => isConnected(connection)).map(connection => connection.config.provider))
+    const local = installedLocalCliConnections().filter(connection => !covered.has(connection.config.provider) && !disk.some(row => row.id === connection.id))
+    return [...disk, ...local]
 }
 
 // Agents hold a reference to the shared instance, so dropping a connection from the cache has to

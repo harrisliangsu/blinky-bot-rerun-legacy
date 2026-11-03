@@ -19,6 +19,9 @@ export type CliRunRequest = {
     // Credential and other variables for this spawn. Merged over the process environment.
     // Never placed on argv.
     env?: Record<string, string>
+    // Ask the CLI for incremental events. Kimi already prints stream-json. Grok's default
+    // `json` is one object after the turn; `stream` selects `streaming-json`.
+    stream?: boolean
     // CLI config/home directory, when that CLI has one (`CODEX_HOME`, `KIMI_CODE_HOME`, …).
     home?: string
     // Pane label and session handle when Rex mirroring is on. `agentId` selects that agent's workspace.

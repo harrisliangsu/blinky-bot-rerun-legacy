@@ -32,6 +32,7 @@ import { cardTagStopHook } from './claude-card-nudge.js'
 import { openrouterReasoningMiddleware, reasoningFetch } from './openrouter-reasoning.js'
 import { cacheBreakpointsFetch } from './openrouter-cache.js'
 import { openrouterStreamRetryMiddleware } from './openrouter-stream-retry.js'
+import { openCliChatModel } from './cli-language-model.js'
 import { agentProcessEnv } from './process-env.js'
 import { providerRex } from './rex/launch.js'
 import { BRIDGE_SERVER_NAME, CLI_PROVIDERS, type LoadedAgent } from './types.js'
@@ -415,6 +416,7 @@ function pairFor(agent: LoadedAgent, override?: ModelOverride): { provider: Prov
 // and exits — nothing to dispose. A run that streams must use `resolveModel` instead.
 export function modelFor(agent: LoadedAgent, override?: ModelOverride, tools?: ToolSet, mcpServers?: McpServer[], options?: CliModelOptions): LanguageModel {
     const { provider, model } = pairFor(agent, override)
+    if (provider === 'kimi' || provider === 'grok') return openCliChatModel(cliChatInput(agent, provider, model, tools, options?.system)).model
     return registryFor(agent, tools, mcpServers, options).languageModel(`${provider}:${model}`)
 }
 
@@ -427,6 +429,11 @@ export type ResolvedModel = { model: LanguageModel; close: () => Promise<void>; 
 
 const noClose = async (): Promise<void> => {}
 
+function cliChatInput(agent: LoadedAgent, runtime: 'kimi' | 'grok', modelId: string, tools?: ToolSet, system?: string) {
+    const { cwd, env } = agentProcessEnv(agent)
+    return { runtime, modelId, cwd, system, tools, env: { ...env, ...connectionEnv(agent) } }
+}
+
 export function resolveModel(agent: LoadedAgent, override?: ModelOverride, tools?: ToolSet, mcpServers?: RunMcpServer[], system?: string, screenshots?: ScreenshotLookup): ResolvedModel {
     const { provider, model } = pairFor(agent, override)
     // `wrapLanguageModel` runs the list from the end: the guard sits nearest the model, so no other
@@ -438,6 +445,10 @@ export function resolveModel(agent: LoadedAgent, override?: ModelOverride, tools
     if (provider === 'codex') {
         const codex = codexAppServerProvider(agent, tools, mcpServers, { system })
         return { model: wrapLanguageModel({ model: codex(model), middleware: [codexMcpCompatibilityMiddleware, replies.middleware, cardTags, guard] }), close: () => codex.close(), quickReplies: replies.read }
+    }
+    if (provider === 'kimi' || provider === 'grok') {
+        const opened = openCliChatModel(cliChatInput(agent, provider, model, tools, system))
+        return { model: wrapLanguageModel({ model: opened.model as Parameters<typeof wrapLanguageModel>[0]['model'], middleware: [replies.middleware, cardTags, guard] }), close: opened.close, quickReplies: replies.read }
     }
     if (provider === 'claude') {
         const capture = claudeContextCapture(agent.resolved.connection?.id)

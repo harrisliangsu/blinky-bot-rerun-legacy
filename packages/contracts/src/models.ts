@@ -86,6 +86,8 @@ export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
     'moonshotai/kimi-k3.1-pro': 1_000_000,
     'moonshotai/kimi-k3': 1_000_000,
     'moonshotai/kimi-k2.6': 256_000,
+    'kimi-for-coding': 256_000,
+    'grok-4.7': 256_000,
 }
 
 // A CLI provider does not serve the model's own window: it serves whatever its client allows on
@@ -101,6 +103,9 @@ export const MODEL_CONTEXT_WINDOW: Record<string, number> = {
 const CLI_CONTEXT_WINDOW: Partial<Record<Provider, (id: string) => number>> = {
     codex: () => 272_000,
     claude: id => (id.endsWith('[1m]') ? 1_000_000 : 200_000),
+    // Neither CLI publishes a context window. 256k is the budget Rerun compacts against.
+    kimi: () => 256_000,
+    grok: () => 256_000,
 }
 
 // `provider` is widened to string because the chat gauge reads it back off message metadata,
@@ -172,6 +177,8 @@ export const MODEL_LABEL: Record<string, string> = {
     'google/gemini-4-argon': 'Gemini 4 Argon',
     'google/gemini-3.8-flash': 'Gemini 3.8 Flash',
     'google/gemini-3.1-pro-preview': 'Gemini 3.1 Pro',
+    'grok-4.7': 'Grok 4.7',
+    'kimi-for-coding': 'Kimi for Coding',
     'x-ai/grok-4.7': 'Grok 4.7',
     'x-ai/grok-4.6': 'Grok 4.6',
     'moonshotai/kimi-k3.1-pro': 'Kimi K3.1 Pro',

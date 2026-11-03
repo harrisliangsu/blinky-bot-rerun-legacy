@@ -129,7 +129,7 @@ export function HomeContent({ initialSpaces = [], initialWorkspaceId = null }: {
 
     useEffect(() => {
         if (!localAuth || !workspace) return
-        const id = window.setInterval(() => void hydrate(workspace.id, { local: true }), 5000)
+        const id = window.setInterval(() => void hydrate(workspace.id, { local: true }), 2000)
         return () => window.clearInterval(id)
     }, [localAuth, workspace, hydrate])
 

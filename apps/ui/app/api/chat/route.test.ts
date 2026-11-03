@@ -61,6 +61,15 @@ describe('POST /api/chat', () => {
         expect(engine.chat).toHaveBeenCalledTimes(2)
     })
 
+    it('returns a spent budget as rerun_budget_exhausted instead of a generic engine failure', async () => {
+        vi.mocked(engine.chat).mockResolvedValue(Response.json({ error: 'payment required' }, { status: 402 }))
+
+        const response = await settle(POST(request({})))
+
+        expect(response.status).toBe(402)
+        expect(await response.json()).toEqual({ error: 'rerun_budget_exhausted' })
+    })
+
     it('still tails the run in flight for a message that was not queued', async () => {
         vi.mocked(engine.chat).mockImplementation(async () => busy())
         vi.mocked(engine.reconnectRun).mockResolvedValue(streaming('run-1'))

@@ -178,6 +178,8 @@ export async function sessionRowOf(agentId: string, engineSessionId: string): Pr
 }
 
 export async function updateSessionStatus(sessionId: string, status: SessionStatus) {
+    // There is no sessions table under local auth. The board poll reads engine runs, which already
+    // record working, done, cancelled, and error, so a second write here would only drift.
     if (isBlinkyLocalAuth()) return
     const supabase = createServiceRoleClient()
     await supabase.from('sessions').update<Database['public']['Tables']['sessions']['Update']>({ status }).eq('id', sessionId)
