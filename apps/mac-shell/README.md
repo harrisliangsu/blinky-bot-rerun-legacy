@@ -220,6 +220,10 @@ Out of scope here:
 
 Local auth for the Phase 1 boot lives in the UI, behind `BLINKY_LOCAL_AUTH=1`. The window sets the flag. It does not add its own login client.
 
+## App icon
+
+The Phase 1 Mac app icon is the confirmed mascot (fluffy cream, lime sprout and ear tips, one eye winking). The asset catalog is `Resources/Assets.xcassets/AppIcon.appiconset`. [`project.yml`](project.yml) includes that catalog as a file source and sets `ASSETCATALOG_COMPILER_APPICON_NAME` to `AppIcon`, so the built BlinkyBot.app shows this icon. [`Info.plist`](Info.plist) sets `CFBundleIconName` to the same name.
+
 ## Layout
 
 ```
@@ -227,6 +231,7 @@ apps/mac-shell/
   Package.swift
   project.yml
   Info.plist
+  Resources/Assets.xcassets/AppIcon.appiconset/   Phase 1 Mac app icon
   Sources/BlinkyComposeURL/ComposeURL.swift
   Sources/BlinkyLocalRuntime/   plan, ready checks, spawn, API key
   Sources/BlinkyBot/            SwiftUI window, WKWebView, ProcessSupervisor
