@@ -24,7 +24,15 @@ Upstream: [rerun-build/rerun](https://github.com/rerun-build/rerun). BlinkyBot a
 
 Install the app and open it. BlinkyBot starts the local engine (`127.0.0.1:3001`) and the Compose UI (`127.0.0.1:3000`), then shows the UI. Data lives in `~/Library/Application Support/BlinkyBot/`. You do not install Docker, and you do not create a Supabase project.
 
-The window is in `apps/mac-shell`. Spawning the engine and the UI, and the single-user SQLite session, are the contract in the runtime doc. That supervision is the Phase 1 install; it is the follow-up those sources still need.
+The Mac app in `apps/mac-shell` starts that pair and then loads the UI. From a checkout, without the window:
+
+```bash
+pnpm install
+node scripts/blinky-local/blinky-local.mjs build
+node scripts/blinky-local/blinky-local.mjs start
+```
+
+The UI listens on `http://127.0.0.1:3000` and the engine on `http://127.0.0.1:3001`, with `BLINKY_LOCAL_AUTH=1`. Data is `~/Library/Application Support/BlinkyBot` on macOS and `~/.blinkybot` elsewhere. Details: [scripts/blinky-local/README.md](scripts/blinky-local/README.md).
 
 The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
 

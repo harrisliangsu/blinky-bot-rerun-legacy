@@ -6,6 +6,8 @@ The process model, ports, Application Support layout, and environment are [docs/
 
 This tree was written on Linux. **It has not been launched as a Mac app.** `swift test` on Linux covers URL selection and the supervisor's plan, ready checks, pid adoption, API key file, and process-group shutdown. It does not open a window. Build the `.app` on a Mac before treating the window as done.
 
+The same startup without the window is `node scripts/blinky-local/blinky-local.mjs` ([README](../../scripts/blinky-local/README.md)). It uses these ports and `BLINKY_LOCAL_AUTH=1`.
+
 ## What a launch does
 
 1. Create `~/Library/Application Support/BlinkyBot/` if it is missing (`engine/`, `run/`, `logs/`).
@@ -88,6 +90,16 @@ open --env BLINKY_REPO_ROOT=/path/to/blinky-bot /path/to/BlinkyBot.app
 ```
 
 The window stays on "Starting the local engine and Compose…" until both ready URLs answer.
+
+Without the window, the same ports and environment:
+
+```bash
+node scripts/blinky-local/blinky-local.mjs start
+curl -sS http://127.0.0.1:3000/api/version
+curl -sS http://127.0.0.1:3001/health
+```
+
+`BLINKY_SUPPORT_DIR` is the shared data-directory override. `BLINKY_UI_PORT` and `BLINKY_ENGINE_PORT` default to 3000 and 3001.
 
 ### Hot-reload loop
 
