@@ -52,7 +52,9 @@ Those commands run on Linux. They do not build the app.
 | --- | --- | --- |
 | `mac-app` | `macos-14` (Apple Silicon) | GitHub Release `BlinkyBot-<version>.dmg` and `BlinkyBot-<version>.zip` |
 
-Pull requests run the same Mac compile and package on `macos-14` (`swift build`, `swift test`, then `Scripts/bundle.sh` and `Scripts/dmg.sh`) before a tag is cut. `macos-14` is a GitHub-hosted Mac. A green Linux check is not a built `.app`.
+Pull requests run the same Mac compile and package on `macos-14` (`swift build`, `swift test`, then `Scripts/bundle.sh` and `Scripts/dmg.sh`) before a tag is cut. Those commands and the Xcode project all use macOS 14 as the deployment target (`Package.swift` `platforms`, `project.yml` `MACOSX_DEPLOYMENT_TARGET`, and `MACOSX_DEPLOYMENT_TARGET=14.0` on `xcodebuild` and `swift test`). `macos-14` is a GitHub-hosted Mac. A green Linux check is not a built `.app`.
+
+CI does not build Docker images, start Supabase, or seed a hosted database. The tag does not publish an engine container. Those jobs were removed because Phase 1 does not install that way.
 
 The Mac job installs XcodeGen, downloads the official Node 22.23.4 macOS tarball, and points `BLINKY_NODE` at it. `Scripts/bundle.sh` copies that binary into the app and refuses a Node that links Homebrew or the Actions toolchain. It then runs:
 
