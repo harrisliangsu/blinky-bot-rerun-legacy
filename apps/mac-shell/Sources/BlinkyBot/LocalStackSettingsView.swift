@@ -19,6 +19,8 @@ struct BlinkySettingsView: View {
                 Divider()
                 EgoLiteSettingsView()
                 Divider()
+                RexSettingsView()
+                Divider()
                 UpdateSettingsView()
                 Divider()
                 LocalStackSettingsView()

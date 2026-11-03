@@ -153,6 +153,23 @@ Maturity: **wired** for Foreman. The spawn argv above is flag-gated and is not w
 | Rerun tools bridged in | Foreman only | No | No | Foreman only |
 | Streaming into the chat | Foreman only | No | No | Foreman only |
 
+## Watch agents in Rex
+
+Settings can ask the Mac app to show a spawn in [Rex](https://www.superlogical.com/rex/). The switch is off until both the app and the `rex` command are found. The engine reads `BLINKY_REX_STATE` on each spawn.
+
+The CLI process stays a child of BlinkyBot, so abort and the captured stdout are unchanged. Rex only displays a copy. Each bot gets one session, `blinky-<handle>`, and the pane's working directory is that bot's workspace (`agents/<id>/workspace` through `agentWorkspace`). Before a run, BlinkyBot runs `rex version`. If that fails, it turns the switch off and spawns the CLI directly.
+
+```bash
+rex version
+rex session ls --json
+rex session new blinky-<handle> --json
+rex run --json --keep-open --shell=none --focus=false --label "<bot>" -s <session-id> -c <workspace> -- /bin/cat <fifo>
+```
+
+The pane is `cat` reading a local fifo. BlinkyBot writes OSC 7501 `working` when the run starts and `done` or `error` when it settles (OSC 7501 has no cancelled state, so a cancel is `error`). Existing panes are left in place when the switch is turned off. `REX_SERVER` is not passed to `rex`, and the argv never includes `--listen`, `--extra-listen`, `--tailscale`, `--allow-anonymous`, or `--server`. BlinkyBot does not start a public Rex server and does not run `rex skill setup`.
+
+Version checks of Codex or Claude (`--version`) are not mirrored.
+
 ## Gaps left for a later phase
 
 - Kimi and Grok are not `Provider` values. Adding them touches the connection catalog, the model picker, and every exhaustive `Record<Provider, …>`.

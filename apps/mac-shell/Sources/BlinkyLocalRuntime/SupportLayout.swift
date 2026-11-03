@@ -11,6 +11,7 @@ public enum RuntimePreferenceKey {
     public static let uiPort = "blinkyUIPort"
     public static let enginePort = "blinkyEnginePort"
     public static let repoRoot = "blinkyRepoRoot"
+    public static let rexWatch = "blinkyRexWatch"
 }
 
 public enum RuntimeRole {

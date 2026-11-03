@@ -33,6 +33,7 @@ import { openrouterReasoningMiddleware, reasoningFetch } from './openrouter-reas
 import { cacheBreakpointsFetch } from './openrouter-cache.js'
 import { openrouterStreamRetryMiddleware } from './openrouter-stream-retry.js'
 import { agentProcessEnv } from './process-env.js'
+import { providerRex } from './rex/launch.js'
 import { BRIDGE_SERVER_NAME, CLI_PROVIDERS, type LoadedAgent } from './types.js'
 import { hubCallerHeaders } from '../runtime/hub.js'
 import type { StoredScreenshot } from '../runtime/screenshots.js'
@@ -261,8 +262,13 @@ export function withCardTagNudge(hooks: ClaudeHooks | undefined): ClaudeHooks {
     return { ...hooks, Stop: [...stop, { hooks: [cardTagStopHook] }] }
 }
 
+function agentTabLabel(agent: LoadedAgent): string {
+    return agent.config.displayName?.trim() || agent.config.name
+}
+
 function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpServer[] = [], capture?: ClaudeContextCapture, options: CliModelOptions = {}) {
     const { RERUN_CLAUDE_PATH } = env()
+    const claudeBin = providerRex(process.env, { configured: RERUN_CLAUDE_PATH, fallback: 'claude', label: agentTabLabel(agent), handle: agent.config.name, agentId: agent.id })
     const { mcpServers: servers, allowedTools } = claudeMcpConfig(tools, mcpServers, options.screenshots)
     const { cwd, env: agentEnv } = agentProcessEnv(agent)
     return createClaudeCode({
@@ -274,7 +280,7 @@ function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpS
             strictMcpConfig: true,
             enableFileCheckpointing: false,
             cwd,
-            ...(RERUN_CLAUDE_PATH ? { pathToClaudeCodeExecutable: RERUN_CLAUDE_PATH } : {}),
+            ...(claudeBin.executable ? { pathToClaudeCodeExecutable: claudeBin.executable } : {}),
             // Without this the CLI emits no thinking block at all, so the chat never shows what the
             // agent is working through. `adaptive` leaves the model to decide when it is worth it.
             thinking: { type: 'adaptive', display: 'summarized' },
@@ -282,6 +288,7 @@ function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpS
                 ...agentEnv,
                 ...CLAUDE_HARNESS_ENV,
                 ...claudeAuthEnv(connectionEnv(agent)),
+                ...claudeBin.extraEnv,
                 ANTHROPIC_API_KEY: undefined,
                 MCP_TOOL_TIMEOUT: String(BRIDGE_TOOL_TIMEOUT_SEC * 1000),
             },
@@ -304,11 +311,12 @@ function connectionEnv(agent: LoadedAgent): Record<string, string> {
 // home is the connection's, so agents sharing a subscription share one auth.json.
 function codexShared(agent: LoadedAgent): CodexExecSettings & CodexAppServerSettings {
     const { RERUN_CODEX_PATH } = env()
+    const codexBin = providerRex(process.env, { configured: RERUN_CODEX_PATH, fallback: 'codex', label: agentTabLabel(agent), handle: agent.config.name, agentId: agent.id })
     const { cwd, env: agentEnv } = agentProcessEnv(agent)
     return {
         cwd,
-        env: { ...agentEnv, CODEX_HOME: codexHomeDir(agent.resolved.connection?.id ?? RERUN_CONNECTION_ID) },
-        ...(RERUN_CODEX_PATH ? { codexPath: RERUN_CODEX_PATH } : {}),
+        env: { ...agentEnv, CODEX_HOME: codexHomeDir(agent.resolved.connection?.id ?? RERUN_CONNECTION_ID), ...codexBin.extraEnv },
+        ...(codexBin.executable ? { codexPath: codexBin.executable } : {}),
     }
 }
 
