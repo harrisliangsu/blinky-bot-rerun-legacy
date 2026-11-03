@@ -21,6 +21,7 @@ describe('createClient', () => {
         mocks.headers = new Headers()
         mocks.createTokenClient.mockClear()
         mocks.createServerClient.mockClear()
+        delete process.env.BLINKY_LOCAL_AUTH
     })
 
     it('uses the cookie client when the request carries no bearer token', async () => {
@@ -42,6 +43,28 @@ describe('createClient', () => {
 
         await expect(getRequestAccessToken()).resolves.toBeNull()
         await expect(createClient()).resolves.toEqual({ kind: 'cookie' })
+    })
+
+    it('does not construct a Supabase client when local auth is on and no project URL is set', async () => {
+        const previous = process.env.BLINKY_LOCAL_AUTH
+        const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+        const previousKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        process.env.BLINKY_LOCAL_AUTH = '1'
+        delete process.env.NEXT_PUBLIC_SUPABASE_URL
+        delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        try {
+            const client = await createClient()
+            expect(mocks.createServerClient).not.toHaveBeenCalled()
+            expect(mocks.createTokenClient).not.toHaveBeenCalled()
+            await expect(client.from('agents').select('*')).resolves.toMatchObject({ data: [], error: null })
+        } finally {
+            if (previous === undefined) delete process.env.BLINKY_LOCAL_AUTH
+            else process.env.BLINKY_LOCAL_AUTH = previous
+            if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL
+            else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl
+            if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+            else process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = previousKey
+        }
     })
 })
 

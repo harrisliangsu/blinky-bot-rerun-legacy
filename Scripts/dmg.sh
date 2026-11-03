@@ -112,3 +112,4 @@ hdiutil create -srcfolder "$STAGING" -volname "$VOLUME" -fs HFS+ \
 
 rm -rf "$STAGING"
 echo "→ $FINAL"
+du -h "$FINAL"

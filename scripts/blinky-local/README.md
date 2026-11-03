@@ -23,7 +23,7 @@ On macOS the directory is `~/Library/Application Support/BlinkyBot/`, the same p
 
 `start` passes `BLINKY_LOCAL_AUTH=1` and `BLINKY_LOCAL_AUTH_DB` (the `local-auth.sqlite` file in the data directory). That is the switch already implemented in `apps/ui/lib/local-auth`. Supabase variables, `OPENROUTER_API_KEY`, `RERUN_PAIR_TOKEN`, and `RERUN_HUB_URL` are removed from the child environment, the same way the Mac shell does it. The first request creates one local user (`You`), one workspace (`BlinkyBot`), and a `blinky_session` cookie.
 
-`build` sets `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000` so the UI bundle matches the shell. It also exports `BLINKY_LOCAL_AUTH=1` for that build.
+`build` sets `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000` so the UI bundle matches the shell, and it strips Supabase URL and keys so Next does not inline them. It also exports `BLINKY_LOCAL_AUTH=1` for that build.
 
 ## Commands
 

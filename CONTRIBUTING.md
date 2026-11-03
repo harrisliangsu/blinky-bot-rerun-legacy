@@ -1,11 +1,12 @@
-# Contributing to Rerun
+# Contributing to BlinkyBot
 
-Thank you for helping. This page covers running Rerun from source, the shape of the code, and how a
-pull request gets in.
+Thank you for helping. BlinkyBot Phase 1 runs as a Mac app. Open it, or from a checkout run `node scripts/blinky-local/blinky-local.mjs build` and `start`. That path does not use Docker and does not use Supabase. See the [README](README.md) and [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
 
-## Run it from source
+This page also covers the upstream from-source loop and how a pull request gets in.
 
-You need Node 22, pnpm 8 (`corepack enable`), Docker (for the local Supabase) and an OpenRouter key. That is the upstream from-source loop. The BlinkyBot Phase 1 Mac install does not use it: the app starts a local engine and local UI with no Docker and no Supabase. See [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
+## Upstream server development
+
+Working on the upstream Rerun server from source needs Node 22, pnpm 8 (`corepack enable`), Docker (for the local Supabase) and an OpenRouter key. That loop is not how BlinkyBot is installed or run on a Mac.
 
 ```bash
 pnpm install

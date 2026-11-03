@@ -36,7 +36,7 @@ export BLINKY_NODE=/path/to/node-v22/bin/node
 
 ## What the script does
 
-1. Read `VERSION` at the repository root (`0.1.0` today).
+1. Read `VERSION` at the repository root (`0.1.1` today).
 2. `pnpm install --frozen-lockfile`.
 3. `node scripts/blinky-local/blinky-local.mjs build`, which builds `@rerun/contracts`, `rerun-engine`, and Compose with `BLINKY_LOCAL_AUTH=1` and `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000`.
 4. `pnpm --filter rerun-engine --prod deploy`, then copy `apps/engine/dist` and `apps/engine/assets` on top. `dist/` is gitignored, so deploy alone would drop it.
@@ -109,7 +109,7 @@ Logs, if they do not: `~/Library/Application Support/BlinkyBot/logs/`.
 
 There is no universal binary. Ship one `.app` per architecture, each with a Node binary of that architecture.
 
-`docker compose` remains the upstream server install in [INSTALL.md](../INSTALL.md). Phase 1 Mac builds use this script.
+The upstream Rerun server install (not Phase 1) is [docs/upstream-server.md](../docs/upstream-server.md). Phase 1 Mac builds use this script. The disk image is a drag-to-Applications install (the app, an Applications shortcut, and a Read Me), not a `.pkg`.
 
 ## GitHub Release
 

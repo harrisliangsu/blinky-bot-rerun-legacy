@@ -50,53 +50,12 @@ struct ContentView: View {
                             .font(.callout)
                             .multilineTextAlignment(.center)
                     }
-                    Text(pageAddress.absoluteString)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .textSelection(.enabled)
-                        .multilineTextAlignment(.center)
                 }
                 .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .navigationTitle("BlinkyBot")
-        .navigationSubtitle(pageAddress.absoluteString)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigation) {
-                Button {
-                    browser.goBack()
-                } label: {
-                    Image(systemName: "chevron.backward")
-                }
-                .disabled(!browser.canGoBack)
-                .help("Back")
-                .accessibilityLabel("Back")
-
-                Button {
-                    browser.goForward()
-                } label: {
-                    Image(systemName: "chevron.forward")
-                }
-                .disabled(!browser.canGoForward)
-                .help("Forward")
-                .accessibilityLabel("Forward")
-
-                Button {
-                    browser.reloadPage(fallback: pageAddress)
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .help("Reload")
-                .accessibilityLabel("Reload")
-
-                if browser.isLoading || supervisor.phase == .starting {
-                    ProgressView()
-                        .controlSize(.small)
-                        .accessibilityLabel("Loading Compose")
-                }
-            }
-        }
         .task {
             supervisor.start()
         }

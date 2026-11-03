@@ -22,25 +22,11 @@ struct BlinkyBotApp: App {
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 1200, height: 800)
-        .windowToolbarStyle(.unified(showsTitle: true))
         .commands {
             CommandGroup(replacing: .appInfo) {
                 Button("About BlinkyBot") {
                     AboutBlinkyBot.show()
                 }
-            }
-            CommandMenu("Compose") {
-                Button("Back") { browser.goBack() }
-                    .keyboardShortcut("[", modifiers: .command)
-                    .disabled(!browser.canGoBack)
-                Button("Forward") { browser.goForward() }
-                    .keyboardShortcut("]", modifiers: .command)
-                    .disabled(!browser.canGoForward)
-                Button("Reload") { browser.reloadPage(fallback: pageAddress) }
-                    .keyboardShortcut("r")
-                Divider()
-                Button("Open configured URL") { browser.load(pageAddress) }
-                    .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
 
@@ -48,10 +34,6 @@ struct BlinkyBotApp: App {
             BlinkySettingsView()
                 .environmentObject(model)
         }
-    }
-
-    private var pageAddress: URL {
-        supervisor.phase == .external ? model.address : supervisor.pageURL
     }
 }
 #else

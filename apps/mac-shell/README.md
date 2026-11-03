@@ -113,7 +113,7 @@ open -n --env BLINKY_SUPERVISE=0 --env BLINKY_COMPOSE_URL=http://127.0.0.1:3050 
 
 ### Upstream Docker stack
 
-`docker compose` reproduces the Rerun server. Leave it for that. The steps are [INSTALL.md](../../INSTALL.md). The shell does not start it.
+`docker compose` reproduces the upstream Rerun server. Leave it for that. The steps are [docs/upstream-server.md](../../docs/upstream-server.md). The shell does not start it. The window is a product window: no address bar, and no back, forward, or reload toolbar.
 
 ## Distributable app
 

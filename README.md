@@ -1,30 +1,34 @@
 # BlinkyBot
 
-**BlinkyBot** is a local-first agent hub for Mac. It is a public fork of [Rerun](https://github.com/rerun-build/rerun) (AGPL-3.0). Phase 1 keeps Rerun's Compose board and the Foreman, memory, and human-in-the-loop layer, and points the first runtimes at CLIs on your machine.
+[![License: AGPL-3.0-only](https://img.shields.io/badge/license-AGPL--3.0--only-blue.svg)](LICENSE)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://github.com/harrisliangsu/blinky-bot/releases)
+[![GitHub release](https://img.shields.io/github/v/release/harrisliangsu/blinky-bot)](https://github.com/harrisliangsu/blinky-bot/releases)
 
-This repository is the open source build of Rerun, republished here as BlinkyBot. The Rerun name, logo, and coworker characters remain trademarks of Rerun. BlinkyBot is not endorsed by Rerun. See [TRADEMARK.md](TRADEMARK.md).
+BlinkyBot is a local agent hub for Mac. Open the app and it runs on this machine: a local engine, the Compose board, and the CLIs you already have. Your coworkers, their memory, and approvals stay in `~/Library/Application Support/BlinkyBot`.
 
-## Phase 1
+This repository is a public fork of [Rerun](https://github.com/rerun-build/rerun) (AGPL-3.0-only). The Rerun name, logo, and coworker characters remain trademarks of Rerun. BlinkyBot is not endorsed by Rerun. See [TRADEMARK.md](TRADEMARK.md).
 
-Locked scope lives in [docs/phase1.md](docs/phase1.md). The shape of the stack lives in [docs/architecture-phase1.md](docs/architecture-phase1.md).
+## Install
 
-Phase 1 installs like a Mac app: open BlinkyBot and it runs. The app starts a local engine and the local Compose UI on this machine, with Foreman, memory, and approvals kept, and Codex CLI, Kimi CLI, and Grok CLI as the first runtimes. Docker and Supabase are not required. The runtime contract is [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
+Phase 1 is a Mac app for macOS 14 or newer. Download `BlinkyBot-<version>.dmg` from the [releases](https://github.com/harrisliangsu/blinky-bot/releases).
 
-Rex, Ego Browser, a cloud Engine or Supabase-primary deploy, and iOS, Windows, and Linux shells are later. The engine, the coworker desktop, `docker-compose.yml`, and the cloud modules stay in the tree for the upstream server install. Phase 1 does not delete them, and the Mac install does not start them. Rex is not in this repository.
+The disk image is a drag-to-Applications install, the usual Mac app window: BlinkyBot, a shortcut to Applications, and a Read Me. Open the image, drag BlinkyBot onto Applications, then open it from Applications. It is not a double-click `.pkg`. A package installer would copy the app without the drag, which helps someone who has never seen a disk image, but an ad-hoc signed package still stops at the same Gatekeeper prompt and is a worse fit until the app is notarized.
 
-Parallel work merges into `phase1/verify` for acceptance. See [CONTRIBUTING-BLINKY.md](CONTRIBUTING-BLINKY.md). Upstream contribution rules remain in [CONTRIBUTING.md](CONTRIBUTING.md).
+This build is not notarized. If macOS blocks the first launch, open BlinkyBot, dismiss the warning, then go to System Settings → Privacy & Security → Open Anyway. You only do this once.
 
-## License
+BlinkyBot then starts the local engine on `127.0.0.1:3001` and the Compose UI on `127.0.0.1:3000`, and shows the board. You do not install Docker, Node, or pnpm, and you do not create a Supabase project.
 
-[GNU Affero General Public License v3.0](LICENSE). You can run, modify, and host this code. If you host a modified version for other people, you publish those changes under the same license.
+A zip of the same app is attached to the release for people who do not want a disk image. Unzip it and drag BlinkyBot to Applications.
 
-Upstream: [rerun-build/rerun](https://github.com/rerun-build/rerun). BlinkyBot attributes that project and keeps its license. Package names such as `@rerun/*` and `rerun-engine` are still the upstream identifiers so the monorepo builds unchanged.
+## What you get
 
-## Run BlinkyBot on a Mac
+- The Compose board on this Mac
+- Foreman, memory, and approvals, with data under `~/Library/Application Support/BlinkyBot`
+- CLI runtimes already on the machine: Codex CLI, Kimi CLI, Grok CLI, and Claude Code when it is installed
 
-Install the app and open it. BlinkyBot starts the local engine (`127.0.0.1:3001`) and the Compose UI (`127.0.0.1:3000`), then shows the UI. Data lives in `~/Library/Application Support/BlinkyBot/`. You do not install Docker, and you do not create a Supabase project.
+The locked scope is [docs/phase1.md](docs/phase1.md). How the processes start is [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
 
-The Mac app in `apps/mac-shell` starts that pair and then loads the UI. From a checkout, without the window:
+## From a checkout
 
 ```bash
 pnpm install
@@ -34,38 +38,32 @@ node scripts/blinky-local/blinky-local.mjs start
 
 The UI listens on `http://127.0.0.1:3000` and the engine on `http://127.0.0.1:3001`, with `BLINKY_LOCAL_AUTH=1`. Data is `~/Library/Application Support/BlinkyBot` on macOS and `~/.blinkybot` elsewhere. Details: [scripts/blinky-local/README.md](scripts/blinky-local/README.md).
 
-A Mac with Xcode builds the distributable app:
+A Mac with Xcode builds the app:
 
 ```bash
 ./Scripts/bundle.sh
 ```
 
-That writes `build.noindex/BlinkyBot.app`. The `Contents/Resources/runtime` layout, the `VERSION` file, and the Linux `--plan` check are in [Scripts/README.md](Scripts/README.md).
+That writes `build.noindex/BlinkyBot.app`. The layout and the Linux `--plan` check are in [Scripts/README.md](Scripts/README.md).
 
-The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
+## Releases
 
-A published Mac build is a GitHub Release. The version is the `VERSION` file. Tagging `v0.1.0` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-0.1.0.dmg` (and a zip of the same app).
+The version is the `VERSION` file. Tagging `vX.Y.Z` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-<version>.dmg` and `BlinkyBot-<version>.zip`.
 
-## Upstream server install (Docker)
+## License
 
-[docker-compose.yml](docker-compose.yml) is the upstream Rerun self-host: the Next.js app (`apps/ui`) and the engine (`apps/engine`) in containers, with Supabase outside the file. It is how you reproduce a Rerun server. It is not the Phase 1 Mac install.
+[GNU Affero General Public License v3.0 only](LICENSE). You can run, modify, and host this code. If you host a modified version for other people, you publish those changes under the same license.
 
-The walkthrough is the upstream guide: [docs.rerun.build/self-host](https://docs.rerun.build/self-host) (source in `apps/docs/self-host/install.mdx`). An assistant following that server install uses [INSTALL.md](INSTALL.md).
+Upstream: [rerun-build/rerun](https://github.com/rerun-build/rerun). Package names such as `@rerun/*` and `rerun-engine` stay the upstream identifiers so the monorepo builds unchanged.
 
-You need Docker, Node.js 22, and a Supabase project (a free project on [supabase.com](https://supabase.com) works).
+## Upstream Rerun server install (not Phase 1)
 
-```bash
-git clone https://github.com/harrisliangsu/blinky-bot.git && cd blinky-bot
-cp .env.example .env
-node scripts/self-host-check.mjs
-npx supabase link --project-ref <your-project-ref> && npx supabase db push --include-seed
-docker compose up -d --build
-```
-
-Then open http://localhost:3000.
-
-To work on the UI from source, follow [CONTRIBUTING.md](CONTRIBUTING.md): `pnpm dev:engine` and `pnpm dev:ui`. That contributor loop is separate from both the Mac app and this Compose file.
+Docker and Supabase are the upstream Rerun server, not the BlinkyBot Mac install. That walkthrough is [docs/upstream-server.md](docs/upstream-server.md).
 
 ## 中文说明
 
-BlinkyBot 是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0），目标是跑在 Mac 上的本地智能体中枢。第一阶段的安装方式是打开 Mac 应用：应用自己拉起本地 Engine 和本地 Compose 界面，不需要 Docker，也不需要 Supabase 项目。界面、Foreman、记忆和人工确认（HITL）保留，Codex CLI、Kimi CLI、Grok CLI 作为首批运行时。运行契约见 `docs/no-docker-runtime.md`。Rex、Ego Browser、以云端 Engine 或 Supabase 为主的部署，以及 iOS、Windows、Linux 外壳不在第一阶段范围内。`docker-compose.yml` 仍是上游 Rerun 的服务器安装方式，留在仓库里，Mac 安装路径不会启动它。Rex 目前不在这个仓库里。并行分支合并进 `phase1/verify` 做验收。打上 `v*` tag 并推送后，GitHub Release 会附上 Mac 安装盘（见 `docs/releasing.md`）。Rerun 的名称与标识仍属于上游，本项目不声称获得 Rerun 背书。
+BlinkyBot 是跑在 Mac 上的本地智能体中枢。安装方式是下载磁盘映像，把 BlinkyBot 拖进「应用程序」，然后打开。应用自己启动本地 Engine 和 Compose 界面，不需要 Docker，也不需要 Supabase。数据在 `~/Library/Application Support/BlinkyBot`。首批运行时是这台 Mac 上的 Codex CLI、Kimi CLI、Grok CLI，以及已经安装的 Claude Code。
+
+本仓库是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0-only）。Rerun 的名称与标识仍属于上游，BlinkyBot 不声称获得 Rerun 背书。见 [TRADEMARK.md](TRADEMARK.md)。
+
+发布说明见 [docs/releasing.md](docs/releasing.md)。上游 Rerun 服务器安装（不是第一阶段）见 [docs/upstream-server.md](docs/upstream-server.md)。

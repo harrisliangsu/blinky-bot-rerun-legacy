@@ -19,6 +19,7 @@ import {
     readPid,
     redactPlan,
     repoRootFrom,
+    composeBuildEnv,
     spawnEnv,
     supportDir,
 } from './layout.mjs'
@@ -253,14 +254,13 @@ function dryRun() {
 }
 
 function build() {
-    const uiUrl = 'http://127.0.0.1:3000'
     const steps = [
-        ['pnpm', ['--filter', '@rerun/contracts', 'build'], {}],
-        ['pnpm', ['--filter', 'rerun-engine', 'build'], {}],
-        ['pnpm', ['--filter', 'rerun', 'build'], { BLINKY_LOCAL_AUTH: '1', NEXT_PUBLIC_APP_URL: uiUrl }],
+        ['pnpm', ['--filter', '@rerun/contracts', 'build'], process.env],
+        ['pnpm', ['--filter', 'rerun-engine', 'build'], process.env],
+        ['pnpm', ['--filter', 'rerun', 'build'], composeBuildEnv()],
     ]
-    for (const [command, args, extra] of steps) {
-        const result = spawnSync(command, args, { cwd: repoRoot, stdio: 'inherit', env: { ...process.env, ...extra } })
+    for (const [command, args, env] of steps) {
+        const result = spawnSync(command, args, { cwd: repoRoot, stdio: 'inherit', env })
         if (result.status !== 0) process.exit(result.status ?? 1)
     }
 }

@@ -1,11 +1,18 @@
 import { withPostHogConfig } from "@posthog/nextjs-config";
 import type { NextConfig } from "next";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 // Dokploy builds without .git, so a production build stamps itself. Written back to process.env so
 // every process of the same build inlines one value.
 process.env.NEXT_PUBLIC_BUILD_SHA ??= process.env.NODE_ENV === "production" ? `build-${Date.now()}` : "dev";
 
 const nextConfig: NextConfig = {
+  // The Mac app ships this traced server instead of the whole production node_modules tree.
+  output: "standalone",
+  outputFileTracingRoot: repoRoot,
   // A phone on the same wifi opens the dev server by its LAN address, which Next refuses to serve
   // scripts to unless it is listed here. A Conductor cloud workspace serves it behind
   // *.conductor.show: without that origin the page arrives but never hydrates, so every click dies.

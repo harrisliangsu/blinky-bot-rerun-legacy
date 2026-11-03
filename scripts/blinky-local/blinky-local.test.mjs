@@ -8,6 +8,7 @@ import { describe, it } from 'node:test'
 import {
     ENGINE_COMMAND,
     buildPlan,
+    composeBuildEnv,
     decideStart,
     isReady,
     layoutPaths,
@@ -172,6 +173,22 @@ describe('ready checks', () => {
         } finally {
             await new Promise((resolve) => server.close(resolve))
         }
+    })
+})
+
+describe('compose build env', () => {
+    it('does not inline a Supabase project into the Mac UI build', () => {
+        const env = composeBuildEnv({
+            PATH: '/usr/bin',
+            NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54421',
+            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: 'publishable',
+            SUPABASE_SECRET_KEY: 'secret',
+        })
+        assert.equal(env.BLINKY_LOCAL_AUTH, '1')
+        assert.equal(env.NEXT_PUBLIC_APP_URL, 'http://127.0.0.1:3000')
+        assert.equal(env.NEXT_PUBLIC_SUPABASE_URL, undefined)
+        assert.equal(env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, undefined)
+        assert.equal(env.SUPABASE_SECRET_KEY, undefined)
     })
 })
 

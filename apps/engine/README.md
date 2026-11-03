@@ -125,7 +125,9 @@ Shell and install run inside the agent workspace with a command-policy denylist.
 
 ## Deployment
 
-The engine runs in Docker, one container per workspace, next to the app or on a machine of its own:
+BlinkyBot Phase 1 does not run the engine in Docker. The Mac app starts `node dist/cli/bin.js run` on `127.0.0.1`. See [docs/no-docker-runtime.md](../../docs/no-docker-runtime.md).
+
+The upstream Rerun server runs the engine in Docker, one container per workspace, next to the app or on a machine of its own:
 
 ```bash
 docker build -f apps/engine/Dockerfile -t rerun-engine .   # from the repository root

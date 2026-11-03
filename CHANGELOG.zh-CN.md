@@ -8,6 +8,13 @@ GitHub Release 由 [Scripts/release-notes.py](Scripts/release-notes.py) 生成�
 
 应用版本就是这个标题，与 `VERSION` 文件以及 tag `v` 加该版本一致。
 
+## 0.1.1
+
+- **Mac 应用在没有 Supabase 项目时也能打开。** 本地模式不再在第一屏创建 Supabase 客户端，缺少项目 URL 或 API key 不会让看板崩溃。
+- **窗口是产品窗口。** 标题栏不再显示本机地址，后退、前进和刷新按钮也去掉了。
+- **安装包更小。** 应用带上的是 Next.js standalone 服务器和精简后的 Engine，不是完整依赖树。Chromium 不进安装包，第一次需要时再下载。
+- **安装方式是拖进「应用程序」。** 打开磁盘映像，把 BlinkyBot 拖到「应用程序」，再打开。它不是双击安装的 `.pkg`。
+
 ## 0.1.0
 
 - **BlinkyBot 以 Mac 应用安装。** 打开后，它会在这台 Mac 上启动本地 Engine 和 Compose 界面。不需要 Docker，也不需要 Supabase 项目。

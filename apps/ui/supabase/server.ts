@@ -1,6 +1,8 @@
 import type { Database } from '@/app/api/database.types'
+import { emptySupabase } from '@/lib/local-auth/empty-client'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServerClient } from '@supabase/ssr'
-import { createClient as createTokenClient } from '@supabase/supabase-js'
+import { createClient as createTokenClient, type SupabaseClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { readQueryWorkspace } from '@/lib/workspace/query-workspace'
 import { WORKSPACE_HEADER } from '@/lib/workspace/workspace-header'
@@ -34,13 +36,15 @@ export async function getRequestWorkspaceId(): Promise<number | null> {
 
 // For a route that signs someone in from the app: there is no cookie to read or write, and the session
 // it opens goes back in the response instead of being kept.
-export function createSessionlessClient() {
+export function createSessionlessClient(): SupabaseClient<Database> {
+    if (isBlinkyLocalAuth()) return emptySupabase()
     return createTokenClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
         auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     })
 }
 
-export async function createClient() {
+export async function createClient(): Promise<SupabaseClient<Database>> {
+    if (isBlinkyLocalAuth()) return emptySupabase()
     const accessToken = await getRequestAccessToken()
     if (accessToken) {
         return createTokenClient<Database>(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!, {
