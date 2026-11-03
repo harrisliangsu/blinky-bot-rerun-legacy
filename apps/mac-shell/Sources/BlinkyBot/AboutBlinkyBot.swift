@@ -13,7 +13,7 @@ enum AboutBlinkyBot {
         paragraph.alignment = .center
         let credits = NSAttributedString(
             string: """
-            BlinkyBot loads Rerun Compose on this Mac.
+            BlinkyBot starts the local engine and Compose on this Mac, then loads Compose.
 
             Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only). The license text is the LICENSE file in the BlinkyBot repository.
 

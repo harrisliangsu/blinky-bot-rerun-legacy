@@ -4,7 +4,7 @@ This is the Phase 1 install contract. BlinkyBot on a Mac installs and opens. The
 
 `docker-compose.yml` remains in the tree for the upstream Rerun server install. The Phase 1 Mac path does not invoke it.
 
-The window sources live in `apps/mac-shell`. They load `http://127.0.0.1:3000` and do not yet spawn the processes below. Local auth is implemented in `apps/ui/lib/local-auth` (`BLINKY_LOCAL_AUTH=1`). Supervision of the two Node processes is still a later change. Until that lands, a developer can start the same two Node processes from a checkout. That is a dev loop. It is not the install, and it still does not use Docker.
+The window sources in `apps/mac-shell` spawn the processes below, set `BLINKY_LOCAL_AUTH=1`, and load `http://127.0.0.1:3000` when both ready URLs answer. Local auth is implemented in `apps/ui/lib/local-auth`. A developer checkout can also start the same two Node processes by hand. That remains a dev loop, and it still does not use Docker.
 
 ## Process model
 

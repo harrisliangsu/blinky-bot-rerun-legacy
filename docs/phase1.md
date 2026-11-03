@@ -48,4 +48,4 @@ A change that makes the Mac app require Docker, a Supabase project, or `npx supa
 
 Package identifiers (`rerun`, `rerun-engine`, `@rerun/*`) stay, so pnpm filters and workspace links keep working. Most in-app copy still says Rerun where it names an upstream provider, Rerun Cloud, or a test fixture. The app title, install metadata, and default wordmark label say BlinkyBot.
 
-The window in `apps/mac-shell` loads `http://127.0.0.1:3000`. Process supervision and the local auth SQLite file are specified in [no-docker-runtime.md](no-docker-runtime.md). The implementation that spawns the engine and the UI, and that serves the board without a Supabase client, lands against that contract.
+The window in `apps/mac-shell` loads `http://127.0.0.1:3000` and spawns the engine and the UI as specified in [no-docker-runtime.md](no-docker-runtime.md). It sets `BLINKY_LOCAL_AUTH=1`. That boot is implemented in `apps/ui/lib/local-auth`.
