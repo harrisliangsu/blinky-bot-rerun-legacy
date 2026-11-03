@@ -1,0 +1,16 @@
+# 更新记录
+
+每个版本改了什么，写给正在决定要不要装的人看。
+
+本文件是 GitHub Release **中文**正文的来源；英文仍见 [CHANGELOG.md](CHANGELOG.md)。
+GitHub Release 由 [Scripts/release-notes.py](Scripts/release-notes.py) 生成双语正文（中文在前）。
+在打 tag 之前写好 `## x.y.z` 条目；语法与英文相同：列表、`**粗体**`、`` `代码` ``、`[链接](https://example.com)`。
+
+应用版本就是这个标题，与 `VERSION` 文件以及 tag `v` 加该版本一致。
+
+## 0.1.0
+
+- **BlinkyBot 以 Mac 应用安装。** 打开后，它会在这台 Mac 上启动本地 Engine 和 Compose 界面。不需要 Docker，也不需要 Supabase 项目。
+- **首批运行时是这台 Mac 上已有的 CLI。** Codex CLI、Kimi CLI、Grok CLI，以及已经安装的 Claude Code。
+- **同事、记忆和审批留在这台 Mac 上。** 数据在 `~/Library/Application Support/BlinkyBot`。
+- **协议是 AGPL-3.0-only。** 许可全文在应用包里，也在仓库里。本项目是 Rerun 的分支。

@@ -14,3 +14,5 @@ Phase 1 work from parallel agents merges into **`phase1/verify`** for acceptance
 - Leave the engine, the coworker desktop, `docker-compose.yml`, and the cloud modules in place. Docker and Supabase stay the upstream server install. The Phase 1 Mac install does not require them. Document what Phase 1 ignores in [docs/phase1.md](docs/phase1.md). Do not delete them in a drive-by.
 
 Scope and the stack sketch: [docs/phase1.md](docs/phase1.md), [docs/architecture-phase1.md](docs/architecture-phase1.md), [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
+
+Cutting a Mac release (tag `v*`, DMG, zip) is [docs/releasing.md](docs/releasing.md).
