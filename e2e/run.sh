@@ -169,13 +169,14 @@ install_rex_fixture() {
     local bin="$app/Contents/Helpers/Rex Server.rex/Contents/MacOS"
     rm -rf "$app"
     mkdir -p "$bin" "$app/Contents"
-    cat >"$app/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.superlogical.rex</string></dict></plist>
-PLIST
+    python3 - "$app/Contents/Info.plist" <<'PY'
+import plistlib, sys
+plistlib.dump({"CFBundleIdentifier": "com.superlogical.rex", "CFBundleName": "Rex"}, open(sys.argv[1], "wb"))
+PY
     cp "$ROOT/e2e/stubs/rex" "$bin/rex"
     chmod +x "$bin/rex"
+    cp "$bin/rex" "$OUT/bin/rex"
+    chmod +x "$OUT/bin/rex"
     export BLINKY_REX_LOG="$bin/calls.log"
     : >"$BLINKY_REX_LOG"
 }

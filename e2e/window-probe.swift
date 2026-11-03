@@ -60,7 +60,7 @@ func pressSwitch(element: AXUIElement, parent: AXUIElement?) -> Bool {
     return false
 }
 
-func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, lastMatch: inout AXUIElement?, parent: AXUIElement?, visits: inout Int) {
+func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clickLast: Bool, clicked: inout Bool, lastElement: inout AXUIElement?, lastParent: inout AXUIElement?, parent: AXUIElement?, visits: inout Int) {
     if depth > 18 || visits > 4000 || notes.count > 500 { return }
     visits += 1
     var titleRef: CFTypeRef?
@@ -89,14 +89,15 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
         }
     }
     if let click, label == click || (role == "AXStaticText" && valueRef as? String == click) {
-        lastMatch = parent ?? element
-        if !clicked {
+        lastElement = element
+        lastParent = parent
+        if !clickLast && !clicked {
             clicked = pressSwitch(element: element, parent: parent)
         }
     }
     if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success, let children = childrenRef as? [AXUIElement] {
         for child in children.prefix(50) {
-            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, parent: element, visits: &visits)
+            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clickLast: clickLast, clicked: &clicked, lastElement: &lastElement, lastParent: &lastParent, parent: element, visits: &visits)
         }
     }
 }
@@ -110,18 +111,19 @@ func accessibility(of windows: [ListedWindow], click: String?, clickLast: Bool) 
     var urlField = false
     var chrome = false
     var clicked = false
-    var lastMatch: AXUIElement?
+    var lastElement: AXUIElement?
+    var lastParent: AXUIElement?
     var visits = 0
     let axApp = AXUIElementCreateApplication(app.processIdentifier)
     AXUIElementSetAttributeValue(axApp, "AXManualAccessibility" as CFString, kCFBooleanTrue)
     var ref: CFTypeRef?
     if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref) == .success, let axWindows = ref as? [AXUIElement] {
         for window in axWindows {
-            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, parent: nil, visits: &visits)
+            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clickLast: clickLast, clicked: &clicked, lastElement: &lastElement, lastParent: &lastParent, parent: nil, visits: &visits)
         }
     }
-    if clickLast, let lastMatch {
-        clicked = AXUIElementPerformAction(lastMatch, kAXPressAction as CFString) == .success
+    if clickLast, let lastElement {
+        clicked = pressSwitch(element: lastElement, parent: lastParent)
     }
     _ = windows
     return (true, notes, urlField, chrome, clicked)
