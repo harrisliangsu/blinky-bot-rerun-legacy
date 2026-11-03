@@ -109,9 +109,12 @@ async function persist() {
     const page = await context.newPage()
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+        await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         const visible = page.getByText(reply).first()
-        if (!(await visible.waitFor({ timeout: 20_000 }).then(() => true).catch(() => false))) {
-            await page.getByText(state.label || suggestion).first().click({ timeout: 20_000 })
+        if (!(await visible.waitFor({ timeout: 8_000 }).then(() => true).catch(() => false))) {
+            const session = await engine(`/agents/${state.agentId}/sessions/${state.sessionId}`)
+            await page.getByRole('button', { name: 'Chats', exact: true }).click()
+            await page.getByRole('button', { name: session.title || 'Untitled' }).last().click()
         }
         await page.getByText(reply).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'after-relaunch.png') })

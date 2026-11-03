@@ -2,6 +2,7 @@ import { AuthorizationError, assertAgentInWorkspace, assertSessionInWorkspace, t
 import { createSessionRow, getSessionEngineContext, lastRunError, listSessionRuns, readUsageSeed, resolveAgentTarget, type SessionUsageSeed, updateSessionStatus } from '@/app/api/_services/chat.service'
 import { type HistoryMessage, transformEngineMessages } from '@/lib/chat/engine-history'
 import { ATTENTION_NOTIFICATION_COLUMNS, attentionDetailsOf, attentionNotificationsFilter } from '@/lib/notifications/attention-details'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { sanitizeIlike } from '@/lib/search/ilike'
 import { cancelRun, getSession, getSessionMessages, listRuns, listSessions, listSkillProposals } from '@/lib/engine/client'
 import type { EngineSkillProposal, SessionSource } from '@/lib/engine/types'
@@ -42,7 +43,8 @@ export async function listAgentSessions(agentId: string): Promise<SessionHistory
     const engineSessions = target ? await listSessions(target.conn, target.engineAgentId).catch(() => []) : []
 
     const mirrored = new Set(supabaseRows.map(r => r.engine_session_id))
-    const unmirrored = engineSessions.filter(s => s.originAgentId && !mirrored.has(s.id))
+    const local = isBlinkyLocalAuth()
+    const unmirrored = engineSessions.filter(s => !mirrored.has(s.id) && (local || s.originAgentId))
 
     const engineOriginIds = [...new Set(unmirrored.map(s => s.originAgentId).filter((v): v is string => !!v))]
     const supabaseOriginIds = [...new Set(supabaseRows.map(r => r.origin_agent_id).filter((v): v is string => !!v))]
@@ -74,7 +76,7 @@ export async function listAgentSessions(agentId: string): Promise<SessionHistory
             outcome: r.outcome,
         })),
         ...unmirrored.map(s => ({
-            id: null,
+            id: local ? s.id : null,
             agentId,
             engineSessionId: s.id,
             title: s.title,
