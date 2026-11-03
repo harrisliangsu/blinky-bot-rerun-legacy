@@ -33,6 +33,12 @@ node dist/cli/bin.js run
 | `RERUN_DESKTOP` | `off` |
 | `RERUN_LOG_LEVEL` | `info` |
 
+The engine and Compose processes get `~/.local/bin` on `PATH`. A GUI app does not inherit a shell profile, and that directory is where ego(lite) onboarding registers `ego-browser`.
+
+## ego(lite)
+
+Agent browser tasks (`browser_navigate`) run in [ego(lite)](https://lite.ego.app/) through the `ego-browser` command. Settings shows whether `ego lite.app` is installed and whether onboarding has registered the command. The check is `EgoLiteDetection.detect(home:path:fileExists:isExecutable:)` in `BlinkyLocalRuntime`, so a first-run screen can add it as a step without reimplementing the lookup. `EgoLiteCopy.string` is the English and Chinese copy for that step. If ego(lite) is missing, the browser task fails with setup instructions. It does not open another browser.
+
 Compose:
 
 ```bash

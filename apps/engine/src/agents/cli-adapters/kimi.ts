@@ -1,3 +1,4 @@
+import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { childEnv, resolveCommand } from './binary.js'
 import type { CliAdapterInfo, CliInvocation, CliRunRequest, CliSystemDelivery } from './types.js'
 
@@ -17,12 +18,8 @@ export const kimiAdapter: CliAdapterInfo & { build(request: CliRunRequest, proce
         if (session.kind === 'resume') args.push('--session', session.id)
         else if (session.kind === 'continue') args.push('--continue')
         if (request.model) args.push('-m', request.model)
-        let prompt = request.prompt
-        let systemDelivery: CliSystemDelivery = 'none'
-        if (request.system) {
-            prompt = `${request.system}\n\n${request.prompt}`
-            systemDelivery = 'prepended'
-        }
+        const prompt = `${egoBrowserSystem(request.system)}\n\n${request.prompt}`
+        const systemDelivery: CliSystemDelivery = 'prepended'
         args.push('-p', prompt, '--output-format', 'stream-json')
         return {
             id: this.id,

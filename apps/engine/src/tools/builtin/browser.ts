@@ -1,46 +1,31 @@
-import { mkdir, rm } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
-import { chromium, type BrowserContext, type Page } from 'patchright'
+import { chromium, type BrowserContext } from 'patchright'
 import { tool, type ToolSet } from 'ai'
 import { z } from 'zod'
 import { resolveInWorkspace } from '../sandbox.js'
 import { HostBreaker, hostOf, isFailureStatus, withHostBreaker, type HostAttempt } from '../host-breaker.js'
-import { detectBotWall, type BotWall } from '../bot-wall.js'
-import { holdDisplay, type DisplayHold } from '../virtual-display.js'
+import { detectBotWall } from '../bot-wall.js'
 import { offersTakeover } from './hitl.js'
 import { browserProfileDir } from '../../config/paths.js'
 import { withKeyedLock } from '../../lib/lock.js'
 import type { RunContext } from '../../runtime/context.js'
-import { joinableBrowser } from '../../desktop/takeover.js'
+import { driveEgoBrowser, EGO_BROWSER_SETUP, screenshotBytes, type EgoPage } from '../../browser/ego-browser.js'
 import { savePage } from './page-file.js'
 
 const TEXT_LIMIT = 50_000
 const LINKS_LIMIT = 300
 const LINK_TEXT_LIMIT = 80
-const CHALLENGE_POLL_MS = 1_000
-const CHALLENGE_MAX_WAIT_MS = 15_000
-const RENDER_SETTLE_MS = 5_000
-const CONSENT_TIMEOUT_MS = 2_000
-const BLOCKED_RESOURCE_TYPES = new Set(['image', 'media', 'font'])
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket']
 // Only cookies, consents and storage are worth keeping between calls; the caches would grow every
 // agent's profile by tens of MB on boxes whose disk is already short.
 const PROFILE_CACHE_DIRS = ['Default/Cache', 'Default/Code Cache', 'Default/GPUCache', 'Default/DawnWebGPUCache', 'Default/DawnGraphiteCache', 'Default/Service Worker/CacheStorage', 'BrowserMetrics']
 const PROFILE_IN_USE = /ProcessSingleton|profile appears to be in use/i
 
-const CONSENT_SELECTORS = [
-    '#L2AGLb',
-    'form[action^="https://consent."] button[aria-label^="Accept"]',
-    '#onetrust-accept-btn-handler',
-    '#didomi-notice-agree-button',
-    '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
-    '#axeptio_btn_acceptAll',
-    '.qc-cmp2-summary-buttons button[mode="primary"]',
-].join(', ')
-const CONSENT_BUTTON_NAME = /^(accept all|accept|allow all|i agree|agree|tout accepter|accepter|alle akzeptieren|aceptar todo)$/i
-
 type LaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>
 
+// Still used by the watched desktop (RERUN_DESKTOP, off in BlinkyBot) when a person takes over
+// that screen. browser_navigate does not call this and does not fall back to it.
 export async function launchContext(profileDir: string, display: string | null, extra: LaunchOptions = {}): Promise<BrowserContext> {
     const options: LaunchOptions = {
         channel: 'chromium',
@@ -52,8 +37,6 @@ export async function launchContext(profileDir: string, display: string | null, 
     try {
         return await chromium.launchPersistentContext(profileDir, options)
     } catch (e) {
-        // A Chromium killed with the engine leaves its lock behind; calls of one agent are serialized,
-        // so nothing else on this box can be holding the profile.
         if (!PROFILE_IN_USE.test((e as Error).message)) throw e
         await Promise.all(PROFILE_LOCK_FILES.map(name => rm(resolve(profileDir, name), { force: true })))
         return chromium.launchPersistentContext(profileDir, options)
@@ -64,52 +47,12 @@ export async function dropProfileCaches(agentId: string): Promise<void> {
     await Promise.all(PROFILE_CACHE_DIRS.map(dir => rm(resolve(browserProfileDir(agentId), dir), { recursive: true, force: true })))
 }
 
-// undefined while the page is mid-navigation (a challenge redirecting to the real page).
-async function currentBotWall(page: Page): Promise<BotWall | null | undefined> {
-    try {
-        const [html, text] = await Promise.all([page.content(), page.innerText('body')])
-        return detectBotWall({ html, text })
-    } catch {
-        return undefined
-    }
-}
-
-async function waitOutBotWall(page: Page, timeoutMs: number): Promise<BotWall | null> {
-    const polls = Math.floor(Math.min(CHALLENGE_MAX_WAIT_MS, timeoutMs / 2) / CHALLENGE_POLL_MS)
-    let wall = await currentBotWall(page)
-    for (let i = 0; i < polls && wall !== null && wall?.clearsByItself !== false; i++) {
-        await page.waitForTimeout(CHALLENGE_POLL_MS)
-        wall = await currentBotWall(page)
-    }
-    return wall ?? null
-}
-
-// Some consent walls (YouTube, Google) submit a form and navigate to the real page: the text is
-// only worth reading once that page has loaded.
-async function acceptCookieBanner(page: Page, timeoutMs: number): Promise<boolean> {
-    const button = page.locator(CONSENT_SELECTORS).or(page.getByRole('button', { name: CONSENT_BUTTON_NAME })).first()
-    try {
-        if (!(await button.isVisible())) return false
-        const navigated = page.waitForEvent('framenavigated', { predicate: frame => frame === page.mainFrame(), timeout: CONSENT_TIMEOUT_MS }).catch(() => null)
-        await button.click({ timeout: CONSENT_TIMEOUT_MS })
-        if (await navigated) await page.waitForLoadState('domcontentloaded', { timeout: timeoutMs })
-        return true
-    } catch {
-        return false
-    }
-}
-
-async function settle(page: Page): Promise<void> {
-    await page.waitForLoadState('networkidle', { timeout: RENDER_SETTLE_MS }).catch(() => {})
-}
-
 type Visit = { url: string; screenshotPath?: string; links?: boolean; timeoutMs: number }
 
-async function readLinks(page: Page): Promise<string> {
-    const anchors = await page.$$eval('a[href]', elements => elements.map(a => ({ href: (a as HTMLAnchorElement).href, text: (a as HTMLElement).innerText ?? '' })))
+function formatLinks(links: Array<{ href: string; text: string }>): string {
     const seen = new Set<string>()
     const lines: string[] = []
-    for (const { href, text } of anchors) {
+    for (const { href, text } of links) {
         if (!/^https?:\/\//.test(href) || seen.has(href)) continue
         seen.add(href)
         const label = text.replace(/\s+/g, ' ').trim().slice(0, LINK_TEXT_LIMIT)
@@ -119,44 +62,28 @@ async function readLinks(page: Page): Promise<string> {
     return `\n\nLinks:\n${lines.length ? lines.join('\n') : 'none'}`
 }
 
-async function readPage(ctx: RunContext, page: Page, { url, screenshotPath, links, timeoutMs }: Visit): Promise<HostAttempt> {
-    let documentStatus: number | undefined
-    page.on('response', response => {
-        if (response.request().resourceType() === 'document' && response.frame() === page.mainFrame()) documentStatus = response.status()
-    })
-    const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs })
-    const wall = await waitOutBotWall(page, timeoutMs)
-    if (!wall) {
-        await settle(page)
-        if (await acceptCookieBanner(page, timeoutMs)) await settle(page)
-    }
-    const status = documentStatus ?? response?.status() ?? 0
+async function present(ctx: RunContext, visit: Visit, page: EgoPage): Promise<HostAttempt> {
+    const url = page.finalUrl || visit.url
+    const wall = detectBotWall({ html: page.html, text: page.text })
     const body = wall
-        ? `Blocked by ${wall.provider} bot protection, so this page cannot be read from here. ${offersTakeover(ctx.agent.config) ? 'If the user can get past it by hand, call request_takeover with this URL; otherwise use another source.' : 'Use another source.'}`
-        : (await page.innerText('body')).replace(/\s+\n/g, '\n').trim().slice(0, TEXT_LIMIT)
-    const linkList = links && !wall ? await readLinks(page) : ''
-    const html = wall ? null : await page.content().catch(() => null)
-    const saved = html === null ? null : await savePage(ctx.agent.id, { url, view: 'browser', body: html, ext: 'html', status, finalUrl: page.url() })
+        ? `Blocked by ${wall.provider} bot protection, so this page cannot be read from here. The page stays open in this coworker's ego(lite) Space. ${offersTakeover(ctx.agent.config) ? 'If the user can get past it by hand, call request_takeover with this URL; otherwise open ego(lite) and clear the check there, then try browser_navigate again.' : 'Open ego(lite) and clear the check in that Space if a person can, then try again. Otherwise use another source.'}`
+        : page.text.replace(/\s+\n/g, '\n').trim().slice(0, TEXT_LIMIT)
+    const linkList = visit.links && !wall ? formatLinks(page.links) : ''
+    const saved = wall || !page.html ? null : await savePage(ctx.agent.id, { url: visit.url, view: 'browser', body: page.html, ext: 'html', status: page.status, finalUrl: url })
     let note = ''
-    if (screenshotPath) {
-        const target = resolveInWorkspace(ctx.agent.id, screenshotPath)
-        await mkdir(dirname(target), { recursive: true })
-        await page.screenshot({ path: target, fullPage: true })
-        note = `\n\n[screenshot saved to ${screenshotPath}]`
+    if (visit.screenshotPath && !wall) {
+        const target = resolveInWorkspace(ctx.agent.id, visit.screenshotPath)
+        const bytes = screenshotBytes(page.screenshot)
+        if (bytes) {
+            await mkdir(dirname(target), { recursive: true })
+            await writeFile(target, bytes)
+            note = `\n\n[screenshot saved to ${visit.screenshotPath}]`
+        } else {
+            note = '\n\n[screenshot was not saved: captureScreenshot did not return an image BlinkyBot could write]'
+        }
     }
     const savedLine = saved ? `\nSaved whole: ${saved} (the rendered HTML: read or grep it for anything this text leaves out)` : ''
-    return { text: `[${status}] ${url}${savedLine}\n\n${body}${linkList}${note}`, failed: !!wall || isFailureStatus(status) }
-}
-
-const navigationFailed = (e: unknown): HostAttempt => ({ text: `Navigation failed: ${(e as Error).message}`, failed: true })
-
-// The tab stays open and loads everything: it is on the screen the agent and a person look at.
-async function readInOpenBrowser(ctx: RunContext, context: BrowserContext, visit: Visit): Promise<HostAttempt> {
-    try {
-        return await readPage(ctx, await context.newPage(), visit)
-    } catch (e) {
-        return navigationFailed(e)
-    }
+    return { text: `[${page.status}] ${url}${savedLine}\n\n${body}${linkList}${note}`, failed: !!wall || isFailureStatus(page.status) }
 }
 
 export function browserTools(ctx: RunContext): ToolSet {
@@ -164,37 +91,33 @@ export function browserTools(ctx: RunContext): ToolSet {
     const breaker = ctx.hostBreaker ?? new HostBreaker()
     return {
         browser_navigate: tool({
-            description: 'Open a URL in a real Chromium browser, wait for it to render (including JavaScript and bot-protection challenges, cookie banners accepted), and return the visible text, plus the links on the page when you ask for them. Cookies persist between your calls. Use this instead of web_fetch for pages that need JS to load or that block simple requests. Optionally save a screenshot into your workspace to inspect later with vision_analyze.',
+            description:
+                'Open a URL in ego(lite) through the ego-browser command. The page renders in this coworker\'s isolated Space, which reuses logins the user imported into ego(lite), and this returns the page snapshot, plus the links when you ask for them. Use this instead of web_fetch for pages that need JavaScript, and instead of any other browser. If ego(lite) is not installed or its onboarding is unfinished, this fails with setup instructions and does not switch to Chromium or Playwright. Optionally save a screenshot into your workspace to inspect later with vision_analyze.',
             inputSchema: z.object({
                 url: z.string().url(),
-                screenshotPath: z.string().optional().describe('Workspace-relative path to save a full-page PNG screenshot'),
+                screenshotPath: z.string().optional().describe('Workspace-relative path to save a PNG screenshot'),
                 links: z.boolean().default(false).describe('Also list the links on the page (text and URL), e.g. to open the results of a search'),
                 timeoutMs: z.number().int().positive().max(120_000).default(30_000),
             }),
             execute: async (visit: Visit) => {
                 const host = hostOf(visit.url)
                 return withHostBreaker(breaker, host ? [host] : [], async (): Promise<HostAttempt> => {
-                    // Nothing is awaited when there is no window to join, so the lock below is
-                    // taken before a session opening right now can take it and be missed.
-                    const joining = joinableBrowser(id)
-                    const open = joining && (await joining)
-                    if (open) return readInOpenBrowser(ctx, open, visit)
                     return withKeyedLock(`browser:${id}`, async (): Promise<HostAttempt> => {
-                        let context: BrowserContext | undefined
-                        let screen: DisplayHold | undefined
                         try {
-                            screen = await holdDisplay(id)
-                            context = await launchContext(browserProfileDir(id), screen.display)
-                            if (!visit.screenshotPath) {
-                                await context.route('**/*', route => (BLOCKED_RESOURCE_TYPES.has(route.request().resourceType()) ? route.abort() : route.continue()))
+                            const driven = await driveEgoBrowser({
+                                agentId: id,
+                                url: visit.url,
+                                timeoutMs: visit.timeoutMs,
+                                links: visit.links === true,
+                                screenshot: Boolean(visit.screenshotPath),
+                            })
+                            if (!driven.ok) {
+                                if (driven.missing) return { text: EGO_BROWSER_SETUP, failed: false }
+                                return { text: `Navigation failed: ${driven.message}`, failed: true }
                             }
-                            return await readPage(ctx, context.pages()[0] ?? (await context.newPage()), visit)
+                            return await present(ctx, visit, driven.page)
                         } catch (e) {
-                            return navigationFailed(e)
-                        } finally {
-                            await context?.close().catch(() => {})
-                            screen?.release()
-                            await dropProfileCaches(id)
+                            return { text: `Navigation failed: ${(e as Error).message}`, failed: true }
                         }
                     })
                 })

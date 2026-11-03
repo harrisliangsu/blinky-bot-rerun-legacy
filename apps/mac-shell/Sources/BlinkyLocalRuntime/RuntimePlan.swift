@@ -252,6 +252,7 @@ func extraBinDirectories(home: String) -> [String] {
     [
         "/opt/homebrew/bin",
         "/usr/local/bin",
+        childPath(home, ".local/bin"),
         childPath(home, ".volta/bin"),
         childPath(home, "Library/pnpm"),
         childPath(home, ".local/share/pnpm"),

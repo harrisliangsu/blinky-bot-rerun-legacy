@@ -15,6 +15,8 @@ struct BlinkySettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 ComposeSettingsView()
                 Divider()
+                EgoLiteSettingsView()
+                Divider()
                 UpdateSettingsView()
                 Divider()
                 LocalStackSettingsView()

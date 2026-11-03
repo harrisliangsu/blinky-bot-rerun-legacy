@@ -1,3 +1,4 @@
+import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { childEnv, resolveCommand } from './binary.js'
 import type { CliAdapterInfo, CliInvocation, CliRunRequest, CliSystemDelivery } from './types.js'
 
@@ -14,11 +15,8 @@ export const grokAdapter: CliAdapterInfo & { build(request: CliRunRequest, proce
         const session = request.session ?? { kind: 'new' }
         const args = [...resolved.args, '--no-auto-update', '--always-approve', '--output-format', 'json', '--cwd', request.cwd]
         if (request.model) args.push('-m', request.model)
-        let systemDelivery: CliSystemDelivery = 'none'
-        if (request.system) {
-            args.push('--system-prompt-override', request.system)
-            systemDelivery = 'flag'
-        }
+        args.push('--system-prompt-override', egoBrowserSystem(request.system))
+        const systemDelivery: CliSystemDelivery = 'flag'
         if (session.kind === 'resume') args.push('--resume', session.id)
         else if (session.kind === 'continue') args.push('--continue')
         args.push('-p', request.prompt)

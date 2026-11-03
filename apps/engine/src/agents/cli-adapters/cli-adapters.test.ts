@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { cliInvocation, CliAdapterError, enabledCliRuntimes, listCliAdapters, runLocalCli, type CliRunRequest, type CliRuntimeId } from './index.js'
 
 const cwd = mkdtempSync(join(tmpdir(), 'cli-adapters-'))
@@ -41,7 +42,7 @@ describe('cliInvocation', () => {
     it('builds a codex exec command, and resumes with exec resume', () => {
         const named = cliInvocation('codex', { ...base, model: 'gpt-5.6-sol', system: 'Be brief', session: { kind: 'resume', id: 'thread-1' }, home: '/tmp/codex-home', env: { CODEX_API_KEY: 'secret' } }, { RERUN_CODEX_PATH: '/opt/bin/codex' })
         expect(named).toMatchObject({ id: 'codex', command: '/opt/bin/codex', maturity: 'wired', systemDelivery: 'flag', cwd })
-        expect(named.args).toEqual(['exec', 'resume', 'thread-1', '--json', '--skip-git-repo-check', '--sandbox', 'danger-full-access', '-c', 'approval_policy=never', '-m', 'gpt-5.6-sol', '-c', 'instructions=Be brief', '--', 'Say hi'])
+        expect(named.args).toEqual(['exec', 'resume', 'thread-1', '--json', '--skip-git-repo-check', '--sandbox', 'danger-full-access', '-c', 'approval_policy=never', '-m', 'gpt-5.6-sol', '-c', `instructions=${egoBrowserSystem('Be brief')}`, '--', 'Say hi'])
         expect(named.env).toMatchObject({ CODEX_HOME: '/tmp/codex-home', CODEX_API_KEY: 'secret' })
         expect(named.args.join(' ')).not.toContain('secret')
 
@@ -50,8 +51,8 @@ describe('cliInvocation', () => {
 
         const fresh = cliInvocation('codex', base, {})
         expect(fresh.command).toBe('codex')
-        expect(fresh.args).toEqual(['exec', '--json', '--skip-git-repo-check', '--sandbox', 'danger-full-access', '-c', 'approval_policy=never', '--', 'Say hi'])
-        expect(fresh.systemDelivery).toBe('none')
+        expect(fresh.args).toEqual(['exec', '--json', '--skip-git-repo-check', '--sandbox', 'danger-full-access', '-c', 'approval_policy=never', '-c', `instructions=${egoBrowserSystem(undefined)}`, '--', 'Say hi'])
+        expect(fresh.systemDelivery).toBe('flag')
         expect(fresh.env.CODEX_HOME).toBeUndefined()
 
         const script = cliInvocation('codex', base, { RERUN_CODEX_PATH: '/opt/codex.js' })
@@ -62,7 +63,7 @@ describe('cliInvocation', () => {
     it('builds a kimi print command and prepends the system text', () => {
         const named = cliInvocation('kimi', { ...base, prompt: 'Do it', model: 'kimi-code/kimi-for-coding', system: 'Rules', session: { kind: 'resume', id: '01HZ' }, home: '/tmp/kimi-home', env: { KIMI_API_KEY: 'secret' } }, { RERUN_KIMI_PATH: '/opt/bin/kimi' })
         expect(named).toMatchObject({ command: '/opt/bin/kimi', maturity: 'spawn-ready', systemDelivery: 'prepended' })
-        expect(named.args).toEqual(['--session', '01HZ', '-m', 'kimi-code/kimi-for-coding', '-p', 'Rules\n\nDo it', '--output-format', 'stream-json'])
+        expect(named.args).toEqual(['--session', '01HZ', '-m', 'kimi-code/kimi-for-coding', '-p', `${egoBrowserSystem('Rules')}\n\nDo it`, '--output-format', 'stream-json'])
         expect(named.env).toMatchObject({ KIMI_CODE_HOME: '/tmp/kimi-home', KIMI_API_KEY: 'secret' })
         expect(named.args.join(' ')).not.toContain('secret')
         expect(named.args).not.toContain('--auto')
@@ -72,14 +73,14 @@ describe('cliInvocation', () => {
         expect(continued.args.slice(0, 1)).toEqual(['--continue'])
 
         const fresh = cliInvocation('kimi', base, {})
-        expect(fresh.args).toEqual(['-p', 'Say hi', '--output-format', 'stream-json'])
-        expect(fresh.systemDelivery).toBe('none')
+        expect(fresh.args).toEqual(['-p', `${egoBrowserSystem(undefined)}\n\nSay hi`, '--output-format', 'stream-json'])
+        expect(fresh.systemDelivery).toBe('prepended')
     })
 
     it('builds a grok headless command and does not mint a session id', () => {
         const named = cliInvocation('grok', { ...base, model: 'grok-4.7', system: 'Be brief', session: { kind: 'resume', id: 'sess-9' }, home: '/tmp/grok-home', env: { XAI_API_KEY: 'secret' } }, { RERUN_GROK_PATH: '/opt/bin/grok' })
         expect(named).toMatchObject({ command: '/opt/bin/grok', maturity: 'spawn-ready', systemDelivery: 'flag' })
-        expect(named.args).toEqual(['--no-auto-update', '--always-approve', '--output-format', 'json', '--cwd', cwd, '-m', 'grok-4.7', '--system-prompt-override', 'Be brief', '--resume', 'sess-9', '-p', 'Say hi'])
+        expect(named.args).toEqual(['--no-auto-update', '--always-approve', '--output-format', 'json', '--cwd', cwd, '-m', 'grok-4.7', '--system-prompt-override', egoBrowserSystem('Be brief'), '--resume', 'sess-9', '-p', 'Say hi'])
         expect(named.args).not.toContain('--session-id')
         expect(named.env).toMatchObject({ GROK_HOME: '/tmp/grok-home', XAI_API_KEY: 'secret' })
         expect(named.args.join(' ')).not.toContain('secret')
@@ -90,7 +91,8 @@ describe('cliInvocation', () => {
         expect(continued.args).not.toContain('--resume')
 
         const fresh = cliInvocation('grok', base, {})
-        expect(fresh.systemDelivery).toBe('none')
+        expect(fresh.systemDelivery).toBe('flag')
+        expect(fresh.args).toContain(egoBrowserSystem(undefined))
         expect(fresh.args).not.toContain('-m')
         expect(fresh.env.GROK_HOME).toBeUndefined()
     })
@@ -102,7 +104,7 @@ describe('cliInvocation', () => {
             { RERUN_CLAUDE_PATH: '/opt/claude.mjs', ANTHROPIC_API_KEY: 'ambient' },
         )
         expect(named).toMatchObject({ command: 'node', maturity: 'wired', systemDelivery: 'flag' })
-        expect(named.args).toEqual(['/opt/claude.mjs', '-p', '--output-format', 'json', '--dangerously-skip-permissions', '--resume', 'sess-2', '--model', 'claude-sonnet-5', '--system-prompt', 'You are Blinky.', 'Say hi'])
+        expect(named.args).toEqual(['/opt/claude.mjs', '-p', '--output-format', 'json', '--dangerously-skip-permissions', '--resume', 'sess-2', '--model', 'claude-sonnet-5', '--system-prompt', egoBrowserSystem('You are Blinky.'), 'Say hi'])
         expect(named.env.CLAUDE_CODE_OAUTH_TOKEN).toBe('oat')
         expect(named.env.CLAUDE_CONFIG_DIR).toBe('/tmp/claude-b')
         expect(named.env.ANTHROPIC_API_KEY).toBeUndefined()
@@ -114,7 +116,8 @@ describe('cliInvocation', () => {
         expect(continued.env.ANTHROPIC_API_KEY).toBe('ambient')
 
         const fresh = cliInvocation('claude', base, {})
-        expect(fresh.systemDelivery).toBe('none')
+        expect(fresh.systemDelivery).toBe('flag')
+        expect(fresh.args).toContain(egoBrowserSystem(undefined))
         expect(fresh.args).not.toContain('--model')
         expect(fresh.env.CLAUDE_CONFIG_DIR).toBeUndefined()
     })
@@ -184,7 +187,7 @@ process.stderr.write('stderr-note')
             expect(result.exitCode).toBe(0)
             expect(result.stderr).toBe('stderr-note')
             const parsed = JSON.parse(result.stdout) as { argv: string[]; env: Record<string, string> }
-            expect(parsed.argv).toContain('hello')
+            expect(parsed.argv.join('\n')).toContain('hello')
             expect(parsed.argv).toContain('sess-1')
             expect(JSON.stringify(parsed.argv)).not.toContain('secret')
             if (id === 'claude') expect(parsed.env.ANTHROPIC_API_KEY).toBeUndefined()

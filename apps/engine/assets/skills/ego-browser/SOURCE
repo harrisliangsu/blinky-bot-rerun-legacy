@@ -1,0 +1,2 @@
+Copied from https://github.com/citrolabs/ego-lite (MIT), skills/ego-browser.
+The ego(lite) application is not part of BlinkyBot. scripts/install.sh downloads it only after someone runs that script.
