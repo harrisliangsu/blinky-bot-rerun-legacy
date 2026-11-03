@@ -1,6 +1,9 @@
+import { withEgoOnPath } from '../../browser/ego-browser.js'
+
 // Same shape as `codexCommand` in connections/codex-plan-limits.ts: an explicit path, Node when
 // that path is a script, otherwise the binary name on PATH. Foreman's bundled CLI lookup stays
 // in the provider (`codexPath`, `pathToClaudeCodeExecutable`); this layer does not import it.
+
 const JS_ENTRY = /\.[cm]?js$/i
 
 export function resolveCommand(pathEnv: string, binaryName: string, processEnv: NodeJS.ProcessEnv): { command: string; args: string[] } {
@@ -18,5 +21,5 @@ export function childEnv(processEnv: NodeJS.ProcessEnv, homeEnv: string, home: s
     }
     if (home) env[homeEnv] = home
     if (extra) Object.assign(env, extra)
-    return env
+    return withEgoOnPath(env)
 }

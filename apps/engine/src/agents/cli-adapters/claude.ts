@@ -1,3 +1,4 @@
+import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { childEnv, resolveCommand } from './binary.js'
 import type { CliAdapterInfo, CliInvocation, CliRunRequest, CliSystemDelivery } from './types.js'
 
@@ -17,11 +18,8 @@ export const claudeAdapter: CliAdapterInfo & { build(request: CliRunRequest, pro
         if (session.kind === 'resume') args.push('--resume', session.id)
         else if (session.kind === 'continue') args.push('--continue')
         if (request.model) args.push('--model', request.model)
-        let systemDelivery: CliSystemDelivery = 'none'
-        if (request.system) {
-            args.push('--system-prompt', request.system)
-            systemDelivery = 'flag'
-        }
+        args.push('--system-prompt', egoBrowserSystem(request.system))
+        const systemDelivery: CliSystemDelivery = 'flag'
         args.push(request.prompt)
         const env = childEnv(processEnv, this.homeEnv, request.home, request.env)
         // A subscription token and an API key in the same process make the CLI bill the key.

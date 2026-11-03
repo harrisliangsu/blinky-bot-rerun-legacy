@@ -1,5 +1,5 @@
 import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { resolve } from 'node:path'
 
 process.env.RERUN_DATA_DIR = mkdtempSync(resolve(tmpdir(), 'rerun-shell-env-'))
@@ -47,7 +47,8 @@ describe('shell_exec child environment', () => {
     })
 
     it('lets an agent variable replace an engine variable such as PATH', async () => {
-        expect((await optionsSeenBy({ PATH: '/agent/bin' })).env?.PATH).toBe('/agent/bin')
+        const home = process.env.HOME || homedir()
+        expect((await optionsSeenBy({ PATH: '/agent/bin' })).env?.PATH).toBe(`${home}/.local/bin:/agent/bin`)
     })
 
     // Looks wrong: the whole engine environment is inherited, so any command the agent runs can read

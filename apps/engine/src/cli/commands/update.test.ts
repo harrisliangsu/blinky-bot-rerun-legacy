@@ -576,6 +576,17 @@ describe('installBrowserInBackground', () => {
         expect(state.spawned).toEqual([])
     })
 
+    it('does not download Chromium on macOS, where browser tasks use ego(lite)', async () => {
+        const platform = vi.spyOn(process, 'platform', 'get').mockReturnValue('darwin')
+        state.chromium = 'missing'
+        try {
+            expect(await installBrowserInBackground()).toBe(false)
+            expect(state.spawned).toEqual([])
+        } finally {
+            platform.mockRestore()
+        }
+    })
+
     it('installs a missing browser in a detached child, without blocking on it', async () => {
         state.chromium = 'missing'
         expect(await installBrowserInBackground()).toBe(true)

@@ -1,4 +1,5 @@
 import type { Server } from 'node:http'
+import { homedir } from 'node:os'
 import { serve } from '@hono/node-server'
 import { createServer } from '../../http/server.js'
 import { attachDesktopBridge } from '../../desktop/bridge.js'
@@ -14,6 +15,7 @@ import { logger } from '../../lib/logger.js'
 import { closeAllMcp } from '../../tools/mcp-pool.js'
 import { loadPairingIdentity, pairWithHub } from '../../pairing/pairing.js'
 import { settleLastUpdateOnBoot } from '../../runtime/last-update.js'
+import { ensureEgoBrowserSkill } from '../../browser/ego-skill.js'
 
 export async function runCommand(): Promise<void> {
     loadPairingIdentity()
@@ -23,6 +25,7 @@ export async function runCommand(): Promise<void> {
     await ensureForeman()
     await reconcileInterruptedRuns()
     if (await installBrowserInBackground()) logger.info('chromium missing: installing it in the background')
+    void ensureEgoBrowserSkill(homedir()).catch(err => logger.warn({ err: String(err) }, 'ego-browser skill was not copied'))
     if (installDesktopInBackground()) logger.info('desktop missing: installing it in the background')
     void listConnections()
         .then(refreshStaleCodexPlanLimits)

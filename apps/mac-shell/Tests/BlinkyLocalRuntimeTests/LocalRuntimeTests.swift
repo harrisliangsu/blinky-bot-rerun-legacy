@@ -69,6 +69,8 @@ final class LocalRuntimeTests: XCTestCase {
         XCTAssertNil(ui.environment["OPENROUTER_API_KEY"])
         XCTAssertTrue(ui.environment["PATH"]?.hasPrefix("/usr/local/bin") == true)
         XCTAssertTrue(ui.environment["PATH"]?.contains("/opt/homebrew/bin") == true)
+        XCTAssertTrue(ui.environment["PATH"]?.contains("/Users/ada/.local/bin") == true)
+        XCTAssertTrue(engine.environment["PATH"]?.contains("/Users/ada/.local/bin") == true)
     }
 
     func testEnvironmentOverridesPortsPathsAndStripsSupabase() throws {

@@ -1,3 +1,4 @@
+import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { childEnv, resolveCommand } from './binary.js'
 import type { CliAdapterInfo, CliInvocation, CliRunRequest, CliSystemDelivery } from './types.js'
 
@@ -17,11 +18,8 @@ export const codexAdapter: CliAdapterInfo & { build(request: CliRunRequest, proc
         else if (session.kind === 'continue') args.push('resume', '--last')
         args.push('--json', '--skip-git-repo-check', '--sandbox', 'danger-full-access', '-c', 'approval_policy=never')
         if (request.model) args.push('-m', request.model)
-        let systemDelivery: CliSystemDelivery = 'none'
-        if (request.system) {
-            args.push('-c', `instructions=${request.system}`)
-            systemDelivery = 'flag'
-        }
+        args.push('-c', `instructions=${egoBrowserSystem(request.system)}`)
+        const systemDelivery: CliSystemDelivery = 'flag'
         args.push('--', request.prompt)
         return {
             id: this.id,

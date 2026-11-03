@@ -105,6 +105,9 @@ export function installDesktopInBackground(): boolean {
 // the previous release's code, which knew another package. A child process keeps the server
 // answering during the ~170 MB download.
 export async function installBrowserInBackground(): Promise<boolean> {
+    // browser_navigate on this fork drives ego(lite). A Mac engine does not download Chromium for it.
+    // The watched desktop (Linux, RERUN_DESKTOP) still uses Chromium for request_takeover.
+    if (process.platform === 'darwin') return false
     if (await browserInstalled()) return false
     spawn(process.execPath, [CLI_ENTRY, 'install-browser'], { stdio: 'ignore', detached: true }).unref()
     return true
