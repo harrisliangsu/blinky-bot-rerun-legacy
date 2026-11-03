@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 
+import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { useUnseenRunsStore } from '@/stores/unseen-runs.store'
 import { useRealtimeSubscription } from '@/supabase/useRealtimeSubscription'
 
@@ -9,9 +10,11 @@ import { useRealtimeSubscription } from '@/supabase/useRealtimeSubscription'
 // conversation opened in one tab, or answered from the phone, leaves the list everywhere. New runs
 // arrive through `useNotificationsRealtime`, which already listens to `notifications`.
 export function useUnseenRunsSync(workspaceId: number | undefined, userId: string | undefined) {
+    const localAuth = useLocalAuthMode()
     useEffect(() => {
-        if (workspaceId && userId) useUnseenRunsStore.getState().hydrate(workspaceId, userId)
-    }, [workspaceId, userId])
+        if (localAuth || !workspaceId || !userId) return
+        useUnseenRunsStore.getState().hydrate(workspaceId, userId)
+    }, [workspaceId, userId, localAuth])
 
     useEffect(() => {
         const refresh = () => void useUnseenRunsStore.getState().refresh()
@@ -23,7 +26,7 @@ export function useUnseenRunsSync(workspaceId: number | undefined, userId: strin
     useRealtimeSubscription('session_reads', {
         channelId: `session-reads-${userId}`,
         filter: userId ? { column: 'user_id', value: userId } : undefined,
-        enabled: !!userId && !!workspaceId,
+        enabled: !!userId && !!workspaceId && !localAuth,
         onInsert: refresh,
         onUpdate: refresh,
         onResync: refresh,

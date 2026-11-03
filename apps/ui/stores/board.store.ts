@@ -99,7 +99,7 @@ type BoardState = {
     recenterSignal: number
     cameraFocus: { agentId: string; nonce: number } | null
 
-    hydrate: (workspaceId: number) => Promise<void>
+    hydrate: (workspaceId: number, options?: { local?: boolean }) => Promise<void>
     reset: () => void
     beginAgentPlacement: (draft: PendingAgentDraft, spaceId?: string | null) => void
     beginTemplatePlacement: (template: { slug: string; title: string; agentNames: string[]; again?: boolean }) => void
@@ -167,7 +167,12 @@ type BoardState = {
     _recomputeAgentStatus: (agentId: string) => void
 }
 
-const supabase = createClient()
+let cloudSupabase: ReturnType<typeof createClient> | undefined
+
+function supabaseClient() {
+    cloudSupabase ??= createClient()
+    return cloudSupabase
+}
 
 // Single-flight sur l'envoi du kickoff : la fermeture du wizard et le rattrapage au boot
 // peuvent se chevaucher, or l'entrée localStorage n'est effacée qu'après la réponse.
@@ -218,7 +223,20 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
     reset: () => set({ ...initialState }),
 
-    hydrate: async (workspaceId: number) => {
+    hydrate: async (workspaceId: number, options?: { local?: boolean }) => {
+        if (options?.local) {
+            const res = await fetch('/api/local-auth/board', { cache: 'no-store' }).catch(() => null)
+            if (!res?.ok) {
+                set({ hydrated: true })
+                return
+            }
+            const body = (await res.json()) as { agents: BoardState['agents']; spaces: BoardState['spaces']; sessions: BoardState['sessions'] }
+            const onlineMap: Record<string, boolean> = {}
+            for (const agent of body.agents) onlineMap[agent.id] = true
+            set({ agents: body.agents, spaces: body.spaces, sessions: body.sessions, agentOnlineMap: onlineMap, hydrated: true })
+            return
+        }
+        const supabase = supabaseClient()
         const [agentsResult, spacesResult] = await Promise.all([selectMany(supabase, 'agents', ['id', 'name', 'handle', 'description', 'template_id', 'status', 'col', 'row', 'workspace_id', 'space_id', 'created_at', 'disabled_at', 'disabled_reason'] as const, { workspace_id: workspaceId }), selectMany(supabase, 'spaces', ['id', 'workspace_id', 'name', 'col_start', 'row_start', 'col_end', 'row_end', 'created_at'] as const, { workspace_id: workspaceId })])
 
         const dbAgents = agentsResult.data ? agentsResult.data.map(agentFromRow) : []
@@ -434,7 +452,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
             agents: state.agents.map(a => (a.id === placingAgentId ? { ...a, position: pos, spaceId: target.id } : a)),
             placingAgentId: null,
         }))
-        supabase.from('agents').update<Database['public']['Tables']['agents']['Update']>({ col: pos.col, row: pos.row, space_id: target.id }).eq('id', placingAgentId).then()
+        supabaseClient().from('agents').update<Database['public']['Tables']['agents']['Update']>({ col: pos.col, row: pos.row, space_id: target.id }).eq('id', placingAgentId).then()
     },
 
     cancelPlacement: () => {
@@ -448,7 +466,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
         if (!placingAgentId) return
 
-        supabase.from('agents').delete().eq('id', placingAgentId).then()
+        supabaseClient().from('agents').delete().eq('id', placingAgentId).then()
 
         set({ placingAgentId: null })
     },
@@ -467,7 +485,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         }))
 
         const patch: Database['public']['Tables']['agents']['Update'] = target ? { col: pos.col, row: pos.row, space_id: target } : { col: pos.col, row: pos.row }
-        supabase
+        supabaseClient()
             .from('agents')
             .update<Database['public']['Tables']['agents']['Update']>(patch)
             .eq('id', id)
@@ -509,7 +527,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     },
 
     setSessionStatus: (sessionId, status) => {
-        supabase.from('sessions').update<Database['public']['Tables']['sessions']['Update']>({ status }).eq('id', sessionId).then()
+        supabaseClient().from('sessions').update<Database['public']['Tables']['sessions']['Update']>({ status }).eq('id', sessionId).then()
         const session = get().sessions.find(s => s.id === sessionId)
         if (session) {
             set(state => ({
@@ -528,7 +546,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
         const ids = targets.map(s => s.id)
 
-        supabase
+        supabaseClient()
             .from('sessions')
             .update<Database['public']['Tables']['sessions']['Update']>({ status: 'idle' })
             .in('id', ids)
@@ -677,7 +695,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         set(state => ({
             spaces: state.spaces.map(s => (s.id === id ? { ...s, ...patch } : s)),
         }))
-        supabase.from('spaces').update<Database['public']['Tables']['spaces']['Update']>(patch).eq('id', id).then()
+        supabaseClient().from('spaces').update<Database['public']['Tables']['spaces']['Update']>(patch).eq('id', id).then()
     },
 
     // Un agent est dessiné à ses propres col/row, pas relativement à sa Box : la déplacer, c'est
@@ -695,8 +713,8 @@ export const useBoardStore = create<BoardState>((set, get) => ({
 
         const write = (spaceRect: SpaceRect, end: 'from' | 'to') =>
             Promise.all([
-                supabase.from('spaces').update<Database['public']['Tables']['spaces']['Update']>(spaceRect).eq('id', id),
-                ...carried.map(moved => supabase.from('agents').update<Database['public']['Tables']['agents']['Update']>({ col: moved[end].col, row: moved[end].row }).eq('id', moved.id)),
+                supabaseClient().from('spaces').update<Database['public']['Tables']['spaces']['Update']>(spaceRect).eq('id', id),
+                ...carried.map(moved => supabaseClient().from('agents').update<Database['public']['Tables']['agents']['Update']>({ col: moved[end].col, row: moved[end].row }).eq('id', moved.id)),
             ]).then(results => results.some(r => r.error))
 
         set(state => ({
@@ -867,7 +885,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     reconcileSessions: async () => {
         const agentIds = get().agents.map(a => a.id)
         if (agentIds.length === 0) return
-        const sessions = await fetchLiveSessions(supabase, agentIds)
+        const sessions = await fetchLiveSessions(supabaseClient(), agentIds)
         if (!sessions) return
         set(state => {
             const agents = state.agents.map(a => {

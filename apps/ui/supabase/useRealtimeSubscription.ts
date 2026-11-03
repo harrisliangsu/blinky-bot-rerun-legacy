@@ -1,6 +1,7 @@
 'use client'
 
 import type { Database, Tables } from '@/app/api/database.types'
+import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { createClient } from '@/supabase/client'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { useEffect, useRef } from 'react'
@@ -53,6 +54,7 @@ type UseRealtimeSubscriptionOptions<T extends TableName> = EventCallbacks<T> & {
  * })
  */
 export function useRealtimeSubscription<T extends TableName>(table: T, options: UseRealtimeSubscriptionOptions<T>) {
+    const localAuth = useLocalAuthMode()
     const { filter, onInsert, onUpdate, onDelete, onResync, enabled = true, channelId } = options
 
     // Refs pour éviter les re-subscriptions inutiles quand les callbacks changent
@@ -60,7 +62,7 @@ export function useRealtimeSubscription<T extends TableName>(table: T, options: 
     callbacksRef.current = { onInsert, onUpdate, onDelete, onResync }
 
     useEffect(() => {
-        if (!enabled) return
+        if (!enabled || localAuth) return
 
         const supabase = createClient()
 
@@ -179,5 +181,5 @@ export function useRealtimeSubscription<T extends TableName>(table: T, options: 
             window.removeEventListener('online', onOnline)
             if (current) supabase.removeChannel(current)
         }
-    }, [table, filter?.column, filter?.value, enabled, channelId])
+    }, [table, filter?.column, filter?.value, enabled, channelId, localAuth])
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { CrispChat } from '@/cloud/support'
 import { BoardChatSplit } from '@/components/layout/BoardChatSplit'
 import { FeatureFlagsProvider } from '@/components/layout/FeatureFlagsProvider'
@@ -9,6 +10,8 @@ import { startBackgroundSchedules } from '@/cloud/tasks'
 import { computerFlag, rewindFlag } from '@/flags'
 import { FOREMAN_PLACEMENT_COOKIE, parseForemanPlacement } from '@/lib/foreman-layout'
 import { FOREMAN_OPEN_COOKIE, parseForemanOpen } from '@/lib/foreman-open'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
+import { readRequestSnapshot } from '@/lib/local-auth/snapshot'
 import { SessionProvider } from '@/supabase/session/SessionProvider'
 
 export const metadata: Metadata = {
@@ -25,8 +28,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     const foremanOpen = parseForemanOpen(cookieStore.get(FOREMAN_OPEN_COOKIE)?.value)
     const foremanPlacement = parseForemanPlacement(cookieStore.get(FOREMAN_PLACEMENT_COOKIE)?.value)
 
+    const local = isBlinkyLocalAuth() ? await readRequestSnapshot() : null
+    if (isBlinkyLocalAuth() && !local) redirect('/api/local-auth/enter?next=/')
+
     return (
-        <SessionProvider>
+        <SessionProvider local={local}>
             <FeatureFlagsProvider rewind={rewind} computer={computer} apps={apps}>
                 <BoardChatSplit initialOpen={foremanOpen} initialPlacement={foremanPlacement}>{children}</BoardChatSplit>
                 <CrispChat hideLauncher position="left" />
