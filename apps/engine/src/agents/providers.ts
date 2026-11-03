@@ -262,6 +262,7 @@ export function withCardTagNudge(hooks: ClaudeHooks | undefined): ClaudeHooks {
 }
 
 function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpServer[] = [], capture?: ClaudeContextCapture, options: CliModelOptions = {}) {
+    const { RERUN_CLAUDE_PATH } = env()
     const { mcpServers: servers, allowedTools } = claudeMcpConfig(tools, mcpServers, options.screenshots)
     const { cwd, env: agentEnv } = agentProcessEnv(agent)
     return createClaudeCode({
@@ -273,6 +274,7 @@ function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpS
             strictMcpConfig: true,
             enableFileCheckpointing: false,
             cwd,
+            ...(RERUN_CLAUDE_PATH ? { pathToClaudeCodeExecutable: RERUN_CLAUDE_PATH } : {}),
             // Without this the CLI emits no thinking block at all, so the chat never shows what the
             // agent is working through. `adaptive` leaves the model to decide when it is worth it.
             thinking: { type: 'adaptive', display: 'summarized' },
