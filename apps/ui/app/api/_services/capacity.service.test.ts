@@ -12,6 +12,7 @@ let activeAgents: number
 let db: FakeSupabase
 
 beforeEach(() => {
+    vi.unstubAllEnvs()
     workspace = { max_agents: 5, subscription_status: 'active' }
     activeAgents = 0
     db = fakeSupabase(table => {
@@ -62,6 +63,12 @@ describe('activeAgentLimit', () => {
 
     it('answers null for an unlimited workspace', async () => {
         workspace = { max_agents: null, subscription_status: 'active' }
+        await expect(activeAgentLimit(1)).resolves.toBeNull()
+    })
+
+    it('does not cap the local BlinkyBot workspace', async () => {
+        vi.stubEnv('BLINKY_LOCAL_AUTH', '1')
+        workspace = null
         await expect(activeAgentLimit(1)).resolves.toBeNull()
     })
 })

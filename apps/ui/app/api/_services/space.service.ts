@@ -2,6 +2,8 @@ import { AuthorizationError, assertSpaceOwnedBy, requireWorkspaceId } from '@/ap
 import { findWorkspaceEngine, getWorkspaceConnection } from '@/app/api/_services/workspace-engine.service'
 import { buildBaseUrl } from '@/lib/engine/base-url'
 import type { Database } from '@/app/api/database.types'
+import { LOCAL_SPACE_ID, LOCAL_WORKSPACE_ID } from '@/lib/local-auth/constants'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import type { EngineConnection } from '@/lib/engine/types'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMany, selectMaybeSingle, selectSingle } from '@/supabase/supabase-helpers'
@@ -13,6 +15,10 @@ export { buildBaseUrl }
 // signatures so the agent-scoped callers that start from a `space_id` column do not move, but what
 // they resolve is the workspace's one engine.
 export async function getSpaceConnection(spaceId: string): Promise<EngineConnection> {
+    if (isBlinkyLocalAuth()) {
+        if (spaceId !== LOCAL_SPACE_ID) throw new Error('Box not found')
+        return getWorkspaceConnection(LOCAL_WORKSPACE_ID)
+    }
     const supabase = createServiceRoleClient()
 
     const { data: space } = await selectSingle(supabase, 'spaces', ['workspace_id'] as const, { id: spaceId })
