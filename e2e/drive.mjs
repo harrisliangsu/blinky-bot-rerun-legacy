@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { routeEgoBrowser } from './hooks.mjs'
+import { drivePackagedEgo } from './hooks.mjs'
 
 const mode = process.argv[2]
 const out = process.env.E2E_OUT
@@ -9,8 +9,9 @@ const ui = process.env.BLINKY_UI_URL
 const engineUrl = process.env.BLINKY_ENGINE_URL
 const apiKey = process.env.BLINKY_API_KEY
 const stubLog = process.env.BLINKY_STUB_LOG
-const root = process.env.BLINKY_REPO_ROOT
-const prompt = 'E2E fixture ping'
+const app = process.env.BLINKY_APP
+const suggestion = 'SEO Assistant'
+const kickoffMark = 'Audit my website'
 const reply = 'BLINKY_E2E_REPLY'
 
 if (!mode || !out || !ui || !engineUrl || !apiKey) {
@@ -35,7 +36,7 @@ try {
 }
 
 async function core() {
-    const agent = await createCoworker()
+    await installCodex()
     const notes = []
     const browser = await chromium.launch({ headless: false })
     const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
@@ -51,23 +52,16 @@ async function core() {
         }
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         await page.screenshot({ path: join(shots, 'workspace.png') })
+        const before = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
         await page.getByRole('button', { name: 'New coworker' }).click()
         await page.getByRole('heading', { name: 'What should your new coworker do?' }).waitFor({ timeout: 20_000 })
+        await page.getByRole('button', { name: suggestion }).click()
+        await page.getByRole('button', { name: `Create ${suggestion}` }).click()
         await page.screenshot({ path: join(shots, 'new-coworker.png') })
-        await page.keyboard.press('Escape')
-        await page.goto(`${ui}/?agent=${agent.id}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
-        const composer = page.getByPlaceholder('Send a message...')
-        await composer.waitFor({ timeout: 45_000 })
+        await page.getByText(`Tap a tile to place ${suggestion}`).waitFor({ timeout: 20_000 })
+        const agent = await placeOnBoard(page, before)
         const seen = []
         const watch = watchRuns(agent.id, seen)
-        await composer.click()
-        await composer.fill(prompt)
-        const submit = page.locator('form button[type="submit"]').last()
-        await submit.waitFor({ state: 'visible', timeout: 30_000 })
-        const enabledAt = Date.now() + 30_000
-        while (Date.now() < enabledAt && !(await submit.isEnabled())) await sleep(200)
-        if (!(await submit.isEnabled())) throw new Error('The send button stayed disabled.')
-        await submit.click()
         const stopVisible = await page.getByRole('button', { name: 'Stop the current run' }).waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false)
         const run = await watch
         if (!seen.includes('running') || !seen.includes('done')) {
@@ -78,20 +72,21 @@ async function core() {
         await page.screenshot({ path: join(shots, 'task-reply.png') })
         const messages = await engine(`/agents/${agent.id}/sessions/${run.sessionId}/messages`)
         const stored = JSON.stringify(messages)
-        if (!stored.includes(reply) || !stored.includes(prompt)) throw new Error('The engine session does not store the prompt and the reply.')
+        if (!stored.includes(reply) || !stored.includes(kickoffMark)) throw new Error('The engine session does not store the kickoff and the reply.')
         const log = readFileSync(stubLog, 'utf8')
-        if (!log.includes('"mode":"app-server"') || !log.includes(prompt)) throw new Error('The stub codex CLI was not invoked for the task.')
+        if (!log.includes('"mode":"app-server"') || !log.includes(kickoffMark)) throw new Error('The stub codex CLI was not invoked for the task.')
         let ego = features.ego.reason
         if (features.ego.enabled) {
-            const routed = await routeEgoBrowser({ root, engineUrl, apiKey, stubLog })
-            ego = `Routed a browser task through ${routed.path} (${routed.status}).`
+            if (!app) throw new Error('BLINKY_APP is not set, so the packaged ego router cannot be loaded.')
+            const routed = await drivePackagedEgo({ app, stubPath: process.env.EGO_BROWSER_PATH, stubLog })
+            ego = `Routed ${routed.url} through ego-browser and read ${routed.text}.`
         }
-        writeFileSync(statePath, JSON.stringify({ agentId: agent.id, sessionId: run.sessionId }))
+        writeFileSync(statePath, JSON.stringify({ agentId: agent.id, sessionId: run.sessionId, label: suggestion }))
         writeFileSync(join(out, 'core.json'), JSON.stringify({
             ok: true,
             detail: [
-                'Opened the local BlinkyBot workspace, opened New coworker, and sent a task from the chat composer.',
-                `Run statuses: ${seen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
+                `Opened the local BlinkyBot workspace, created ${suggestion} from New coworker, and placed it on the board.`,
+                `The kickoff ran to completion. Statuses: ${seen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
                 `Stub reply ${reply} is on screen and stored on the session.`,
                 ego,
                 notes.filter(Boolean).slice(-8).join('\n'),
@@ -116,8 +111,7 @@ async function persist() {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         const visible = page.getByText(reply).first()
         if (!(await visible.waitFor({ timeout: 20_000 }).then(() => true).catch(() => false))) {
-            const conversation = page.getByText(prompt).first()
-            await conversation.click({ timeout: 20_000 })
+            await page.getByText(state.label || suggestion).first().click({ timeout: 20_000 })
         }
         await page.getByText(reply).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'after-relaunch.png') })
@@ -141,9 +135,9 @@ async function dismissOnboarding(page) {
     await button.click({ timeout: 10_000 })
 }
 
-async function createCoworker() {
+async function installCodex() {
     const expires = String(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    const connection = await engine('/connections', {
+    await engine('/connections', {
         method: 'POST',
         body: {
             name: 'E2E Codex',
@@ -152,22 +146,37 @@ async function createCoworker() {
             keys: { CODEX_OAUTH_TOKEN: 'e2e-access-token', CODEX_OAUTH_EXPIRES_AT: expires },
         },
     })
-    const agent = await engine('/agents', {
-        method: 'POST',
-        body: {
-            config: {
-                name: 'e2e_coworker',
-                displayName: 'E2E Coworker',
-                description: 'Deterministic stub coworker',
-                provider: 'codex',
-                connectionId: connection.id,
-                model: 'gpt-5.6-sol',
-                enabled: true,
-                tools: { web: false, browser: false },
-            },
-        },
-    })
-    return agent
+}
+
+async function placeOnBoard(page, before) {
+    const board = page.getByRole('group', { name: 'Coworker board' })
+    await board.waitFor({ timeout: 20_000 })
+    const box = await board.boundingBox()
+    if (!box) throw new Error('The coworker board has no box to click.')
+    const spots = [
+        [0.5, 0.42],
+        [0.42, 0.38],
+        [0.58, 0.48],
+        [0.36, 0.55],
+        [0.64, 0.36],
+    ]
+    for (const [x, y] of spots) {
+        await board.click({ position: { x: box.width * x, y: box.height * y } })
+        const created = await waitForNewAgent(before, 4_000)
+        if (created) return created
+    }
+    throw new Error('Placing the coworker on the board did not create an engine agent.')
+}
+
+async function waitForNewAgent(before, timeoutMs) {
+    const deadline = Date.now() + timeoutMs
+    while (Date.now() < deadline) {
+        const body = await engine('/agents').catch(() => ({ agents: [] }))
+        const created = (body.agents ?? []).find(agent => !before.has(agent.id))
+        if (created) return created
+        await sleep(250)
+    }
+    return null
 }
 
 async function watchRuns(agentId, seen) {

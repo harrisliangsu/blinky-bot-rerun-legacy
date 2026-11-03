@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { fileURLToPath } from 'node:url'
 
 const stub = fileURLToPath(new URL('./stubs/agent-cli.mjs', import.meta.url))
+const ego = fileURLToPath(new URL('./stubs/ego-browser', import.meta.url))
 
 test('exec mode prints parseable output for each CLI name', async () => {
     for (const id of ['codex', 'kimi', 'grok', 'claude']) {
@@ -54,6 +55,28 @@ test('app-server answers a turn with the fixture sentence', async () => {
     assert.equal(completed.params.turn.items[0].text, 'BLINKY_E2E_REPLY')
     child.stdin.end()
     child.kill()
+})
+
+test('ego-browser nodejs prints the page payload the engine parses', async () => {
+    const log = join(mkdtempSync(join(tmpdir(), 'ego-')), 'log')
+    const child = spawn(process.execPath, [ego, 'nodejs'], {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        env: { ...process.env, BLINKY_STUB_LOG: log, BLINKY_EGO_URL: 'https://example.com/e2e' },
+    })
+    let stdout = ''
+    child.stdout.on('data', chunk => {
+        stdout += chunk
+    })
+    child.stdin.end('script')
+    const code = await new Promise(resolve => child.on('close', resolve))
+    assert.equal(code, 0)
+    assert.match(stdout, /^BLINKY_EGO_JSON /)
+    const page = JSON.parse(stdout.slice('BLINKY_EGO_JSON '.length))
+    assert.equal(page.text, 'BLINKY_EGO_PAGE')
+    assert.equal(page.finalUrl, 'https://example.com/e2e')
+    const recorded = JSON.parse(readFileSync(log, 'utf8').trim())
+    assert.deepEqual(recorded.argv, ['nodejs'])
+    assert.equal(recorded.url, 'https://example.com/e2e')
 })
 
 function run(args, env) {

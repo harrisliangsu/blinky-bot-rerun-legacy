@@ -2,5 +2,25 @@
 import { appendFileSync } from 'node:fs'
 
 const file = process.env.BLINKY_STUB_LOG
-if (file) appendFileSync(file, `${JSON.stringify({ bin: 'ego-browser', argv: process.argv.slice(2) })}\n`)
+const argv = process.argv.slice(2)
+
+if (argv[0] === 'nodejs') {
+    const chunks = []
+    for await (const chunk of process.stdin) chunks.push(chunk)
+    const url = process.env.BLINKY_EGO_URL || ''
+    if (file) appendFileSync(file, `${JSON.stringify({ bin: 'ego-browser', argv, url, stdinBytes: Buffer.concat(chunks).length })}\n`)
+    const payload = {
+        text: 'BLINKY_EGO_PAGE',
+        status: 200,
+        html: '<p>example</p>',
+        links: [],
+        screenshot: null,
+        finalUrl: url,
+        taskId: 'ego-e2e',
+    }
+    process.stdout.write(`BLINKY_EGO_JSON ${JSON.stringify(payload)}\n`)
+    process.exit(0)
+}
+
+if (file) appendFileSync(file, `${JSON.stringify({ bin: 'ego-browser', argv })}\n`)
 process.stdout.write('{"ok":true,"routed":"ego-browser"}\n')

@@ -144,6 +144,8 @@ prepare_stubs() {
     export BLINKY_ENGINE_URL="http://127.0.0.1:${ENGINE_PORT}"
     export E2E_OUT="$OUT"
     export BLINKY_REPO_ROOT="$ROOT"
+    export BLINKY_APP="$APP"
+    export EGO_BROWSER_PATH="$OUT/bin/ego-browser"
 }
 
 node "$ROOT/e2e/feature-gates.mjs" "$ROOT" >"$OUT/features.json"
