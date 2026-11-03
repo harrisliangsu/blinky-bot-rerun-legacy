@@ -3,6 +3,9 @@
 name: BlinkyBot
 options:
   minimumXcodeGenVersion: 2.38.0
+  # macos-14 runners ship Xcode 15.4. A newer XcodeGen otherwise writes an
+  # Xcode 16 project that xcodebuild cannot open.
+  xcodeVersion: "15.0"
   deploymentTarget:
     macOS: "14.0"
   groupSortPosition: top
