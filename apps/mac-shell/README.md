@@ -32,6 +32,10 @@ node dist/cli/bin.js run
 | `RERUN_CLI_ADAPTERS` | `codex,kimi,grok,claude` |
 | `RERUN_DESKTOP` | `off` |
 | `RERUN_LOG_LEVEL` | `info` |
+| `BLINKY_REX_STATE` | `~/Library/Application Support/BlinkyBot/rex-watch.json` |
+| `BLINKY_REX_WARNING_FILE` | `~/Library/Application Support/BlinkyBot/logs/rex-watch.log` |
+
+`rex-watch.json` is the Settings switch **Watch agents in Rex**. It stays off until Rex.app (or the beta `Rex Beta.app`, bundle id `com.superlogical.rex`) is installed and `rex` can be run. The engine reads that file on each agent spawn. It does not listen on a port and does not pass Rex a public address. If `rex run` cannot open a local terminal, the agent still runs and the warning file gets a short code the window can show.
 
 The engine and Compose processes get `~/.local/bin` on `PATH`. A GUI app does not inherit a shell profile, and that directory is where ego(lite) onboarding registers `ego-browser`.
 

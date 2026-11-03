@@ -32,7 +32,12 @@ struct ContentView: View {
             case .starting:
                 StartingView()
             case .browser:
-                browserColumn
+                VStack(spacing: 0) {
+                    if let root = supervisor.supportRoot {
+                        RexWarningBanner(supportRoot: root)
+                    }
+                    browserColumn
+                }
             }
         }
         .navigationTitle("BlinkyBot")

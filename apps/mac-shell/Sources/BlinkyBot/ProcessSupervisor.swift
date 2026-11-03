@@ -43,6 +43,7 @@ final class ProcessSupervisor: ObservableObject {
     private var generation = 0
     private var support: SupportLayout?
     private var nodePath: String?
+    @Published private(set) var supportRoot: String?
 
     func start() {
         guard phase == .idle || phase == .failed else { return }
@@ -116,6 +117,7 @@ final class ProcessSupervisor: ObservableObject {
             fail(ticket, failure)
             return
         }
+        await publishRexWatch(plan.support.root)
         let key: String
         switch APIKeyFile.loadOrCreate(at: plan.support.apiKeyFile) {
         case .failure(let failure):
@@ -269,6 +271,18 @@ final class ProcessSupervisor: ObservableObject {
             text = String(text[text.index(after: newline)...])
         }
         return text
+    }
+
+    private func publishRexWatch(_ root: String) async {
+        supportRoot = root
+        var requested = UserDefaults.standard.bool(forKey: RuntimePreferenceKey.rexWatch)
+        let status = await RexLive.status(home: NSHomeDirectory())
+        if requested && status.readiness != .ready {
+            requested = false
+            UserDefaults.standard.set(false, forKey: RuntimePreferenceKey.rexWatch)
+        }
+        try? RexWatchStore.publish(root: root, requested: requested, status: status)
+        RexWatchStore.resetWarning(root: root)
     }
 }
 

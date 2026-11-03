@@ -21,6 +21,10 @@ export type CliRunRequest = {
     env?: Record<string, string>
     // CLI config/home directory, when that CLI has one (`CODEX_HOME`, `KIMI_CODE_HOME`, …).
     home?: string
+    // Pane label and session handle when Rex mirroring is on. `agentId` selects that agent's workspace.
+    label?: string
+    handle?: string
+    agentId?: string
 }
 
 export type CliInvocation = {

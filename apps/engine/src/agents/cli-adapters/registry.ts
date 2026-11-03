@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process'
+import { AgentProcessError, runAgentProcess } from '../rex/launch.js'
+import { readRexWatch } from '../rex/protocol.js'
 import { claudeAdapter } from './claude.js'
 import { codexAdapter } from './codex.js'
 import { grokAdapter } from './grok.js'
@@ -50,7 +51,7 @@ export async function runLocalCli(id: CliRuntimeId, request: CliRunRequest, opti
         throw new CliAdapterError(`CLI adapter "${id}" is off. Add "${id}" to RERUN_CLI_ADAPTERS to spawn it.`)
     }
     const invocation = cliInvocation(id, request, processEnv)
-    return spawnCli(invocation, options)
+    return spawnCli(invocation, options, request)
 }
 
 function assertCliRequest(request: CliRunRequest): void {
@@ -59,52 +60,32 @@ function assertCliRequest(request: CliRunRequest): void {
     if (request.session?.kind === 'resume' && request.session.id.trim() === '') throw new CliAdapterError('CLI adapter resume id is empty.')
 }
 
-function spawnCli(invocation: CliInvocation, options: RunLocalCliOptions): Promise<CliRunResult> {
-    return new Promise((resolve, reject) => {
-        if (options.signal?.aborted) {
-            reject(new CliAdapterError(`CLI adapter "${invocation.id}" was aborted.`))
-            return
-        }
-        const child = spawn(invocation.command, invocation.args, {
-            cwd: invocation.cwd,
-            env: invocation.env,
-            stdio: ['ignore', 'pipe', 'pipe'],
-        })
-        let stdout = ''
-        let stderr = ''
-        let settled = false
-        const finish = (fn: () => void): void => {
-            if (settled) return
-            settled = true
-            if (timer) clearTimeout(timer)
-            options.signal?.removeEventListener('abort', onAbort)
-            fn()
-        }
-        const timer =
-            options.timeoutMs !== undefined
-                ? setTimeout(() => {
-                      child.kill('SIGTERM')
-                      finish(() => reject(new CliAdapterError(`CLI adapter "${invocation.id}" timed out after ${options.timeoutMs}ms.`)))
-                  }, options.timeoutMs)
-                : undefined
-        const onAbort = (): void => {
-            child.kill('SIGTERM')
-            finish(() => reject(new CliAdapterError(`CLI adapter "${invocation.id}" was aborted.`)))
-        }
-        options.signal?.addEventListener('abort', onAbort)
-        child.stdout!.setEncoding('utf8')
-        child.stderr!.setEncoding('utf8')
-        child.stdout!.on('data', (chunk: string) => {
-            stdout += chunk
-        })
-        child.stderr!.on('data', (chunk: string) => {
-            stderr += chunk
-        })
-        child.once('error', error => {
-            finish(() => reject(new CliAdapterError(`CLI adapter "${invocation.id}" failed to start ${invocation.command}: ${error.message}`)))
-        })
-        child.once('close', code => {
-            finish(() => resolve({ invocation, exitCode: code, stdout, stderr }))
-        })
-    })
+function spawnCli(invocation: CliInvocation, options: RunLocalCliOptions, request: CliRunRequest): Promise<CliRunResult> {
+    const processEnv = options.processEnv ?? process.env
+    if (options.signal?.aborted) return Promise.reject(new CliAdapterError(`CLI adapter "${invocation.id}" was aborted.`))
+    return runAgentProcess({
+        command: invocation.command,
+        args: invocation.args,
+        cwd: invocation.cwd,
+        env: invocation.env,
+        label: request.label ?? invocation.id,
+        handle: request.handle ?? request.label ?? invocation.id,
+        agentId: request.agentId,
+        signal: options.signal,
+        timeoutMs: options.timeoutMs,
+        rex: readRexWatch(processEnv),
+        warningFile: processEnv.BLINKY_REX_WARNING_FILE,
+        statePath: processEnv.BLINKY_REX_STATE,
+        stdio: 'buffer',
+    }).then(
+        result => ({ invocation, exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr }),
+        error => {
+            if (error instanceof AgentProcessError) {
+                if (error.kind === 'abort') throw new CliAdapterError(`CLI adapter "${invocation.id}" was aborted.`)
+                if (error.kind === 'timeout') throw new CliAdapterError(`CLI adapter "${invocation.id}" timed out after ${options.timeoutMs}ms.`)
+                throw new CliAdapterError(`CLI adapter "${invocation.id}" failed to start ${invocation.command}: ${error.message}`)
+            }
+            throw error
+        },
+    )
 }

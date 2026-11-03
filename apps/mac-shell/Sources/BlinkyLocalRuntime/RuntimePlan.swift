@@ -194,6 +194,8 @@ func engineEnvironment(
     env["RERUN_CLI_ADAPTERS"] = "codex,kimi,grok,claude"
     env["RERUN_DESKTOP"] = "off"
     env["RERUN_LOG_LEVEL"] = "info"
+    env["BLINKY_REX_STATE"] = RexWatchStore.statePath(support.root)
+    env["BLINKY_REX_WARNING_FILE"] = RexWatchStore.warningPath(support.root)
     return env
 }
 
