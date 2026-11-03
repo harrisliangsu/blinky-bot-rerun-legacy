@@ -87,7 +87,7 @@ The app sets `RERUN_CLI_ADAPTERS=codex,kimi,grok,claude`. A missing CLI binary d
 
 ## Upstream server path
 
-`docker-compose.yml` starts two containers: the Next.js app published on port 3000, and the engine published on port 3001, with Supabase outside the file. That is how upstream Rerun is self-hosted. The guide is [apps/docs/self-host/install.mdx](../apps/docs/self-host/install.mdx) and [INSTALL.md](../INSTALL.md).
+`docker-compose.yml` starts two containers: the Next.js app published on port 3000, and the engine published on port 3001, with Supabase outside the file. That is how upstream Rerun is self-hosted, and it is not the Phase 1 Mac install. The guide is [upstream-server.md](upstream-server.md).
 
 Use that path to reproduce the upstream server, or to work on the Docker images. It is not how Phase 1 is installed on a Mac, and a Phase 1 change does not add a step that requires it.
 

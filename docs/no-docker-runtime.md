@@ -68,11 +68,13 @@ node dist/cli/bin.js run
 
 UI:
 
+A checkout still starts Compose with Next's production server:
+
 ```bash
 node node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3000
 ```
 
-That is the `CMD` in `apps/ui/Dockerfile` (`node node_modules/next/dist/bin/next start`), plus `-H` and `-p` so the Mac app binds loopback instead of every interface. The bundled `runtime/ui` tree is that image's `/app/apps/ui` layout, including `node_modules/next`.
+The shipped app does not. `Scripts/bundle.sh` stages the Next standalone server (`server.js`, or `apps/ui/server.js` inside the monorepo trace) plus `.next/static` and `public`. The shell runs `node server.js` with `HOSTNAME=127.0.0.1` and `PORT=3000`. Chromium is not copied into the app. The engine installs it in the background on first use, outside the bundle.
 
 | Variable | Value |
 | --- | --- |
@@ -157,7 +159,7 @@ The auth file is separate from `rerun.db` so the engine migration ladder (`DATA_
 
 `BLINKY_LOCAL_AUTH=1` is the switch. When it is set:
 
-- `apps/ui/supabase/client.ts`, `server.ts`, `middleware.ts`, and `serviceRole.ts` are not called. A missing `NEXT_PUBLIC_SUPABASE_URL` does not crash boot.
+- `apps/ui/supabase/client.ts` returns an empty client when `NEXT_PUBLIC_SUPABASE_URL` or the publishable key is missing, so server render of the board does not call `@supabase/ssr`. `server.ts` and `serviceRole.ts` do the same when `BLINKY_LOCAL_AUTH=1`. A missing Supabase URL does not crash boot.
 - No `supabase.channel` subscription. Live board updates come from the engine HTTP API on `127.0.0.1:3001`, or from polling that API. They do not come from Supabase Realtime.
 - `claimPoolEngine` in `apps/ui/cloud/engines.ts` does not insert into `engine_pool`. It returns the supervised engine: `{ ok: true, instance: { id: "local", engineHost: RERUN_ENGINE_URL, engineApiKey: RERUN_ENGINE_API_KEY } }`.
 

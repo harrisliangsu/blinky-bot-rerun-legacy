@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -11,6 +11,10 @@ import {
     deployFailedMessage,
     containRuntimeLinks,
     escapedSymlinks,
+    foreignNativePackage,
+    isBundledBrowserDir,
+    pruneProductionTree,
+    stageStandaloneUi,
     formatMissingCheckout,
     formatMissingRuntime,
     formatMissingTools,
@@ -45,7 +49,7 @@ describe('VERSION', () => {
 
     it('matches the Mac shell marketing version and the server package versions', () => {
         const { version, problems } = alignmentProblems(repoRoot)
-        assert.equal(version, '0.1.0')
+        assert.equal(version, '0.1.1')
         assert.deepEqual(problems, [])
         const yml = readFileSync(join(repoRoot, 'apps/mac-shell/project.yml'), 'utf8')
         assert.equal(marketingVersion(yml), version)
@@ -75,7 +79,8 @@ describe('bundle layout', () => {
         }
         assert.match(text, /node\/bin\/node/)
         assert.match(text, /engine\/dist\/cli\/bin\.js/)
-        assert.match(text, /ui\/node_modules\/next\/dist\/bin\/next/)
+        assert.match(text, /server\.js/)
+        assert.match(text, /Chromium is not in the app/)
         assert.match(text, /xcodebuild/)
         assert.match(text, /blinky-local\.mjs build/)
     })
@@ -191,6 +196,71 @@ describe('staging checks', () => {
         assert.match(deployFailedMessage('engine'), /rerun-engine/)
         assert.match(deployFailedMessage('ui'), /--filter rerun --prod deploy/)
     })
+
+    it('keeps the host native build and drops foreign ones, docs, and browsers', () => {
+        const host = { platform: 'darwin', arch: 'arm64' }
+        assert.equal(foreignNativePackage('@img/sharp-darwin-arm64', host), false)
+        assert.equal(foreignNativePackage('@img+sharp-darwin-arm64@0.35.1', host), false)
+        assert.equal(foreignNativePackage('@img/sharp-linux-x64', host), true)
+        assert.equal(foreignNativePackage('@img+sharp-linuxmusl-arm64@0.35.1', host), true)
+        assert.equal(foreignNativePackage('@libsql/darwin-x64', host), true)
+        assert.equal(foreignNativePackage('hono', host), false)
+        assert.equal(isBundledBrowserDir('.local-browsers'), true)
+        assert.equal(isBundledBrowserDir('chromium-1148'), true)
+        assert.equal(isBundledBrowserDir('patchright'), false)
+
+        const root = mkdtempSync(join(tmpdir(), 'blinky-prune-'))
+        try {
+            const modules = join(root, 'node_modules')
+            mkdirSync(join(modules, '@img/sharp-linux-x64'), { recursive: true })
+            writeFileSync(join(modules, '@img/sharp-linux-x64/index.js'), 'linux')
+            mkdirSync(join(modules, '@img/sharp-darwin-arm64'), { recursive: true })
+            writeFileSync(join(modules, '@img/sharp-darwin-arm64/index.js'), 'arm')
+            mkdirSync(join(modules, 'hono'), { recursive: true })
+            writeFileSync(join(modules, 'hono/README.md'), 'docs')
+            writeFileSync(join(modules, 'hono/index.js'), 'keep')
+            mkdirSync(join(modules, 'patchright/.local-browsers/chromium-1148'), { recursive: true })
+            writeFileSync(join(modules, 'patchright/.local-browsers/chromium-1148/chrome'), 'browser')
+            const result = pruneProductionTree(root, host)
+            assert.equal(result.browsers.length, 0)
+            assert.equal(existsSync(join(modules, '@img/sharp-linux-x64')), false)
+            assert.equal(existsSync(join(modules, '@img/sharp-darwin-arm64/index.js')), true)
+            assert.equal(existsSync(join(modules, 'hono/index.js')), true)
+            assert.equal(existsSync(join(modules, 'hono/README.md')), false)
+            assert.equal(existsSync(join(modules, 'patchright/.local-browsers')), false)
+        } finally {
+            rmSync(root, { recursive: true, force: true })
+        }
+    })
+
+    it('stages the standalone server with static files and public assets', () => {
+        const standalone = mkdtempSync(join(tmpdir(), 'blinky-standalone-'))
+        const dest = mkdtempSync(join(tmpdir(), 'blinky-staged-'))
+        try {
+            mkdirSync(join(standalone, 'apps/ui/.next'), { recursive: true })
+            writeFileSync(join(standalone, 'apps/ui/server.js'), 'server')
+            const staticDir = join(standalone, 'static')
+            const publicDir = join(standalone, 'public')
+            mkdirSync(staticDir, { recursive: true })
+            mkdirSync(publicDir, { recursive: true })
+            writeFileSync(join(staticDir, 'chunk.js'), 'chunk')
+            writeFileSync(join(publicDir, 'icon.png'), 'icon')
+            const staged = stageStandaloneUi({
+                standaloneRoot: standalone,
+                staticDir,
+                publicDir,
+                destination: dest,
+            })
+            assert.equal(staged.ok, true)
+            assert.equal(staged.serverRel, 'apps/ui/server.js')
+            assert.equal(readFileSync(join(dest, 'apps/ui/server.js'), 'utf8'), 'server')
+            assert.equal(readFileSync(join(dest, 'apps/ui/.next/static/chunk.js'), 'utf8'), 'chunk')
+            assert.equal(readFileSync(join(dest, 'apps/ui/public/icon.png'), 'utf8'), 'icon')
+        } finally {
+            rmSync(standalone, { recursive: true, force: true })
+            rmSync(dest, { recursive: true, force: true })
+        }
+    })
 })
 
 describe('Info.plist version', () => {
@@ -223,6 +293,8 @@ describe('Scripts/bundle.sh', () => {
         assert.match(source, /verify-runtime/)
         assert.match(source, /audit-symlinks/)
         assert.match(source, /contain-links/)
+        assert.match(source, /stage-ui/)
+        assert.match(source, /prune-runtime/)
         assert.match(source, /blinky-local\.mjs build/)
         assert.match(source, /xcodebuild/)
         assert.match(source, /MACOSX_DEPLOYMENT_TARGET=14\.0/)
@@ -235,7 +307,7 @@ describe('Scripts/bundle.sh', () => {
         const result = spawnSync('bash', [bundleSh, '--plan'], { cwd: repoRoot, encoding: 'utf8' })
         assert.equal(result.status, 0, result.stderr)
         assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
-        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.0/)
+        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.1/)
     })
 
     it('refuses to assemble an app when the host is not macOS', () => {

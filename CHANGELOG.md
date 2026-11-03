@@ -10,6 +10,13 @@ bullets, `**bold**`, `` `code` `` and `[links](https://example.com)`.
 
 The app version is this heading. It matches the `VERSION` file and the tag `v` + that version.
 
+## 0.1.1
+
+- **The Mac app opens without a Supabase project.** Local mode no longer builds a Supabase client during the first screen, so a missing project URL or API key does not crash the board.
+- **The window is a product window.** The title bar no longer shows the local address, and the back, forward, and reload controls are gone.
+- **The disk image is smaller.** The app ships the Next.js standalone server and a pruned engine, not the full dependency tree. Chromium stays out of the app and downloads on first use.
+- **Install is drag to Applications.** Open the disk image, drag BlinkyBot onto Applications, then open it. It is not a double-click package installer.
+
 ## 0.1.0
 
 - **BlinkyBot installs as a Mac app.** Open it and it starts a local engine and the Compose UI on this Mac. Docker is not required, and a Supabase project is not required.

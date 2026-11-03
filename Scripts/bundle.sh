@@ -153,18 +153,13 @@ fi
 ditto "apps/engine/dist" "$stage/engine/dist"
 ditto "apps/engine/assets" "$stage/engine/assets"
 
-echo "Packing Compose…"
-if ! env npm_config_package_import_method=copy pnpm --filter rerun --prod deploy "$stage/ui"; then
-    node Scripts/plan.mjs deploy-failed ui >&2
+echo "Packing the Compose standalone server…"
+if ! node Scripts/plan.mjs stage-ui "$stage/ui"; then
     exit 1
 fi
-rm -rf "$stage/ui/.next" "$stage/ui/public"
-ditto "apps/ui/.next" "$stage/ui/.next"
-rm -rf "$stage/ui/.next/cache"
-ditto "apps/ui/public" "$stage/ui/public"
-ditto "apps/ui/next.config.ts" "$stage/ui/next.config.ts"
 node Scripts/plan.mjs contain-links "$stage/ui"
 node Scripts/plan.mjs contain-links "$stage/engine"
+node Scripts/plan.mjs prune-runtime "$stage/ui" "$stage/engine"
 
 mkdir -p "$stage/node/bin"
 cp "$node_real" "$stage/node/bin/node"
@@ -236,6 +231,14 @@ codesign --force --sign "$identity" --options runtime "$app/Contents/MacOS/Blink
 codesign --force --sign "$identity" "$app"
 
 echo "→ $app"
+echo "Runtime sizes:"
+du -sh "$app" \
+    "$app/Contents/Resources/runtime" \
+    "$app/Contents/Resources/runtime/ui" \
+    "$app/Contents/Resources/runtime/ui/node_modules" \
+    "$app/Contents/Resources/runtime/engine" \
+    "$app/Contents/Resources/runtime/engine/node_modules" \
+    "$app/Contents/Resources/runtime/node" || true
 
 if [[ "$zip" -eq 1 ]]; then
     archive="build.noindex/BlinkyBot-${version}.zip"

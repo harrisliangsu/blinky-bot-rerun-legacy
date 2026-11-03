@@ -157,6 +157,12 @@ export function spawnEnv(overlay, base = process.env) {
     return { ...env, ...overlay }
 }
 
+// Next inlines NEXT_PUBLIC_* at build time. The Mac bundle must be built without a
+// Supabase URL or key, or the first screen still constructs a real client.
+export function composeBuildEnv(base = process.env) {
+    return spawnEnv({ BLINKY_LOCAL_AUTH: '1', NEXT_PUBLIC_APP_URL: `http://${UI_HOST}:${DEFAULT_UI_PORT}` }, base)
+}
+
 export function decideStart({ pidAlive, healthy, portFree }) {
     if (pidAlive && healthy) return 'adopt'
     if (pidAlive) return 'wait'

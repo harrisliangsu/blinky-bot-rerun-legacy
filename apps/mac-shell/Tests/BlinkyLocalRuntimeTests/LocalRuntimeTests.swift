@@ -127,6 +127,31 @@ final class LocalRuntimeTests: XCTestCase {
         XCTAssertEqual(plan.nodePath, "/App/Contents/Resources/runtime/node/bin/node")
         XCTAssertEqual(plan.engineCWD, "/App/Contents/Resources/runtime/engine")
         XCTAssertEqual(plan.uiCWD, "/App/Contents/Resources/runtime/ui")
+        XCTAssertEqual(plan.uiArguments, ["node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", "3000"])
+    }
+
+    func testStandaloneServerReplacesNextStart() throws {
+        var inputs = checkoutInputs()
+        inputs.bundledRuntime = "/App/Contents/Resources/runtime"
+        let tree = checkoutTree()
+        tree.executables.insert("/App/Contents/Resources/runtime/node/bin/node")
+        tree.files.insert("/App/Contents/Resources/runtime/engine/dist/cli/bin.js")
+        tree.files.insert("/App/Contents/Resources/runtime/ui/apps/ui/server.js")
+        tree.files.insert("/App/Contents/Resources/runtime/ui/node_modules/next/dist/bin/next")
+        let plan = try XCTUnwrap(resolve(inputs, tree))
+        XCTAssertEqual(plan.uiCWD, "/App/Contents/Resources/runtime/ui")
+        XCTAssertEqual(plan.uiRequest(apiKey: "k").arguments, ["apps/ui/server.js"])
+    }
+
+    func testFlatStandaloneServer() throws {
+        var inputs = checkoutInputs()
+        inputs.bundledRuntime = "/App/Contents/Resources/runtime"
+        let tree = checkoutTree()
+        tree.executables.insert("/App/Contents/Resources/runtime/node/bin/node")
+        tree.files.insert("/App/Contents/Resources/runtime/engine/dist/cli/bin.js")
+        tree.files.insert("/App/Contents/Resources/runtime/ui/server.js")
+        let plan = try XCTUnwrap(resolve(inputs, tree))
+        XCTAssertEqual(plan.uiRequest(apiKey: "k").arguments, ["server.js"])
     }
 
     func testExplicitMissingNodeDoesNotSearchPath() {

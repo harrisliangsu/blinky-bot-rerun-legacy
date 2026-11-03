@@ -20,6 +20,7 @@ public struct StackPlan: Equatable {
     public var nodePath: String
     public var engineCWD: String
     public var uiCWD: String
+    public var uiArguments: [String]
     public var home: String
     public var parentEnvironment: [String: String]
 
@@ -42,7 +43,7 @@ public struct StackPlan: Equatable {
         SpawnRequest(
             role: RuntimeRole.ui,
             executable: nodePath,
-            arguments: RuntimeCommand.uiArguments(port: uiPort),
+            arguments: uiArguments,
             currentDirectory: uiCWD,
             environment: uiEnvironment(parent: parentEnvironment, support: support, uiPort: uiPort, enginePort: enginePort, nodePath: nodePath, apiKey: apiKey, home: home),
             logPath: support.uiLog,
@@ -53,9 +54,14 @@ public struct StackPlan: Equatable {
 
 public enum RuntimeCommand {
     public static let engineArguments = ["dist/cli/bin.js", "run"]
+    public static let standaloneEntries = ["server.js", "apps/ui/server.js"]
+    public static let nextBin = "node_modules/next/dist/bin/next"
 
-    public static func uiArguments(port: Int) -> [String] {
-        ["node_modules/next/dist/bin/next", "start", "-H", "127.0.0.1", "-p", String(port)]
+    public static func uiArguments(port: Int, uiCWD: String, fileExists: (String) -> Bool) -> [String] {
+        for entry in standaloneEntries where fileExists(childPath(uiCWD, entry)) {
+            return [entry]
+        }
+        return [nextBin, "start", "-H", "127.0.0.1", "-p", String(port)]
     }
 }
 
@@ -117,7 +123,7 @@ public func resolveStackPlan(
         bundled: inputs.bundledRuntime.map { childPath($0, "engine") },
         repo: repo,
         repoRelative: "apps/engine",
-        entry: "dist/cli/bin.js",
+        entries: ["dist/cli/bin.js"],
         fileExists: fileExists,
         missing: { .missingEngineBuild($0) }
     ) {
@@ -136,7 +142,7 @@ public func resolveStackPlan(
         bundled: inputs.bundledRuntime.map { childPath($0, "ui") },
         repo: repo,
         repoRelative: "apps/ui",
-        entry: "node_modules/next/dist/bin/next",
+        entries: RuntimeCommand.standaloneEntries + [RuntimeCommand.nextBin],
         fileExists: fileExists,
         missing: { .missingUIBuild($0) }
     ) {
@@ -153,6 +159,7 @@ public func resolveStackPlan(
         nodePath: node,
         engineCWD: engineCWD,
         uiCWD: uiCWD,
+        uiArguments: RuntimeCommand.uiArguments(port: uiPort, uiCWD: uiCWD, fileExists: fileExists),
         home: inputs.home,
         parentEnvironment: inputs.environment
     ))
@@ -350,37 +357,39 @@ private func resolveWorkdir(
     bundled: String?,
     repo: RepoLookup,
     repoRelative: String,
-    entry: String,
+    entries: [String],
     fileExists: (String) -> Bool,
     missing: (String) -> RuntimeFailure
 ) -> Result<String, RuntimeFailure> {
+    let named = entries[0]
+    func ready(_ cwd: String) -> Bool {
+        entries.contains { fileExists(childPath(cwd, $0)) }
+    }
     if let explicit {
-        let entryPath = childPath(explicit, entry)
-        if fileExists(entryPath) {
+        if ready(explicit) {
             return .success(stripTrailingSlash(explicit))
         }
-        return .failure(missing(entryPath))
+        return .failure(missing(childPath(explicit, named)))
     }
     if let bundled {
         let cwd = stripTrailingSlash(bundled)
-        if fileExists(childPath(cwd, entry)) {
+        if ready(cwd) {
             return .success(cwd)
         }
     }
     switch repo {
     case .found(let root):
         let cwd = childPath(root, repoRelative)
-        let entryPath = childPath(cwd, entry)
-        if fileExists(entryPath) {
+        if ready(cwd) {
             return .success(cwd)
         }
-        return .failure(missing(entryPath))
+        return .failure(missing(childPath(cwd, named)))
     case .rejected(let root):
-        return .failure(missing(childPath(childPath(root, repoRelative), entry)))
+        return .failure(missing(childPath(childPath(root, repoRelative), named)))
     case .absent:
         if let bundled {
-            return .failure(missing(childPath(bundled, entry)))
+            return .failure(missing(childPath(bundled, named)))
         }
-        return .failure(missing("Contents/Resources/runtime/\(repoRelative)/\(entry)"))
+        return .failure(missing("Contents/Resources/runtime/\(repoRelative)/\(named)"))
     }
 }

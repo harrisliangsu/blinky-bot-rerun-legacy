@@ -83,7 +83,7 @@ The zip is the same `.app`, without the alias or the Read Me. People who want an
 
 The download is quarantined. macOS shows that the developer cannot be verified. Open BlinkyBot, dismiss the warning, then **System Settings → Privacy & Security → Security → Open Anyway**. Once.
 
-The app then starts the local engine on `127.0.0.1:3001` and Compose on `127.0.0.1:3000`. Data goes to `~/Library/Application Support/BlinkyBot/`. Docker and Supabase stay the upstream server install described in [INSTALL.md](../INSTALL.md).
+The app then starts the local engine on `127.0.0.1:3001` and Compose on `127.0.0.1:3000`. Data goes to `~/Library/Application Support/BlinkyBot/`. Docker and Supabase stay the upstream Rerun server install (not Phase 1) in [docs/upstream-server.md](upstream-server.md).
 
 ## License
 

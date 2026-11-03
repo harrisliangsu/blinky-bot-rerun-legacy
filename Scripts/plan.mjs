@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 BlinkyBot contributors.
 
-import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -32,12 +32,9 @@ export const STAGED_RUNTIME_FILES = [
     'engine/package.json',
     'engine/node_modules',
     'engine/assets/desktop',
-    'ui/node_modules/next/dist/bin/next',
-    'ui/.next/BUILD_ID',
-    'ui/package.json',
-    'ui/next.config.ts',
-    'ui/public',
 ]
+
+export const UI_LAUNCH_FILES = ['ui/server.js', 'ui/apps/ui/server.js', 'ui/node_modules/next/dist/bin/next']
 
 export const CHECKOUT_ARTIFACTS = [
     { path: 'apps/engine/dist/cli/bin.js', hint: 'pnpm --filter rerun-engine build' },
@@ -104,11 +101,15 @@ export function formatPlan(version) {
         '  1. pnpm install --frozen-lockfile',
         '  2. node scripts/blinky-local/blinky-local.mjs build',
         '  3. pnpm --filter rerun-engine --prod deploy, then copy apps/engine/dist and apps/engine/assets',
-        '  4. pnpm --filter rerun --prod deploy, then copy apps/ui/.next, apps/ui/public, and apps/ui/next.config.ts',
-        '  5. copy Node to Contents/Resources/runtime/node/bin/node',
-        '  6. xcodegen generate && xcodebuild -configuration Release',
-        '  7. write CFBundleShortVersionString and CFBundleVersion from VERSION',
-        '  8. codesign (ad-hoc unless CODESIGN_IDENTITY is set)',
+        '  4. stage apps/ui/.next/standalone (server.js) plus .next/static and public',
+        '  5. prune node_modules docs, tests, source maps, foreign native builds, and browser caches',
+        '  6. copy Node to Contents/Resources/runtime/node/bin/node',
+        '  7. xcodegen generate && xcodebuild -configuration Release',
+        '  8. write CFBundleShortVersionString and CFBundleVersion from VERSION',
+        '  9. codesign (ad-hoc unless CODESIGN_IDENTITY is set)',
+        '',
+        'Compose launch: runtime/ui/server.js or runtime/ui/apps/ui/server.js (Next standalone).',
+        'Chromium is not in the app. The engine downloads it on first use.',
         '',
         'This plan prints on any system. The .app is produced on macOS.',
         `The bundled Node and the Swift app are the architecture of the Mac that runs the script.`,
@@ -206,8 +207,155 @@ export function infoPlistVersion(xml, key) {
     return match ? match[1] : null
 }
 
+export function uiLaunchRelative(root, exists = existsSync) {
+    return UI_LAUNCH_FILES.find((entry) => exists(join(root, entry))) ?? null
+}
+
 export function missingRuntimeEntries(root, exists = existsSync) {
-    return STAGED_RUNTIME_FILES.filter((entry) => !exists(join(root, entry)))
+    const missing = STAGED_RUNTIME_FILES.filter((entry) => !exists(join(root, entry)))
+    const launch = uiLaunchRelative(root, exists)
+    if (!launch) {
+        missing.push(UI_LAUNCH_FILES.join(' or '))
+        return missing
+    }
+    const appDir = dirname(launch)
+    for (const entry of [join(appDir, '.next/BUILD_ID'), join(appDir, 'public')]) {
+        if (!exists(join(root, entry))) missing.push(entry)
+    }
+    return missing
+}
+
+export const STANDALONE_SERVERS = ['server.js', 'apps/ui/server.js']
+
+export function standaloneServerRelative(root, exists = existsSync) {
+    return STANDALONE_SERVERS.find((entry) => exists(join(root, entry))) ?? null
+}
+
+export function stageStandaloneUi({ standaloneRoot, staticDir, publicDir, destination, exists = existsSync, copy = cpSync, remove = rmSync }) {
+    const serverRel = standaloneServerRelative(standaloneRoot, exists)
+    if (!serverRel) {
+        return { ok: false, error: `Next standalone server.js is missing under ${standaloneRoot}. Compose needs output: 'standalone'.` }
+    }
+    if (!exists(staticDir)) return { ok: false, error: `Next static files are missing at ${staticDir}` }
+    if (!exists(publicDir)) return { ok: false, error: `Compose public files are missing at ${publicDir}` }
+    remove(destination, { recursive: true, force: true })
+    copy(standaloneRoot, destination, { recursive: true })
+    const appDir = join(destination, dirname(serverRel))
+    mkdirSync(join(appDir, '.next'), { recursive: true })
+    copy(publicDir, join(appDir, 'public'), { recursive: true })
+    copy(staticDir, join(appDir, '.next', 'static'), { recursive: true })
+    return { ok: true, serverRel }
+}
+
+const DOC_DIR_NAMES = new Set(['test', 'tests', '__tests__', 'docs', 'doc', 'example', 'examples', '.github'])
+const BROWSER_DIR_NAMES = new Set(['.local-browsers', 'ms-playwright', 'chrome-headless-shell'])
+
+export function foreignNativePackage(name, host) {
+    const label = String(name).replace(/@\d.*$/, '')
+    const marks = label.match(/(?:linux|win32|android|freebsd|darwin)(?:musl)?-(?:x64|arm64|arm|ia32)/g)
+    if (!marks) return false
+    const token = `${host.platform}-${host.arch}`
+    return marks.every((mark) => !mark.includes(token))
+}
+
+export function isBundledBrowserDir(name) {
+    return BROWSER_DIR_NAMES.has(name) || /^chromium-\d/.test(name) || /^chrome-mac/.test(name) || /^chromium_headless_shell/.test(name)
+}
+
+function insideNodeModules(root, full) {
+    const rel = relative(root, full)
+    return rel === 'node_modules' || rel.startsWith(`node_modules${sep}`) || rel.includes(`${sep}node_modules${sep}`)
+}
+
+export function pruneProductionTree(root, host) {
+    const removed = []
+    const pending = []
+    function walk(dir) {
+        let entries
+        try {
+            entries = readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
+            const full = join(dir, entry.name)
+            if (entry.isSymbolicLink()) continue
+            if (!insideNodeModules(root, full)) {
+                if (entry.isDirectory()) walk(full)
+                continue
+            }
+            if (entry.isDirectory()) {
+                if (entry.name !== 'node_modules' && (isBundledBrowserDir(entry.name) || DOC_DIR_NAMES.has(entry.name) || foreignNativePackage(entry.name, host))) {
+                    pending.push(full)
+                    continue
+                }
+                walk(full)
+                continue
+            }
+            if (/\.(md|markdown|map)$/.test(entry.name) || entry.name.endsWith('.d.ts') || /^(LICENSE|CHANGELOG|README)/i.test(entry.name)) {
+                pending.push(full)
+            }
+        }
+    }
+    if (existsSync(root)) walk(root)
+    pending.sort((a, b) => b.length - a.length)
+    for (const path of pending) {
+        rmSync(path, { recursive: true, force: true })
+        removed.push(path)
+    }
+    const dangling = []
+    function dropDangling(dir) {
+        let entries
+        try {
+            entries = readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
+            const full = join(dir, entry.name)
+            if (!entry.isSymbolicLink()) {
+                if (entry.isDirectory()) dropDangling(full)
+                continue
+            }
+            if (!insideNodeModules(root, full)) continue
+            let target
+            try {
+                target = readlinkSync(full)
+            } catch {
+                continue
+            }
+            if (!existsSync(resolve(dirname(full), target))) {
+                unlinkSync(full)
+                dangling.push(full)
+            }
+        }
+    }
+    if (existsSync(root)) dropDangling(root)
+    return { removed, dangling, browsers: bundledBrowserDirs(root) }
+}
+
+export function bundledBrowserDirs(root) {
+    const found = []
+    function walk(dir) {
+        let entries
+        try {
+            entries = readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
+            const full = join(dir, entry.name)
+            if (entry.isSymbolicLink()) continue
+            if (!entry.isDirectory()) continue
+            if (isBundledBrowserDir(entry.name)) {
+                found.push(full)
+                continue
+            }
+            walk(full)
+        }
+    }
+    if (existsSync(root)) walk(root)
+    return found
 }
 
 export function formatMissingRuntime(entries) {
@@ -442,6 +590,36 @@ function main(argv) {
         const root = argv[1] ? resolve(argv[1]) : repoRoot
         const missing = missingCheckoutArtifacts(root)
         if (missing.length) fail(formatMissingCheckout(missing))
+        const standalone = join(root, 'apps/ui/.next/standalone')
+        if (!standaloneServerRelative(standalone)) {
+            fail(`Next standalone server.js is missing under ${standalone}. Compose needs output: 'standalone'.`)
+        }
+        return
+    }
+    if (command === 'stage-ui') {
+        const destination = argv[1]
+        if (!destination) fail('stage-ui needs the destination directory')
+        const staged = stageStandaloneUi({
+            standaloneRoot: join(repoRoot, 'apps/ui/.next/standalone'),
+            staticDir: join(repoRoot, 'apps/ui/.next/static'),
+            publicDir: join(repoRoot, 'apps/ui/public'),
+            destination,
+        })
+        if (!staged.ok) fail(staged.error)
+        console.log(`staged Compose standalone (${staged.serverRel})`)
+        return
+    }
+    if (command === 'prune-runtime') {
+        const roots = argv.slice(1).filter(Boolean)
+        if (!roots.length) fail('prune-runtime needs one or more directories')
+        const host = { platform: process.platform, arch: process.arch }
+        for (const root of roots) {
+            const result = pruneProductionTree(root, host)
+            console.log(`pruned ${root}: ${result.removed.length} paths removed, ${result.dangling.length} dangling links dropped`)
+            if (result.browsers.length) {
+                fail(['Chromium is downloaded on first use and must not ship inside the app:', ...result.browsers].join('\n'))
+            }
+        }
         return
     }
     if (command === 'patch-plist') {
