@@ -52,7 +52,7 @@ async function core() {
     await installCodex()
     const notes = []
     const browser = await chromium.launch({ headless: false })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const context = await openContext(browser)
     const page = await context.newPage()
     page.on('console', message => notes.push(`${message.type()}: ${message.text()}`))
     page.on('pageerror', error => notes.push(`pageerror: ${error.message}`))
@@ -148,7 +148,7 @@ async function saveBot(page, { name, persona }) {
 async function retire() {
     const state = JSON.parse(readFileSync(statePath, 'utf8'))
     const browser = await chromium.launch({ headless: false })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const context = await openContext(browser)
     const page = await context.newPage()
     try {
         await page.goto(ui, { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -186,7 +186,7 @@ async function retire() {
 async function persist() {
     const state = JSON.parse(readFileSync(statePath, 'utf8'))
     const browser = await chromium.launch({ headless: false })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const context = await openContext(browser)
     const page = await context.newPage()
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -307,7 +307,7 @@ async function rex() {
 async function chat() {
     const state = JSON.parse(readFileSync(statePath, 'utf8'))
     const browser = await chromium.launch({ headless: false })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const context = await openContext(browser)
     const page = await context.newPage()
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -358,7 +358,7 @@ async function chat() {
 async function runs() {
     const state = JSON.parse(readFileSync(statePath, 'utf8'))
     const browser = await chromium.launch({ headless: false })
-    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const context = await openContext(browser)
     const page = await context.newPage()
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
@@ -368,7 +368,13 @@ async function runs() {
         writeControl({ delayMs: 12_000 })
         await sendChat(page, 'please keep going')
         const stop = page.getByRole('main').getByRole('button', { name: 'Stop', exact: true }).last()
-        await stop.waitFor({ timeout: 20_000 })
+        const stopDeadline = Date.now() + 20_000
+        while (Date.now() < stopDeadline) {
+            await dismissPermissionPrompt(page)
+            if (await stop.isVisible().catch(() => false)) break
+            await page.waitForTimeout(250)
+        }
+        await stop.waitFor({ timeout: 5_000 })
         await waitBoard(page, state.agentId, 'working', [])
         await dismissPermissionPrompt(page)
         await stop.click()
@@ -403,6 +409,14 @@ async function openThread(page, state) {
     }
 }
 
+async function openContext(browser) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    await context.addInitScript(() => {
+        localStorage.setItem('rerun:notifications-ui', JSON.stringify({ state: { permissionAsked: true }, version: 0 }))
+    })
+    return context
+}
+
 async function clickPicker(page) {
     await dismissPermissionPrompt(page)
     const picker = page.getByRole('main').getByTestId('model-picker').last()
@@ -423,7 +437,7 @@ async function chooseModel(page, label) {
 }
 
 async function dismissPermissionPrompt(page) {
-    const notNow = page.getByRole('button', { name: 'Not now', exact: true })
+    const notNow = page.getByRole('alertdialog').getByRole('button', { name: 'Not now', exact: true })
     if (!(await notNow.isVisible().catch(() => false))) return
     await notNow.click()
     await notNow.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
@@ -441,12 +455,22 @@ async function waitForNotice(page, pattern) {
 }
 
 async function sendChat(page, text) {
-    await dismissPermissionPrompt(page)
     const box = page.getByRole('main').getByTestId('composer').last()
     await box.waitFor({ state: 'visible', timeout: 20_000 })
     await box.click({ force: true })
     await box.fill(text)
-    await box.press('Enter')
+    const submit = page.getByRole('main').getByRole('button', { name: 'Submit', exact: true }).last()
+    const deadline = Date.now() + 15_000
+    while (Date.now() < deadline) {
+        await dismissPermissionPrompt(page)
+        try {
+            await submit.click({ timeout: 2_000 })
+            return
+        } catch {
+            // The notification prompt can open between the dismiss and the click.
+        }
+    }
+    await submit.click()
 }
 
 function writeControl(value) {
