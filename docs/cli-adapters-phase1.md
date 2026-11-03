@@ -2,6 +2,8 @@
 
 BlinkyBot runs on this Rerun tree. Foreman already drives two local CLIs as providers: **Claude Code** (`claude`) and **Codex** (`codex`). Phase 1 adds a local spawn layer for four runtimes — Codex, Kimi, Grok, and Claude — without making Kimi or Grok model-picker providers.
 
+The Mac app starts the engine with `RERUN_CLI_ADAPTERS=codex,kimi,grok,claude` and does not use Docker. Process model: [no-docker-runtime.md](no-docker-runtime.md).
+
 The spawn layer lives in `apps/engine/src/agents/cli-adapters/`. It builds an argv and, when the feature flag allows, spawns the binary. It does not stream tokens into a Foreman turn.
 
 ## Enable the spawn path
