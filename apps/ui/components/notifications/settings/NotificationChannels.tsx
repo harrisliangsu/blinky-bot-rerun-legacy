@@ -20,7 +20,7 @@ export function NotificationChannels({ prefs, onChange }: { prefs: ChannelPrefs;
                 <SwitchRow
                     icon={Volume2}
                     label="Sound"
-                    description="Only when a coworker needs you or something breaks."
+                    description="Only when a Bot needs you or something breaks."
                     checked={prefs.sound}
                     disabled={silent}
                     onChange={sound => onChange({ sound })}

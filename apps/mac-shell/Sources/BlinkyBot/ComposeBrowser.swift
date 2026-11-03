@@ -46,6 +46,23 @@ final class ComposeBrowser: NSObject, ObservableObject, WKNavigationDelegate, WK
         decisionHandler(.allow)
     }
 
+    private var pendingNewBot = false
+
+    func requestNewBot() {
+        pendingNewBot = true
+        deliverNewBot()
+    }
+
+    private func deliverNewBot() {
+        guard pendingNewBot else { return }
+        let script = "try{sessionStorage.setItem('blinky.newBot','1');window.dispatchEvent(new Event('blinky-new-bot'))}catch(e){}"
+        webView.evaluateJavaScript(script) { _, error in
+            if error == nil {
+                self.pendingNewBot = false
+            }
+        }
+    }
+
     func load(_ url: URL) {
         currentURL = url
         errorText = nil
@@ -82,6 +99,7 @@ final class ComposeBrowser: NSObject, ObservableObject, WKNavigationDelegate, WK
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        deliverNewBot()
         isLoading = false
         errorText = nil
         pageURL = webView.url

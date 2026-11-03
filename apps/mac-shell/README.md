@@ -218,7 +218,7 @@ Bundle id: `bot.blinky.shell`. Settings is also in the app menu (Command-,). **C
 - Closing the window leaves BlinkyBot running. The Dock icon stays, so the app does not look like it quit. Click the Dock icon or **Open BlinkyBot** in the menu bar to bring the window back. Quit from the menu bar stops the children this launch owns.
 - Settings → Startup → **Open at login** is off until it is turned on (`SMAppService`).
 
-The coworker's screen viewer, when Compose shows one, talks to the engine at `RERUN_ENGINE_BROWSER_URL` (`http://127.0.0.1:3001`). The shell does not proxy that port. Phase 1 sets `RERUN_DESKTOP=off`, so that viewer stays off the install path.
+The Bot's screen viewer, when Compose shows one, talks to the engine at `RERUN_ENGINE_BROWSER_URL` (`http://127.0.0.1:3001`). The shell does not proxy that port. Phase 1 sets `RERUN_DESKTOP=off`, so that viewer stays off the install path.
 
 ## First launch
 

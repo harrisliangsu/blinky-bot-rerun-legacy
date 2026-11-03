@@ -11,7 +11,7 @@ import { EMPTY_READING, MAX_READABLE_LENGTH, MIN_READABLE_LENGTH, type JobReadin
 // s'affiche sur le board avant même que l'agent ait dit un mot.
 export async function nameAgentFromPromptAction(task: string): Promise<string> {
     const trimmed = task.trim().slice(0, 500)
-    if (!trimmed) return 'New coworker'
+    if (!trimmed) return 'New Bot'
     try {
         await requireWorkspaceId()
         return (await generateAgentName(trimmed)) || fallbackAgentName(trimmed)

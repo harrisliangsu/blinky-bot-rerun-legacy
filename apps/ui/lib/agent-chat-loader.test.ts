@@ -27,7 +27,7 @@ describe('liveActivityLabel', () => {
                 },
             },
         ])
-        expect(liveActivityLabel(message, toolLabel)).toBe('Waiting on 3 sub-coworkers · 1 done · 1 stalled')
+        expect(liveActivityLabel(message, toolLabel)).toBe('Waiting on 3 sub-Bots · 1 done · 1 stalled')
     })
 
     it('reads a delegation whose id a CLI bridge rewrote', () => {
@@ -35,7 +35,7 @@ describe('liveActivityLabel', () => {
             { type: 'dynamic-tool', toolName: 'mcp__rerun__delegate_tasks', toolCallId: 'toolu_01', state: 'input-available' },
             { type: 'data-delegate', id: '7', data: { tasks: [{ title: 'A', status: 'running', steps: 1 }] } },
         ])
-        expect(liveActivityLabel(message, toolLabel)).toBe('Waiting on 1 sub-coworker · 0 done')
+        expect(liveActivityLabel(message, toolLabel)).toBe('Waiting on 1 sub-Bot · 0 done')
     })
 
     it('names the agent the onboarding is building', () => {

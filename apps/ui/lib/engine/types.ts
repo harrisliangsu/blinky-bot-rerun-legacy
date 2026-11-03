@@ -111,6 +111,16 @@ export const engineMcpServerSchema = mcpServerSchema
 export const engineMcpServerStatusListSchema = mcpServerStatusListSchema
 export const engineAgentConfigSchema = agentConfigSchema
 export const engineAgentDetailSchema = agentDetailSchema
+export const engineAgentIndexSchema = z.object({
+    agents: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        displayName: z.string().optional(),
+        avatarEmoji: z.string().optional(),
+        status: z.string().optional(),
+    })),
+})
+export type EngineAgentIndexRow = z.infer<typeof engineAgentIndexSchema>['agents'][number]
 export const engineActivatedAutomationsSchema = activatedAutomationsSchema
 export const engineAgentKeysListSchema = agentKeysListSchema
 export const boxConnectionSchema = connectionSummarySchema

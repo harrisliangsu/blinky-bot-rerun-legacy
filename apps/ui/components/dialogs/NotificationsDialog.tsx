@@ -5,6 +5,7 @@ import { DIALOG_TABS_CONTENT, DIALOG_TABS_HEADER, DialogTabs } from '@/component
 import { CoworkerNotificationSettings } from '@/components/notifications/settings/CoworkerNotificationSettings'
 import { AccountEmails } from '@/components/notifications/settings/NotificationChannels'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useBotCopy } from '@/lib/blinky/bot-locale'
 import { useNotificationPrefs } from '@/hooks/useNotificationPrefs'
 import { useBoardStore } from '@/stores/board.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
@@ -12,15 +13,7 @@ import { useMemo, useState } from 'react'
 
 type NotificationTab = 'coworkers' | 'account'
 
-const TABS = [
-    { value: 'coworkers', label: 'Coworkers' },
-    { value: 'account', label: 'Account' },
-] as const
-
-const TAB_DESCRIPTIONS: Record<NotificationTab, string> = {
-    coworkers: 'What is worth interrupting you for. Saved as you go.',
-    account: 'Choose which account emails you receive.',
-}
+const TAB_DESCRIPTIONS_ACCOUNT = 'Choose which account emails you receive.'
 
 // The sheet's own safe-area padding is dropped by the p-0 of DIALOG_TABS_CONTENT, so the scrolling
 // body carries it itself.
@@ -41,7 +34,12 @@ export function NotificationsDialog() {
 
 function NotificationsDialogBody() {
     const targetAgentId = useNotificationsStore(s => s.targetAgentId)
+    const copy = useBotCopy()
     const agents = useBoardStore(s => s.agents)
+    const tabs = [
+        { value: 'coworkers' as const, label: copy.notifications },
+        { value: 'account' as const, label: 'Account' },
+    ]
     const { prefs, update, setCoworkerRule } = useNotificationPrefs()
     const [activeTab, setActiveTab] = useState<NotificationTab>('coworkers')
 
@@ -49,25 +47,25 @@ function NotificationsDialogBody() {
 
     return (
         <DialogTabs
-            tabs={TABS}
+            tabs={tabs}
             tab={activeTab}
             onTabChange={setActiveTab}
             header={
                 <DialogHeader className={DIALOG_TABS_HEADER}>
                     <DialogTitle>Notifications</DialogTitle>
-                    <DialogDescription>{TAB_DESCRIPTIONS[activeTab]}</DialogDescription>
+                    <DialogDescription>{activeTab === 'coworkers' ? copy.notificationsBody : TAB_DESCRIPTIONS_ACCOUNT}</DialogDescription>
                 </DialogHeader>
             }
         >
             {activeTab === 'coworkers' && (
-                <div className={TAB_BODY}>
+                <div className={TAB_BODY} data-testid="bot-notifications">
                     <CoworkerNotificationSettings
                         prefs={prefs}
                         coworkers={coworkers}
                         onUpdate={update}
                         onSetCoworkerRule={setCoworkerRule}
                         pinnedCoworkerId={targetAgentId}
-                        renderPicker={({ exclude, onPick }) => <AgentCombobox value={undefined} onChange={onPick} exclude={exclude} placeholder="Choose a coworker" className="w-full" />}
+                        renderPicker={({ exclude, onPick }) => <AgentCombobox value={undefined} onChange={onPick} exclude={exclude} placeholder={copy.chooseBot} className="w-full" />}
                     />
                 </div>
             )}

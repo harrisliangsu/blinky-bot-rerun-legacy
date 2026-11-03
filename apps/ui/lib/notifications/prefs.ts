@@ -44,7 +44,7 @@ export const EMAIL_KIND_LABELS: Record<NotificationKind, string> = {
     done: 'Run finished',
     error: 'Errors',
     info: 'Needs your attention',
-    question: 'Coworker has a question',
+    question: 'Bot has a question',
     approval: 'Approval needed',
     connector: 'App setup',
 }

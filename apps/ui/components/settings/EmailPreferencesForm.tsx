@@ -61,7 +61,7 @@ export function EmailPreferencesForm({ initialPrefs, token }: { initialPrefs: Em
         <div className="flex flex-col gap-6">
             <section className="flex flex-col gap-1">
                 <h2 className="px-3 text-sm font-semibold text-foreground">Coworker notifications</h2>
-                <SwitchRow icon={MailIcon} label="Email" description="When a coworker needs you or breaks while you are away. One email per incident, never one per run." checked={prefs.email} onChange={toggleRunEmails} />
+                <SwitchRow icon={MailIcon} label="Email" description="When a Bot needs you or breaks while you are away. One email per incident, never one per run." checked={prefs.email} onChange={toggleRunEmails} />
             </section>
 
             <section className="flex flex-col gap-1">

@@ -96,6 +96,8 @@ import {
     type DbExecuteInput,
     type DbExecuteResult,
     engineAgentDetailSchema,
+    engineAgentIndexSchema,
+    type EngineAgentIndexRow,
     engineActivatedAutomationsSchema,
     engineAgentKeysListSchema,
     boxConnectionSchema,
@@ -228,6 +230,10 @@ export async function deleteConnection(conn: EngineConnection, id: string): Prom
 // lets a template say "shell off" without freezing today's value of every other flag.
 export async function createAgent(conn: EngineConnection, params: { config: EngineAgentConfigPatch & { name: string }; soul?: string; install?: string; keys?: Record<string, string> }): Promise<EngineAgentDetail> {
     return request(conn, '/agents', { method: 'POST', body: JSON.stringify(params) }, d => engineAgentDetailSchema.parse(d))
+}
+
+export async function listEngineAgents(conn: EngineConnection): Promise<EngineAgentIndexRow[]> {
+    return request(conn, '/agents', { method: 'GET' }, data => engineAgentIndexSchema.parse(data).agents)
 }
 
 export async function getAgent(conn: EngineConnection, id: string): Promise<EngineAgentDetail> {

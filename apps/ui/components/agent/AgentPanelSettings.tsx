@@ -15,7 +15,11 @@ import { Separator } from '@/components/ui/separator'
 import { SkeletonForm } from '@/components/ui/skeleton'
 import { Segmented } from '@/components/ui/segmented'
 import { MarkdownTextarea } from '@/components/ui/markdown-textarea'
-import { VERBOSITY_LEVELS } from '@rerun/contracts'
+import { VERBOSITY_LEVELS, type AgentAvatar } from '@rerun/contracts'
+import { BotAvatarField } from '@/components/bot/BotAvatarField'
+import { BotModelField } from '@/components/bot/BotModelField'
+import { useBotCopy } from '@/lib/blinky/bot-locale'
+import { botConfigPatch, type BotModelChoice } from '@/lib/blinky/bot-draft'
 import type { IsoAgent } from '@/lib/board/types'
 import type { EngineVerbosity } from '@/lib/engine/types'
 import { useBoardStore } from '@/stores/board.store'
@@ -37,10 +41,13 @@ const VERBOSITY_OPTIONS = VERBOSITY_LEVELS.map(value => ({ value, label: VERBOSI
 const SETTINGS_FORM_ID = 'agent-settings-form'
 
 export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
+    const copy = useBotCopy()
     const renameAgent = useBoardStore(s => s.renameAgent)
     const openNotifications = useNotificationsStore(s => s.openNotifications)
     const soulLocked = useTemplateContentLock(agent.id)
     const [name, setName] = useState(agent.name)
+    const [avatar, setAvatar] = useState<AgentAvatar>({ emoji: '', image: '' })
+    const [modelChoice, setModelChoice] = useState<BotModelChoice>({ connectionId: null, model: null, provider: null })
     const [loading, setLoading] = useState(true)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -68,26 +75,25 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
         getAgentDetailAction(agent.id)
             .then(detail => {
                 if (!detail) {
-                    setError('Could not reach the engine for this coworker.')
+                    setError(copy.engineDown)
                     return
                 }
                 const c = detail.config
+                setAvatar(c.avatar ?? { emoji: '', image: '' })
+                setModelChoice({ connectionId: c.connectionId, model: c.model, provider: c.provider })
                 form.reset({
                     soul: detail.soul,
                     verbosity: c.verbosity,
                 })
             })
-            .catch(() => setError('Could not reach the engine for this coworker.'))
+            .catch(() => setError(copy.engineDown))
             .finally(() => setLoading(false))
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent.id])
 
     const handleSave = form.handleSubmit(async ({ soul, verbosity }) => {
         setError(null)
-        // Note: provider/model are intentionally omitted here — they are owned by the
-        // in-chat ModelSelector. Including them would overwrite the user's selection.
-        // A sealed soul is dropped server-side, so the rest of this form still saves.
-        const result = await updateAgentConfigAction(agent.id, { soul, verbosity })
+        const result = await updateAgentConfigAction(agent.id, { soul, verbosity, ...botConfigPatch({ ...modelChoice, avatar }) })
         if (result.success) {
             setSaved(true)
             setTimeout(() => setSaved(false), 2000)
@@ -108,7 +114,8 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
         <PanelEditorShell>
             <PanelEditorBody>
                 <Input
-                    label="Name"
+                    data-testid="bot-settings-name"
+                    label={copy.name}
                     hideRequired
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -125,7 +132,7 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
 
                 {/* Un agent éteint ne répond plus : son détail engine est inatteignable par construction,
                     pas par panne. Seuls le renommage et la suppression restent utiles ici. */}
-                {agent.disabledAt ? <p className="text-xs text-muted-foreground">This coworker is inactive, so its configuration cannot be loaded or changed.</p> : error && <p className="text-xs text-destructive">{error}</p>}
+                {agent.disabledAt ? <p className="text-xs text-muted-foreground">{copy.settingsInactive}</p> : error && <p className="text-xs text-destructive">{error}</p>}
 
                 <Separator />
 
@@ -138,12 +145,15 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
                                 <FormItem className="space-y-1">
                                     <TemplateContentLock locked={soulLocked} subject="system prompt">
                                         <FormControl>
-                                            <MarkdownTextarea label="Soul (system prompt)" dialogTitle="Edit the system prompt" className="text-xs min-h-32 font-mono" placeholder="You are..." {...field} disabled={soulLocked} />
+                                            <MarkdownTextarea data-testid="bot-settings-persona" label={copy.persona} dialogTitle={copy.persona} className="text-xs min-h-32 font-mono" placeholder="You are..." {...field} disabled={soulLocked} />
                                         </FormControl>
                                     </TemplateContentLock>
                                 </FormItem>
                             )}
                         />
+
+                        <BotAvatarField copy={copy} name={name} value={avatar} onChange={setAvatar} />
+                        <BotModelField copy={copy} value={modelChoice} onChange={setModelChoice} />
 
                         <FormField
                             control={form.control}
@@ -174,15 +184,15 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
             </PanelEditorBody>
             <PanelEditorFooter>
                 <DeleteAgentDialog agentId={agent.id} agentName={agent.name}>
-                    <PanelDeleteButton label="Delete coworker" confirm={false} />
+                    <PanelDeleteButton data-testid="bot-settings-delete" label={copy.delete} confirm={false} />
                 </DeleteAgentDialog>
                 <Button type="submit" form={SETTINGS_FORM_ID} size="sm" className="flex-1" loading={isSubmitting}>
                     {saved ? (
                         <>
-                            <CheckIcon className="size-3.5 mr-1.5 text-emerald-500" /> Saved
+                            <CheckIcon className="size-3.5 mr-1.5 text-emerald-500" /> {copy.saved}
                         </>
                     ) : (
-                        'Save changes'
+                        copy.save
                     )}
                 </Button>
             </PanelEditorFooter>

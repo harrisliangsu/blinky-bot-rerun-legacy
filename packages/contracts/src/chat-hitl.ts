@@ -83,7 +83,7 @@ export function hitlInputIsUsable(kind: HitlKind, input: Record<string, unknown>
 function toQuestionItem(question: unknown, options: unknown, multiple: unknown): QuestionItem {
     const choices = Array.isArray(options) ? (options as string[]) : []
     return {
-        question: String(question ?? 'The coworker has a question'),
+        question: String(question ?? 'The Bot has a question'),
         options: choices,
         multiple: multiple === true && choices.length > 0,
     }
@@ -126,7 +126,7 @@ export function pendingApprovals(input: Record<string, unknown>): ApprovalItem[]
         return approvals.map(value => {
             const item = (value ?? {}) as { action?: unknown; detail?: unknown }
             return {
-                action: String(item.action ?? 'The coworker requests approval'),
+                action: String(item.action ?? 'The Bot requests approval'),
                 detail: typeof item.detail === 'string' ? item.detail : undefined,
             }
         })
@@ -135,7 +135,7 @@ export function pendingApprovals(input: Record<string, unknown>): ApprovalItem[]
     // Read compatibility for approval calls persisted before request_approval accepted batches.
     return [
         {
-            action: String(input.action ?? 'The coworker requests approval'),
+            action: String(input.action ?? 'The Bot requests approval'),
             detail: typeof input.detail === 'string' ? input.detail : undefined,
         },
     ]
@@ -178,7 +178,7 @@ export function pendingMcpSignIn(input: Record<string, unknown>): McpSignInReque
 export function pendingTakeover(input: Record<string, unknown>): TakeoverRequest {
     return {
         url: typeof input.url === 'string' ? input.url : '',
-        reason: typeof input.reason === 'string' && input.reason.trim() ? input.reason.trim() : 'The coworker needs you in its browser',
+        reason: typeof input.reason === 'string' && input.reason.trim() ? input.reason.trim() : 'The Bot needs you in its browser',
     }
 }
 
@@ -283,7 +283,7 @@ export function findUnknownPendingCall(messages: readonly { role: string; parts:
 
 export type PendingAlert = { toolCallId: string | null; message: string }
 
-const ALERT_FALLBACK_MESSAGE = 'The coworker sent you a notification.'
+const ALERT_FALLBACK_MESSAGE = 'The Bot sent you a notification.'
 
 function toolNameOf(part: { type: string; toolName?: string }): string {
     const raw = part.toolName ?? (part.type.startsWith('tool-') ? part.type.slice('tool-'.length) : '')

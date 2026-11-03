@@ -205,7 +205,7 @@ const TOOL_ACTIVITIES: Record<string, string> = {
     vision_analyze: 'Looking at an image',
 
     delegate_tasks: 'Delegating tasks',
-    call_agent: 'Calling a coworker',
+    call_agent: 'Calling a Bot',
 
     skill_read: 'Reading a skill',
     skill_read_file: 'Reading a skill',
@@ -217,9 +217,9 @@ const TOOL_ACTIVITIES: Record<string, string> = {
     rerun_hub_service_install: 'Installing an app',
 
     list_agents: 'Looking at the team',
-    create_agent: 'Creating a coworker',
-    update_agent: 'Updating a coworker',
-    send_message: 'Messaging a coworker',
+    create_agent: 'Creating a Bot',
+    update_agent: 'Updating a Bot',
+    send_message: 'Messaging a Bot',
     build_team: 'Building the team',
     search_docs: 'Searching the docs',
     analyze_website: 'Reading the website',

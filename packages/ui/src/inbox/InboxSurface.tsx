@@ -418,7 +418,7 @@ export function InboxSurface<T extends InboxEntry>({
                                 >
                                     <div>
                                         {sections.length === 0 ? (
-                                            <EmptyState icon={InboxIcon} title="Nothing to handle" description="When a coworker needs you or finishes a task, it lands here." className="py-8" />
+                                            <EmptyState icon={InboxIcon} title="Nothing to handle" description="When a Bot needs you or finishes a task, it lands here." className="py-8" />
                                         ) : (
                                             sections.map(section => (
                                                 <section key={section.title} data-section={section.title} className="flex flex-col">

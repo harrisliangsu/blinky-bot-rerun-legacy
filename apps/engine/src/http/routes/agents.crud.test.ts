@@ -58,8 +58,17 @@ describe('agent index', () => {
         const id = await createAgent('Listed')
         const res = await send('GET', '/agents')
         expect(res.status).toBe(200)
-        const { agents } = (await res.json()) as { agents: { id: string; name: string; status: string }[] }
-        expect(agents).toContainEqual(expect.objectContaining({ id, name: 'Listed', status: 'idle' }))
+        const { agents } = (await res.json()) as { agents: { id: string; name: string; status: string; displayName?: string; avatarEmoji?: string }[] }
+        expect(agents).toContainEqual(expect.objectContaining({ id, name: 'Listed', status: 'idle', displayName: 'Listed', avatarEmoji: '' }))
+    })
+
+    it('lists the display name beside the handle', async () => {
+        const created = await send('POST', '/agents', { config: { name: 'scout', displayName: 'Scout Bot', avatar: { emoji: '🤖', image: '' } } })
+        expect(created.status).toBe(201)
+        const id = ((await created.json()) as Detail).id
+        const res = await send('GET', '/agents')
+        const { agents } = (await res.json()) as { agents: { id: string; name: string; displayName?: string; avatarEmoji?: string }[] }
+        expect(agents).toContainEqual(expect.objectContaining({ id, name: 'scout', displayName: 'Scout Bot', avatarEmoji: '🤖' }))
     })
 
     it('renames the agent in the index', async () => {

@@ -50,6 +50,13 @@ public enum ShellCopy {
         }
     }
 
+    public static func newBot(_ language: ShellLanguage) -> String {
+        switch language {
+        case .english: return "New Bot"
+        case .chinese: return "新建 Bot"
+        }
+    }
+
     public static func openBlinkyBot(_ language: ShellLanguage) -> String {
         switch language {
         case .english: return "Open BlinkyBot"

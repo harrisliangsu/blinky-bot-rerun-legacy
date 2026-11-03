@@ -167,11 +167,16 @@ export function normalizeNotificationPrefs(value: unknown): NotificationPrefs {
   if (raw.version !== 2) return legacyPrefs(raw);
 
   const coworkers: Record<string, CoworkerRule> = {};
-  if (isRecord(raw.coworkers)) {
-    for (const [id, rule] of Object.entries(raw.coworkers)) {
-      const normalized = normalizeCoworkerRule(rule);
-      if (normalized) coworkers[id] = normalized;
-    }
+  // `bots` is the product name of the same map. A row written under that key is read once and
+  // kept under `coworkers`, which is what every later write still stores.
+  const storedRules = isRecord(raw.coworkers) ? raw.coworkers : {};
+  const aliasRules =
+    Object.keys(storedRules).length === 0 && isRecord(raw.bots)
+      ? raw.bots
+      : storedRules;
+  for (const [id, rule] of Object.entries(aliasRules)) {
+    const normalized = normalizeCoworkerRule(rule);
+    if (normalized) coworkers[id] = normalized;
   }
   const tasks: Record<string, boolean> = {};
   if (isRecord(raw.tasks)) {
@@ -289,7 +294,7 @@ export const NOTIFICATION_SCOPE_COPY: Record<
   },
   mine: {
     label: "My runs and what I follow",
-    detail: "Runs I start, conversations I am in, coworkers I follow.",
+    detail: "Runs I start, conversations I am in, Bots I follow.",
   },
   needed: {
     label: "Only when I am needed",

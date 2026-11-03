@@ -4,6 +4,7 @@ import {
     deleteAgent as engineDeleteAgent,
     duplicateAgent as engineDuplicateAgent,
     importAgentArchive,
+    listEngineAgents,
     listSchedules,
     patchAgent as enginePatchAgent,
     updateSchedule,
@@ -11,6 +12,7 @@ import {
 import type { EngineAgentConfigPatch } from '@/lib/engine/types'
 import { AGENT_SPAN, UNPLACED_COL, agentsOverlap, isPlaced } from '@/lib/board/iso'
 import type { GridPosition } from '@/lib/board/types'
+import { LOCAL_SPACE_ID, LOCAL_WORKSPACE_ID } from '@/lib/local-auth/constants'
 import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMany, selectSingle } from '@/supabase/supabase-helpers'
@@ -109,6 +111,11 @@ function allocateHandle(displayName: string, taken: Set<string>): string {
 // @mentions resolve on the engine. Workspace-wide rather than per Box, because every Box of a
 // workspace now runs on the same engine, where one name means one agent.
 export async function deriveUniqueHandle(supabase: ReturnType<typeof createServiceRoleClient>, workspaceId: number, displayName: string, excludeAgentId?: string): Promise<string> {
+    if (isBlinkyLocalAuth()) {
+        const listed = await listEngineAgents(await getSpaceConnection(LOCAL_SPACE_ID)).catch(() => [])
+        const taken = new Set(listed.filter(agent => agent.id !== excludeAgentId).map(agent => agent.name))
+        return allocateHandle(displayName, taken)
+    }
     const { data } = await selectMany(supabase, 'agents', ['id', 'handle'] as const, { workspace_id: workspaceId })
     const taken = new Set((data ?? []).filter(a => a.id !== excludeAgentId && a.handle).map(a => a.handle as string))
     return allocateHandle(displayName, taken)
@@ -386,6 +393,12 @@ export async function resumeAgentSchedules(id: string): Promise<void> {
 // is written first: it is the side that can be unreachable, and a handle moved in Supabase alone
 // would be offered in the UI while call_agent still only answers to the old one.
 export async function renameAgent(id: string, newName: string) {
+    if (isBlinkyLocalAuth()) {
+        const conn = await getSpaceConnection(LOCAL_SPACE_ID)
+        const handle = await deriveUniqueHandle(createServiceRoleClient(), LOCAL_WORKSPACE_ID, newName, id)
+        await enginePatchAgent(conn, id, { name: handle, displayName: newName })
+        return { name: newName, handle }
+    }
     const supabase = createServiceRoleClient()
     const { data: agent } = await selectSingle(supabase, 'agents', ['workspace_id', 'space_id', 'engine_agent_id'] as const, { id })
     if (!agent) throw new Error('Coworker not found')
@@ -431,6 +444,10 @@ export async function changeAgentHandle(id: string, requestedHandle: string) {
 }
 
 export async function deleteAgent(id: string) {
+    if (isBlinkyLocalAuth()) {
+        await engineDeleteAgent(await getSpaceConnection(LOCAL_SPACE_ID), id).catch(() => {})
+        return { success: true }
+    }
     const supabase = createServiceRoleClient()
 
     const { data: agent } = await selectSingle(supabase, 'agents', ['engine_agent_id', 'space_id'] as const, { id })

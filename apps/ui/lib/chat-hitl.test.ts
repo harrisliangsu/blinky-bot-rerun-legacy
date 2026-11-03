@@ -183,12 +183,12 @@ describe('findPendingAlert', () => {
     it('ignores a notify_user of any other kind', () => {
         expect(findPendingAlert([{ role: 'assistant', parts: [{ type: 'tool-notify_user', toolCallId: 'call-4', toolName: 'notify_user', input: { kind: 'done', message: 'Finished' } }] }])).toEqual({
             toolCallId: null,
-            message: 'The coworker sent you a notification.',
+            message: 'The Bot sent you a notification.',
         })
     })
 
     it('falls back when the transcript no longer holds the call', () => {
-        expect(findPendingAlert([{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }])).toEqual({ toolCallId: null, message: 'The coworker sent you a notification.' })
+        expect(findPendingAlert([{ role: 'user', parts: [{ type: 'text', text: 'hello' }] }])).toEqual({ toolCallId: null, message: 'The Bot sent you a notification.' })
     })
 })
 
@@ -330,7 +330,7 @@ describe('browser takeover', () => {
 
     it('reads the request, with a title to fall back on', () => {
         expect(pendingTakeover({ url: 'https://www.linkedin.com/login', reason: ' Sign in to LinkedIn ' })).toEqual({ url: 'https://www.linkedin.com/login', reason: 'Sign in to LinkedIn' })
-        expect(pendingTakeover({ url: 'https://x.example/' }).reason).toBe('The coworker needs you in its browser')
+        expect(pendingTakeover({ url: 'https://x.example/' }).reason).toBe('The Bot needs you in its browser')
     })
 
     it('round-trips the page the browser was handed back on', () => {

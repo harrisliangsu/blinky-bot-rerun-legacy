@@ -240,7 +240,7 @@ function CompactNav({ view, query, counts, onView, onQuery, onScratch }: { view:
                 />
                 <Button type="button" size="sm" onClick={onScratch} className="shrink-0">
                     <PlusIcon />
-                    New coworker
+                    New Bot
                 </Button>
             </div>
             <div className="flex flex-col">

@@ -13,6 +13,7 @@ vi.mock('@/lib/engine/client', () => ({
     deleteAgent: vi.fn(),
     duplicateAgent: vi.fn(),
     importAgentArchive: vi.fn(),
+    listEngineAgents: vi.fn().mockResolvedValue([]),
     listSchedules: vi.fn(),
     patchAgent: vi.fn(),
     updateSchedule: vi.fn(),

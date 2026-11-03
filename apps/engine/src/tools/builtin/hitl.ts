@@ -127,12 +127,12 @@ export function approvalSummary(input: Record<string, unknown> | undefined): str
     })() as Array<{ action?: unknown }> | undefined
 
     if (Array.isArray(approvals) && approvals.length > 0) {
-        const first = String(approvals[0]?.action ?? 'The coworker requests approval')
+        const first = String(approvals[0]?.action ?? 'The Bot requests approval')
         return approvals.length > 1 ? `${first} (+${approvals.length - 1} more)` : first
     }
 
     // Read compatibility for approval calls persisted before the tool accepted batches.
-    return String(input?.action ?? 'The coworker requests approval')
+    return String(input?.action ?? 'The Bot requests approval')
 }
 
 export function secretSummary(input: Record<string, unknown> | undefined): string {
@@ -151,12 +151,12 @@ export function secretSummary(input: Record<string, unknown> | undefined): strin
         return secrets.length > 1 ? `Needs ${first} (+${secrets.length - 1} more)` : `Needs ${first}`
     }
 
-    return 'The coworker needs a credential'
+    return 'The Bot needs a credential'
 }
 
 export function takeoverSummary(input: Record<string, unknown> | undefined): string {
     const reason = typeof input?.reason === 'string' ? input.reason.trim() : ''
-    return reason ? `Needs you in the browser: ${reason}` : 'The coworker needs you in the browser'
+    return reason ? `Needs you in the browser: ${reason}` : 'The Bot needs you in the browser'
 }
 
 // Nobody watches a delegate, and the foreman's chat has no card for it.

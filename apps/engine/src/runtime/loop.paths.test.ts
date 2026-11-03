@@ -331,7 +331,7 @@ describe('run loop paths', () => {
         it.each([
             ['ask_user', { question: 'Which color?' }, 'question', 'Which color?'],
             ['ask_user', { questions: JSON.stringify([{ question: 'Which size?' }, { question: 'Which color?' }]) }, 'question', 'Which size? (+1 more)'],
-            ['ask_user', {}, 'question', 'The coworker has a question'],
+            ['ask_user', {}, 'question', 'The Bot has a question'],
             ['ask_user', { questions: 'not json', question: 'Fallback?' }, 'question', 'Fallback?'],
             ['suggest_service', { services: [{ slug: 'stripe' }, { slug: 'notion' }] }, 'connector', 'Set up stripe (+1 more)'],
             ['suggest_service', { services: [{ slug: 'gmail' }] }, 'connector', 'Set up gmail'],
