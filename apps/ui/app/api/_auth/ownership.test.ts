@@ -135,6 +135,13 @@ describe('assertSpaceInWorkspace', () => {
         mocks.selectSingle.mockResolvedValue({ data: { workspace_id: 2 }, error: null })
         await expect(assertSpaceInWorkspace('s1')).rejects.toThrow('Space not found')
     })
+
+    it('accepts the local home box without a spaces row', async () => {
+        vi.stubEnv('BLINKY_LOCAL_AUTH', '1')
+        await expect(assertSpaceInWorkspace('local-home')).resolves.toEqual({ workspace_id: 1 })
+        expect(mocks.selectSingle).not.toHaveBeenCalled()
+        vi.unstubAllEnvs()
+    })
 })
 
 describe('assertSessionInWorkspace', () => {
