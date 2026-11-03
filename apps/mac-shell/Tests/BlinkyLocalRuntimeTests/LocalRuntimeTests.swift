@@ -316,7 +316,7 @@ final class LocalRuntimeTests: XCTestCase {
     }
 
     func testPortProbeSeesABoundSocket() throws {
-        let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+        let fd = socket(AF_INET, blinkyStreamSocketType, 0)
         XCTAssertGreaterThanOrEqual(fd, 0)
         var address = sockaddr_in()
         memset(&address, 0, MemoryLayout<sockaddr_in>.size)

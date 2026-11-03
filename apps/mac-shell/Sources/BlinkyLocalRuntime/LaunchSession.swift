@@ -88,9 +88,22 @@ public final class LaunchSession {
         guard posix_spawn_file_actions_adddup2(&actions, 1, 2) == 0 else {
             throw LaunchError.openLog(request.logPath, errno)
         }
-        let changed = request.currentDirectory.withCString { cwd in
+        // SwiftPM's default macOS deployment is older than 10.15, so the
+        // imported chdir helper is availability-gated. The app itself is macOS 14.
+        let changed: Int32
+#if canImport(Darwin)
+        if #available(macOS 10.15, *) {
+            changed = request.currentDirectory.withCString { cwd in
+                posix_spawn_file_actions_addchdir_np(&actions, cwd)
+            }
+        } else {
+            changed = ENOSYS
+        }
+#else
+        changed = request.currentDirectory.withCString { cwd in
             posix_spawn_file_actions_addchdir_np(&actions, cwd)
         }
+#endif
         guard changed == 0 else {
             throw LaunchError.spawn(request.executable, "could not set the working directory \(request.currentDirectory)")
         }
@@ -233,7 +246,7 @@ public func runningExecutable(pid: Int32) -> String? {
 
 public enum PortProbe {
     public static func isListening(port: Int, host: String = "127.0.0.1") -> Bool {
-        let fd = socket(AF_INET, Int32(SOCK_STREAM.rawValue), 0)
+        let fd = socket(AF_INET, blinkyStreamSocketType, 0)
         if fd < 0 {
             return false
         }
@@ -252,6 +265,16 @@ public enum PortProbe {
         }
         return connected == 0
     }
+}
+
+// The macOS 14 SDK imports SOCK_STREAM as Int32. Older overlays, including
+// the Linux one this package still builds with, expose it as a raw value.
+public var blinkyStreamSocketType: Int32 {
+#if canImport(Darwin)
+    SOCK_STREAM
+#else
+    Int32(SOCK_STREAM.rawValue)
+#endif
 }
 
 private func shouldStop(_ pid: Int32, expectedExecutable: String?) -> Bool {
