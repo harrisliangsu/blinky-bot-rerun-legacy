@@ -212,9 +212,12 @@ rex_settings() {
         write_json "$OUT/rex-ui.json" false "The Rex switch did not take a press. See rex-toggle-click.json."
         exit 1
     fi
-    sleep 0.5
-    local watch
-    watch="$(defaults read bot.blinky.shell blinkyRexWatch 2>/dev/null || echo 0)"
+    local watch=0 _try
+    for _try in $(seq 1 8); do
+        watch="$(defaults read bot.blinky.shell blinkyRexWatch 2>/dev/null || echo 0)"
+        [[ "$watch" == "1" ]] && break
+        sleep 1
+    done
     if [[ "$watch" != "1" ]]; then
         write_json "$OUT/rex-ui.json" false "Clicking Show bot activity in Rex did not turn blinkyRexWatch on."
         exit 1

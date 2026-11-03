@@ -39,23 +39,33 @@ func listedWindows() -> [ListedWindow] {
     return windows
 }
 
+func roleOf(_ element: AXUIElement) -> String {
+    var roleRef: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success else { return "" }
+    return roleRef as? String ?? ""
+}
+
+func isSwitch(_ element: AXUIElement) -> Bool {
+    ["AXCheckBox", "AXSwitch", "AXToggle", "AXButton"].contains(roleOf(element))
+}
+
 func press(_ element: AXUIElement) -> Bool {
     AXUIElementPerformAction(element, kAXPressAction as CFString) == .success
 }
 
-func pressSwitch(element: AXUIElement, parent: AXUIElement?) -> Bool {
-    if press(element) { return true }
-    guard let parent else { return false }
-    if press(parent) { return true }
+func childrenOf(_ element: AXUIElement) -> [AXUIElement] {
     var childrenRef: CFTypeRef?
-    guard AXUIElementCopyAttributeValue(parent, kAXChildrenAttribute as CFString, &childrenRef) == .success,
-          let children = childrenRef as? [AXUIElement] else { return false }
-    for child in children {
-        var roleRef: CFTypeRef?
-        let role = (AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &roleRef) == .success) ? (roleRef as? String ?? "") : ""
-        if role == "AXCheckBox" || role == "AXSwitch" || role == "AXToggle" || role == "AXButton" {
-            if press(child) { return true }
-        }
+    guard AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success else { return [] }
+    return childrenRef as? [AXUIElement] ?? []
+}
+
+func pressSwitch(element: AXUIElement, parent: AXUIElement?) -> Bool {
+    var candidates = [element]
+    if let parent { candidates.append(parent) }
+    if let parent { candidates.append(contentsOf: childrenOf(parent)) }
+    candidates.append(contentsOf: childrenOf(element))
+    for candidate in candidates where isSwitch(candidate) {
+        if press(candidate) { return true }
     }
     return false
 }
@@ -79,6 +89,9 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
         if label.isEmpty { label = description }
     }
     let role = (AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success) ? (roleRef as? String ?? "") : ""
+    if label.contains("Rex") || label == "Check again" {
+        notes.append("\(role) :: \(label)")
+    }
     if AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success, let value = valueRef as? String, !value.isEmpty {
         if role == "AXTextField" || role == "AXComboBox" || role == "AXTextArea" || role == "AXStaticText" {
             notes.append(value)
