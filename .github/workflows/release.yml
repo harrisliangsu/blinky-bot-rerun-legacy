@@ -110,6 +110,8 @@ jobs:
 
       - name: Mac shell tests
         working-directory: apps/mac-shell
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "14.0"
         run: swift test
 
       - name: Bundle plan

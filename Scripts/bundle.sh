@@ -194,6 +194,7 @@ xcodebuild \
     -configuration Release \
     -destination 'generic/platform=macOS' \
     -derivedDataPath "$PWD/$derived" \
+    MACOSX_DEPLOYMENT_TARGET=14.0 \
     MARKETING_VERSION="$version" \
     CURRENT_PROJECT_VERSION="$version" \
     "${sign_settings[@]}" \

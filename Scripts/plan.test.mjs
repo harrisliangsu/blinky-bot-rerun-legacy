@@ -225,6 +225,7 @@ describe('Scripts/bundle.sh', () => {
         assert.match(source, /contain-links/)
         assert.match(source, /blinky-local\.mjs build/)
         assert.match(source, /xcodebuild/)
+        assert.match(source, /MACOSX_DEPLOYMENT_TARGET=14\.0/)
         assert.match(source, /xcodegen generate/)
         assert.match(source, /Contents\/Resources\/runtime/)
         assert.doesNotMatch(source, /\bdocker\b/i)
