@@ -1,6 +1,6 @@
 # Releasing BlinkyBot
 
-Pushing a tag is the release. The tag publishes a GitHub Release of the Mac app, and the same tag still pushes the upstream engine container image. The Mac app is the Phase 1 install. The container is not.
+Pushing a tag is the release. The tag publishes a GitHub Release of the Mac app. That is the Phase 1 install.
 
 ```bash
 git tag v0.1.0 && git push origin v0.1.0
@@ -51,9 +51,8 @@ Those commands run on Linux. They do not build the app.
 | Job | Runner | Result |
 | --- | --- | --- |
 | `mac-app` | `macos-14` (Apple Silicon) | GitHub Release `BlinkyBot-<version>.dmg` and `BlinkyBot-<version>.zip` |
-| `engine-image` | `ubuntu-latest` | `ghcr.io/<owner>/rerun-engine` for the upstream server install |
 
-`macos-14` is a GitHub-hosted Mac. This checkout cannot run that job. A green Linux check is not a built `.app`.
+Pull requests run the same Mac compile and package on `macos-14` (`swift build`, `swift test`, then `Scripts/bundle.sh` and `Scripts/dmg.sh`) before a tag is cut. `macos-14` is a GitHub-hosted Mac. A green Linux check is not a built `.app`.
 
 The Mac job installs XcodeGen, downloads the official Node 22.23.4 macOS tarball, and points `BLINKY_NODE` at it. `Scripts/bundle.sh` copies that binary into the app and refuses a Node that links Homebrew or the Actions toolchain. It then runs:
 

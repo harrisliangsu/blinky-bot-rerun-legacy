@@ -28,40 +28,51 @@ jobs:
       - run: pnpm --filter rerun-engine test
       - run: pnpm bundle:check
 
-  migrations:
-    name: Migrations and seed on a fresh database
-    runs-on: ubuntu-latest
+  mac-shell:
+    name: Mac shell build, tests, and bundle
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
+      - name: Swift build and test
+        working-directory: apps/mac-shell
+        run: |
+          swift build
+          swift test
+      - name: XcodeGen
+        run: brew install xcodegen
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          version: 2.113.0
-      - run: supabase db start
-      - run: supabase db reset --local
-
-  images:
-    name: Docker images build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Engine
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/engine/Dockerfile
-          push: false
-          cache-from: type=gha,scope=engine
-          cache-to: type=gha,mode=max,scope=engine
-      - name: App
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: apps/ui/Dockerfile
-          push: false
-          build-args: |
-            NEXT_PUBLIC_APP_URL=http://localhost:3000
-            NEXT_PUBLIC_SUPABASE_URL=http://localhost:54421
-            NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ci
-          cache-from: type=gha,scope=app
-          cache-to: type=gha,mode=max,scope=app
+          node-version: 22
+          cache: pnpm
+      - name: Official Node for the app bundle
+        run: |
+          set -euo pipefail
+          host_arch="$(uname -m)"
+          case "$host_arch" in
+            arm64) arch=arm64 ;;
+            x86_64) arch=x64 ;;
+            *) echo "::error::Unsupported architecture ${host_arch}"; exit 1 ;;
+          esac
+          echo "host_arch=${host_arch} node_dist_arch=${arch}"
+          version=22.23.4
+          tarball="node-v${version}-darwin-${arch}.tar.gz"
+          mkdir -p build.noindex
+          curl -fsSL -o build.noindex/SHASUMS256.txt "https://nodejs.org/dist/v${version}/SHASUMS256.txt"
+          curl -fsSL -o "build.noindex/${tarball}" "https://nodejs.org/dist/v${version}/${tarball}"
+          (
+            cd build.noindex
+            grep -F "  ${tarball}" SHASUMS256.txt | shasum -a 256 -c -
+          )
+          rm -rf build.noindex/node-dist
+          mkdir -p build.noindex/node-dist
+          tar -xzf "build.noindex/${tarball}" -C build.noindex/node-dist --strip-components=1
+          test -x build.noindex/node-dist/bin/node
+          echo "BLINKY_NODE=$PWD/build.noindex/node-dist/bin/node" >> "$GITHUB_ENV"
+      - name: Package
+        run: |
+          ./Scripts/bundle.sh --zip
+          ./Scripts/dmg.sh --reuse
+          test -x build.noindex/BlinkyBot.app/Contents/MacOS/BlinkyBot
+          test -f build.noindex/BlinkyBot-*.zip
+          test -f build.noindex/BlinkyBot-*.dmg

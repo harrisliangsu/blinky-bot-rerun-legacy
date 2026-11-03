@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // Copyright (C) 2026 BlinkyBot contributors.
 
-import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, lstatSync, readFileSync, readdirSync, readlinkSync, realpathSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
@@ -272,6 +272,95 @@ export function escapedSymlinks(root) {
     return escapes
 }
 
+function isBuildShim(linkPath, target) {
+    const blob = `${linkPath}\n${target}`
+    return blob.includes('node_gyp_bins') || /(?:^|\/)python3(?:\.\d+)?$/.test(target)
+}
+
+function tracedPackageName(linkName) {
+    const pkg = linkName.replace(/-[0-9a-f]{8,}$/, '')
+    return pkg && pkg !== linkName ? pkg : null
+}
+
+function findDeployedPackage(root, pkg) {
+    const direct = join(root, 'node_modules', pkg)
+    if (existsSync(direct)) return direct
+    const store = join(root, 'node_modules', '.pnpm')
+    if (!existsSync(store)) return null
+    for (const entry of readdirSync(store)) {
+        if (entry !== pkg && !entry.startsWith(`${pkg}@`)) continue
+        const candidate = join(store, entry, 'node_modules', pkg)
+        if (existsSync(candidate)) return candidate
+    }
+    return null
+}
+
+export function containRuntimeLinks(root) {
+    const rootReal = resolve(root)
+    const removed = []
+    const retargeted = []
+    const copied = []
+    function walk(dir) {
+        let entries
+        try {
+            entries = readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
+            const full = join(dir, entry.name)
+            let linked = false
+            try {
+                linked = entry.isSymbolicLink()
+            } catch {
+                continue
+            }
+            if (!linked) {
+                if (entry.isDirectory()) walk(full)
+                continue
+            }
+            let target
+            try {
+                target = readlinkSync(full)
+            } catch {
+                continue
+            }
+            if (!symlinkEscapesRoot(full, target, rootReal)) {
+                try {
+                    if (statSync(full).isDirectory()) walk(full)
+                } catch {
+                    // dangling link that stays inside the tree
+                }
+                continue
+            }
+            if (isBuildShim(full, target)) {
+                unlinkSync(full)
+                removed.push(full)
+                continue
+            }
+            const pkg = tracedPackageName(entry.name)
+            const deployed = pkg ? findDeployedPackage(rootReal, pkg) : null
+            if (deployed) {
+                unlinkSync(full)
+                symlinkSync(relative(dirname(full), deployed), full)
+                retargeted.push(full)
+                continue
+            }
+            const abs = resolve(dirname(full), target)
+            if (existsSync(abs)) {
+                unlinkSync(full)
+                cpSync(abs, full, { recursive: true, dereference: true })
+                copied.push(full)
+                continue
+            }
+            unlinkSync(full)
+            removed.push(full)
+        }
+    }
+    walk(rootReal)
+    return { removed, retargeted, copied }
+}
+
 export function formatEscapedSymlinks(escapes) {
     return [
         'The staged runtime contains symlinks that point outside the app:',
@@ -380,6 +469,17 @@ function main(argv) {
         if (!root) fail('verify-runtime needs the runtime directory')
         const missing = missingRuntimeEntries(root)
         if (missing.length) fail(formatMissingRuntime(missing))
+        return
+    }
+    if (command === 'contain-links') {
+        const root = argv[1]
+        if (!root) fail('contain-links needs a staged runtime directory')
+        const result = containRuntimeLinks(root)
+        const kept = escapedSymlinks(root)
+        if (kept.length) fail(formatEscapedSymlinks(kept))
+        console.log(
+            `contained links in ${root}: ${result.retargeted.length} retargeted, ${result.copied.length} copied, ${result.removed.length} removed`,
+        )
         return
     }
     if (command === 'audit-symlinks') {

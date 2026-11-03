@@ -86,15 +86,15 @@ ditto "$APP" "$STAGING/BlinkyBot.app"
 ln -s /Applications "$STAGING/Applications"
 
 cat > "$STAGING/Read Me.txt" <<EOF
-BlinkyBot $VERSION
+BlinkyBot ${VERSION}
 
 Drag BlinkyBot into Applications, then open it.
 
 This build is not notarized. If macOS blocks the first launch, open BlinkyBot, dismiss the warning, then go to System Settings → Privacy & Security → Security → Open Anyway. You only do this once.
 
-BlinkyBot starts a local engine and the Compose UI on this Mac. You do not need Docker or a Supabase project. Requires macOS 14 or newer. This download is for $ARCH_EN.
+BlinkyBot starts a local engine and the Compose UI on this Mac. You do not need Docker or a Supabase project. Requires macOS 14 or newer. This download is for ${ARCH_EN}.
 
-Source for this version is the git tag v$VERSION in the BlinkyBot repository. Licensed under the GNU Affero General Public License v3.0 only. The license text is the LICENSE file at that tag.
+Source for this version is the git tag v${VERSION} in the BlinkyBot repository. Licensed under the GNU Affero General Public License v3.0 only. The license text is the LICENSE file at that tag.
 
 ---
 
@@ -102,9 +102,9 @@ Source for this version is the git tag v$VERSION in the BlinkyBot repository. Li
 
 这一版没有 Apple 公证。如果系统拦截了第一次打开：先打开 BlinkyBot 并关闭警告，再到「系统设置 → 隐私与安全性 → 安全性 → 仍要打开」。只需一次。
 
-BlinkyBot 会在这台 Mac 上启动本地 Engine 和 Compose 界面，不需要 Docker，也不需要 Supabase。需要 macOS 14 或更高版本。这个安装包适用于 $ARCH_ZH。
+BlinkyBot 会在这台 Mac 上启动本地 Engine 和 Compose 界面，不需要 Docker，也不需要 Supabase。需要 macOS 14 或更高版本。这个安装包适用于 ${ARCH_ZH}。
 
-这一版的源代码是 BlinkyBot 仓库里的 git tag v$VERSION。许可协议是 GNU AGPL-3.0-only。协议全文是该 tag 上的 LICENSE。
+这一版的源代码是 BlinkyBot 仓库里的 git tag v${VERSION}。许可协议是 GNU AGPL-3.0-only。协议全文是该 tag 上的 LICENSE。
 EOF
 
 hdiutil create -srcfolder "$STAGING" -volname "$VOLUME" -fs HFS+ \
