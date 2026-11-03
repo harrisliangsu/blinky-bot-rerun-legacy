@@ -91,7 +91,7 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
     if let click, label == click || (role == "AXStaticText" && valueRef as? String == click) {
         lastMatch = parent ?? element
         if !clicked {
-            clicked = press(element) || (parent != nil && press(parent!))
+            clicked = pressSwitch(element: element, parent: parent)
         }
     }
     if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success, let children = childrenRef as? [AXUIElement] {
