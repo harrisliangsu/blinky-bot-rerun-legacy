@@ -153,6 +153,7 @@ async function retire() {
     try {
         await page.goto(ui, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await page.getByTestId('bot-list').waitFor({ timeout: 60_000 })
+        await dismissPermissionPrompt(page)
         await page.locator('[data-testid="bot-edit"][aria-label*="Lantern"]').click()
         await page.getByTestId('bot-delete').click()
         await page.getByTestId('bot-delete-dialog').waitFor()
@@ -190,6 +191,7 @@ async function persist() {
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
+        await dismissPermissionPrompt(page)
         const visible = page.getByText(reply).first()
         if (!(await visible.waitFor({ timeout: 8_000 }).then(() => true).catch(() => false))) {
             const session = await engine(`/agents/${state.agentId}/sessions/${state.sessionId}`)
@@ -361,10 +363,13 @@ async function runs() {
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await openThread(page, state)
-        writeControl({ delayMs: 8000 })
+        await dismissPermissionPrompt(page)
+        await chooseModel(page, 'Kimi for Coding')
+        writeControl({ delayMs: 12_000 })
         await sendChat(page, 'please keep going')
-        const stop = page.getByTestId('stop-run')
-        await stop.waitFor({ timeout: 15_000 })
+        const stop = page.getByRole('main').getByRole('button', { name: 'Stop', exact: true }).last()
+        await stop.waitFor({ timeout: 20_000 })
+        await waitBoard(page, state.agentId, 'working', [])
         await dismissPermissionPrompt(page)
         await stop.click()
         await waitBoard(page, state.agentId, 'idle', [])
@@ -436,6 +441,7 @@ async function waitForNotice(page, pattern) {
 }
 
 async function sendChat(page, text) {
+    await dismissPermissionPrompt(page)
     const box = page.getByRole('main').getByTestId('composer').last()
     await box.waitFor({ state: 'visible', timeout: 20_000 })
     await box.click({ force: true })
