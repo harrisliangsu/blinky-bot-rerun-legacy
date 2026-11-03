@@ -4,68 +4,66 @@
 import Foundation
 
 #if os(macOS)
+#if canImport(BlinkyLocalRuntime)
+import BlinkyLocalRuntime
+#endif
 import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: ShellModel
     @EnvironmentObject private var browser: ComposeBrowser
     @EnvironmentObject private var supervisor: ProcessSupervisor
+    @State private var loadedGeneration = 0
 
     var body: some View {
-        VStack(spacing: 0) {
-            if let errorText = bannerText {
-                HStack(alignment: .top, spacing: 12) {
-                    Text(errorText)
-                        .font(.callout)
-                        .foregroundStyle(.primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if supervisor.phase == .failed || supervisor.failureText != nil {
-                        Button("Retry", action: supervisor.retry)
+        Group {
+            switch supervisor.presentedWindow() {
+            case .error(let screen):
+                ServiceErrorView(
+                    screen: screen,
+                    onRetry: supervisor.retry,
+                    onCopy: {
+                        SupportActions.copyToPasteboard(screen.diagnosticText(host: DiagnosticHostLoader.current()))
+                    },
+                    onOpenLogs: {
+                        SupportActions.openLogs(preferredDirectory: supervisor.logsDirectory)
                     }
-                    if supervisor.showsBrowser {
-                        Button("Reload") {
-                            browser.reloadPage(fallback: pageAddress)
-                        }
-                    }
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(.bar)
-                Divider()
-            }
-            if supervisor.showsBrowser {
-                ComposeWebView(webView: browser.webView)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                VStack(spacing: 12) {
-                    if supervisor.phase == .starting || supervisor.phase == .idle {
-                        ProgressView()
-                            .controlSize(.small)
-                        Text("Starting the local engine and Compose…")
-                            .font(.callout)
-                            .multilineTextAlignment(.center)
-                    } else {
-                        Text("Compose is not open yet.")
-                            .font(.callout)
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(24)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                )
+            case .starting:
+                StartingView()
+            case .browser:
+                browserColumn
             }
         }
         .navigationTitle("BlinkyBot")
         .task {
             supervisor.start()
         }
-        .onChange(of: supervisor.phase) { _, phase in
-            guard phase == .ready || phase == .external else { return }
-            browser.load(pageAddress)
+        .onAppear(perform: loadIfNeeded)
+        .onChange(of: supervisor.readyGeneration) { _, _ in
+            loadIfNeeded()
         }
         .onChange(of: model.generation) { _, _ in
             guard supervisor.phase == .external else { return }
             browser.load(model.address)
+        }
+        .onChange(of: browser.errorText) { _, text in
+            if text != nil {
+                supervisor.notePageDidFail()
+            }
+        }
+    }
+
+    private var browserColumn: some View {
+        Group {
+            if browser.errorText == nil {
+                ComposeWebView(webView: browser.webView)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                PageFailedView {
+                    browser.reloadPage(fallback: pageAddress)
+                }
+            }
         }
     }
 
@@ -76,14 +74,48 @@ struct ContentView: View {
         return browser.pageURL ?? supervisor.pageURL
     }
 
-    private var bannerText: String? {
-        if let failure = supervisor.failureText {
-            return failure
+    private func loadIfNeeded() {
+        guard supervisor.showsBrowser else { return }
+        guard supervisor.readyGeneration != loadedGeneration else { return }
+        loadedGeneration = supervisor.readyGeneration
+        browser.errorText = nil
+        browser.load(pageAddress)
+    }
+}
+
+private struct StartingView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.small)
+            Text(ShellCopy.starting(.current))
+                .font(.callout)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        if supervisor.showsBrowser {
-            return browser.errorText
+        .padding(24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct PageFailedView: View {
+    let onReload: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(ShellCopy.pageFailedTitle(.current))
+                .font(.title3)
+                .multilineTextAlignment(.center)
+            Text(ShellCopy.pageFailedBody(.current))
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(ShellCopy.reload(.current), action: onReload)
         }
-        return nil
+        .padding(24)
+        .frame(maxWidth: 420)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 #endif

@@ -47,6 +47,7 @@ let package = Package(
             path: "Sources/BlinkyBot",
             linkerSettings: [
                 .linkedFramework("WebKit", .when(platforms: [.macOS])),
+                .linkedFramework("ServiceManagement", .when(platforms: [.macOS])),
             ]
         ),
         .testTarget(

@@ -124,7 +124,7 @@ final class ComposeBrowser: NSObject, ObservableObject, WKNavigationDelegate, WK
             return
         }
         isLoading = false
-        errorText = "\(error.localizedDescription) (\(currentURL.absoluteString))"
+        errorText = "failed"
         syncNavigation()
     }
 

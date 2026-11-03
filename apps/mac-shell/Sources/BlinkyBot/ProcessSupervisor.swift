@@ -16,20 +16,26 @@ import SwiftUI
 final class ProcessSupervisor: ObservableObject {
     static let shared = ProcessSupervisor()
 
-    enum Phase: Equatable {
-        case idle
-        case starting
-        case ready
-        case failed
-        case external
-    }
-
-    @Published private(set) var phase: Phase = .idle
-    @Published private(set) var failureText: String?
+    @Published private(set) var phase: ServicePhase = .idle
+    @Published private(set) var failure: RuntimeFailure?
+    @Published private(set) var engineLogText = ""
+    @Published private(set) var uiLogText = ""
+    @Published private(set) var logsDirectory: String?
     @Published private(set) var pageURL: URL = ComposeURL.resolve()
+    @Published private(set) var readyGeneration = 0
 
     var showsBrowser: Bool {
         phase == .ready || phase == .external
+    }
+
+    func presentedWindow() -> ServiceWindow {
+        serviceWindow(
+            phase: phase,
+            failure: failure,
+            engineLog: engineLogText,
+            uiLog: uiLogText,
+            language: .current
+        )
     }
 
     private var session = LaunchSession()
@@ -43,12 +49,13 @@ final class ProcessSupervisor: ObservableObject {
         let environment = ProcessInfo.processInfo.environment
         if !superviseEnabled(environment) {
             phase = .external
-            failureText = nil
+            failure = nil
             pageURL = ComposeURL.resolve()
+            readyGeneration += 1
             return
         }
         phase = .starting
-        failureText = nil
+        failure = nil
         let ticket = generation
         task = Task { [weak self] in
             await self?.run(ticket: ticket)
@@ -58,18 +65,31 @@ final class ProcessSupervisor: ObservableObject {
     func retry() {
         generation += 1
         task?.cancel()
-        phase = .idle
-        failureText = nil
+        let environment = ProcessInfo.processInfo.environment
+        haltChildren()
         session = LaunchSession()
+        failure = nil
+        if !superviseEnabled(environment) {
+            phase = .external
+            pageURL = ComposeURL.resolve()
+            readyGeneration += 1
+            return
+        }
+        phase = .idle
         start()
     }
 
     func stop() {
         generation += 1
         task?.cancel()
-        let paths = [support?.enginePid, support?.uiPid].compactMap { $0 }
-        session.stop(expectedExecutable: nodePath, pidPaths: paths, grace: 5)
+        haltChildren()
         session = LaunchSession()
+    }
+
+    func notePageDidFail() {
+        guard phase == .ready else { return }
+        guard let failure = childExitFailure() else { return }
+        fail(generation, failure)
     }
 
     private func run(ticket: Int) async {
@@ -81,7 +101,7 @@ final class ProcessSupervisor: ObservableObject {
             isExecutable: { FileManager.default.isExecutableFile(atPath: $0) }
         ) {
         case .failure(let failure):
-            fail(ticket, failure.bannerText)
+            fail(ticket, failure)
             return
         case .success(let resolved):
             plan = resolved
@@ -89,16 +109,17 @@ final class ProcessSupervisor: ObservableObject {
         guard ticket == generation else { return }
         pageURL = plan.uiOrigin
         support = plan.support
+        logsDirectory = plan.support.logsDir
         nodePath = plan.nodePath
 
         if case .failure(let failure) = prepareSupport(plan.support) {
-            fail(ticket, failure.bannerText)
+            fail(ticket, failure)
             return
         }
         let key: String
         switch APIKeyFile.loadOrCreate(at: plan.support.apiKeyFile) {
         case .failure(let failure):
-            fail(ticket, failure.bannerText)
+            fail(ticket, failure)
             return
         case .success(let value):
             key = value
@@ -114,7 +135,7 @@ final class ProcessSupervisor: ObservableObject {
             uiPort: plan.uiPort
         ) {
         case .failure(let failure):
-            fail(ticket, failure.bannerText)
+            fail(ticket, failure)
             return
         case .success(let value):
             choices = value
@@ -129,43 +150,54 @@ final class ProcessSupervisor: ObservableObject {
                 pidPaths: [plan.support.enginePid, plan.support.uiPid],
                 grace: 5
             )
-            fail(ticket, error.bannerText)
+            fail(ticket, runtimeFailure(error))
             return
         } catch {
-            fail(ticket, error.localizedDescription)
+            fail(ticket, .spawn(error.localizedDescription))
             return
         }
 
         let started = Date()
+        var announcedReady = false
         while ticket == generation && !Task.isCancelled {
-            let uiBody = await fetch(uiReadyURL(port: plan.uiPort))
-            let engineBody = await fetch(engineReadyURL(port: plan.enginePort))
-            let outcome = pollOutcome(
-                elapsed: Date().timeIntervalSince(started),
-                timeout: readyTimeoutSeconds,
-                uiReady: uiBody.map { ReadyBody.composeVersion(status: $0.status, body: $0.body) } ?? false,
-                engineReady: engineBody.map { ReadyBody.engineHealth(status: $0.status, body: $0.body) } ?? false,
-                engineRunning: session.isRunning(role: RuntimeRole.engine),
-                uiRunning: session.isRunning(role: RuntimeRole.ui),
-                engineCode: session.exitCode(role: RuntimeRole.engine) ?? 0,
-                uiCode: session.exitCode(role: RuntimeRole.ui) ?? 0,
-                engineLogTail: logTail(readText(plan.support.engineLog)),
-                uiLogTail: logTail(readText(plan.support.uiLog))
-            )
-            switch outcome {
-            case .ready:
-                guard ticket == generation else { return }
-                phase = .ready
-                failureText = nil
-                return
-            case .keepWaiting:
-                try? await Task.sleep(nanoseconds: 250_000_000)
-            case .timedOut:
-                fail(ticket, RuntimeFailure.timedOut(engineLog: plan.support.engineLog, uiLog: plan.support.uiLog).bannerText)
-                return
-            case .exited(let role, let code, let tail):
-                fail(ticket, RuntimeFailure.exited(role: role, code: code, logTail: tail).bannerText)
-                return
+            if !announcedReady {
+                let uiBody = await fetch(uiReadyURL(port: plan.uiPort))
+                let engineBody = await fetch(engineReadyURL(port: plan.enginePort))
+                let outcome = pollOutcome(
+                    elapsed: Date().timeIntervalSince(started),
+                    timeout: readyTimeoutSeconds,
+                    uiReady: uiBody.map { ReadyBody.composeVersion(status: $0.status, body: $0.body) } ?? false,
+                    engineReady: engineBody.map { ReadyBody.engineHealth(status: $0.status, body: $0.body) } ?? false,
+                    engineRunning: session.isRunning(role: RuntimeRole.engine),
+                    uiRunning: session.isRunning(role: RuntimeRole.ui),
+                    engineCode: session.exitCode(role: RuntimeRole.engine) ?? 0,
+                    uiCode: session.exitCode(role: RuntimeRole.ui) ?? 0,
+                    engineLogTail: logTail(readLogFile(plan.support.engineLog)),
+                    uiLogTail: logTail(readLogFile(plan.support.uiLog))
+                )
+                switch outcome {
+                case .ready:
+                    guard ticket == generation else { return }
+                    phase = .ready
+                    failure = nil
+                    readyGeneration += 1
+                    announcedReady = true
+                case .keepWaiting:
+                    try? await Task.sleep(nanoseconds: 250_000_000)
+                case .timedOut:
+                    fail(ticket, .timedOut(engineLog: plan.support.engineLog, uiLog: plan.support.uiLog))
+                    return
+                case .exited(let role, let code, let tail):
+                    fail(ticket, .exited(role: role, code: code, logTail: tail))
+                    return
+                }
+            } else {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                guard ticket == generation, !Task.isCancelled else { return }
+                if let failure = childExitFailure() {
+                    fail(ticket, failure)
+                    return
+                }
             }
         }
     }
@@ -181,10 +213,35 @@ final class ProcessSupervisor: ObservableObject {
         }
     }
 
-    private func fail(_ ticket: Int, _ text: String) {
+    private func childExitFailure() -> RuntimeFailure? {
+        if !session.isRunning(role: RuntimeRole.engine) {
+            let code = session.exitCode(role: RuntimeRole.engine) ?? 0
+            return .exited(role: "The engine", code: code, logTail: "")
+        }
+        if !session.isRunning(role: RuntimeRole.ui) {
+            let code = session.exitCode(role: RuntimeRole.ui) ?? 0
+            return .exited(role: "Compose", code: code, logTail: "")
+        }
+        return nil
+    }
+
+    private func fail(_ ticket: Int, _ failure: RuntimeFailure) {
         guard ticket == generation else { return }
+        captureLogs()
+        self.failure = failure
         phase = .failed
-        failureText = text
+    }
+
+    private func haltChildren() {
+        let paths = [support?.enginePid, support?.uiPid].compactMap { $0 }
+        session.stop(expectedExecutable: nodePath, pidPaths: paths, grace: 5)
+    }
+
+    private func captureLogs() {
+        guard let support else { return }
+        logsDirectory = support.logsDir
+        engineLogText = readLogFile(support.engineLog)
+        uiLogText = readLogFile(support.uiLog)
     }
 
     private func fetch(_ url: URL) async -> (status: Int, body: String)? {
@@ -199,8 +256,19 @@ final class ProcessSupervisor: ObservableObject {
         }
     }
 
-    private func readText(_ path: String) -> String {
-        (try? String(contentsOfFile: path, encoding: .utf8)) ?? ""
+    private func readLogFile(_ path: String) -> String {
+        guard let handle = FileHandle(forReadingAtPath: path) else { return "" }
+        defer { handle.closeFile() }
+        let maxBytes: UInt64 = 65_536
+        let end = handle.seekToEndOfFile()
+        let start = end > maxBytes ? end - maxBytes : 0
+        handle.seek(toFileOffset: start)
+        let data = handle.readDataToEndOfFile()
+        var text = String(decoding: data, as: UTF8.self)
+        if start > 0, let newline = text.firstIndex(of: "\n") {
+            text = String(text[text.index(after: newline)...])
+        }
+        return text
     }
 }
 
@@ -243,8 +311,21 @@ enum RuntimeInputsLoader {
 
 @MainActor
 final class BlinkyAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        ProcessSupervisor.shared.start()
+    }
+
+    // The Dock icon stays after the window closes. BlinkyBot is a windowed app, so a
+    // missing Dock icon would look like it had quit while the local service kept running.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            NotificationCenter.default.post(name: .blinkyOpenMainWindow, object: nil)
+        }
+        return true
     }
 
     func applicationWillTerminate(_ notification: Notification) {

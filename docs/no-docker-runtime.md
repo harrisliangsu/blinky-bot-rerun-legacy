@@ -114,9 +114,9 @@ Nothing else listens. The app does not publish 3000 or 3001 on the LAN.
 4. Poll both ready URLs until both return HTTP 200, or 30 seconds pass.
 5. Load `http://127.0.0.1:3000`.
 
-Pid files `run/engine.pid` and `run/ui.pid` record the children. On a later launch, if the pid is alive and the ready URL answers, the app adopts that process. If the pid is dead, it starts a new one. If the port is taken by a process the app did not spawn, the app does not kill it. The window shows the existing unreachable banner.
+Pid files `run/engine.pid` and `run/ui.pid` record the children. On a later launch, if the pid is alive and the ready URL answers, the app adopts that process. If the pid is dead, it starts a new one. If the port is taken by a process the app did not spawn, the app does not kill it. The window shows a native error view for that, and for a missing module, a permissions failure, or a process that exits.
 
-On quit (last window closed, or the app terminates): `SIGTERM` to each child this app spawned, wait 5 seconds, then `SIGKILL` if it is still alive. Delete the pid files after the processes exit. CLI children die with the engine.
+On quit (the menu bar Quit item, or the app terminates): `SIGTERM` to each child this app spawned, wait 5 seconds, then `SIGKILL` if it is still alive. Closing the window does not quit. Delete the pid files after the processes exit. CLI children die with the engine.
 
 Stdout and stderr append to `logs/engine.log` and `logs/ui.log`.
 
