@@ -12,6 +12,16 @@ const schema = z.object({
     // Absolute path to the Codex CLI. Set it when the binary is not on the service user's PATH,
     // or to keep the provider's bundled @openai/codex in node_modules/.bin from shadowing it.
     RERUN_CODEX_PATH: z.string().optional(),
+    // Absolute path to the Claude Code CLI (`claude`). Foreman forwards it as
+    // `pathToClaudeCodeExecutable` when set; otherwise the provider uses `claude` on PATH.
+    RERUN_CLAUDE_PATH: z.string().optional(),
+    // Absolute path to Kimi Code CLI (`kimi`). Not the archived Python `kimi-cli`.
+    RERUN_KIMI_PATH: z.string().optional(),
+    // Absolute path to the xAI Grok CLI (`grok`, package `@xai-official/grok`).
+    RERUN_GROK_PATH: z.string().optional(),
+    // Comma-separated local adapters allowed to spawn: codex, kimi, grok, claude.
+    // Unset leaves `runLocalCli` off. Foreman's claude and codex providers ignore this.
+    RERUN_CLI_ADAPTERS: z.string().optional(),
     // `on` opens the desktop of the agents on this box ahead of the release, `off` keeps it shut after.
     RERUN_DESKTOP: z.string().optional(),
 })

@@ -6,6 +6,7 @@ process.env.RERUN_DATA_DIR = mkdtempSync(resolve(tmpdir(), 'rerun-providers-gaps
 process.env.RERUN_HUB_BASE_URL = 'https://hub.example.com/'
 process.env.RERUN_API_KEY = 'hub-key'
 process.env.RERUN_CODEX_PATH = '/opt/codex/bin/codex'
+process.env.RERUN_CLAUDE_PATH = '/opt/claude/bin/claude'
 // The provider SDKs read these from the shell, and a developer routing through a gateway has them set.
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.OPENAI_BASE_URL
@@ -250,6 +251,7 @@ describe('resolveModel on the claude subscription', () => {
         const settings = claudeCalls[0]!.defaultSettings
 
         expect(settings.systemPrompt).toBe('You are Rerun.')
+        expect(settings.pathToClaudeCodeExecutable).toBe('/opt/claude/bin/claude')
         expect(settings.cwd).toBe(workspaceDir('agent-claude'))
         expect(settings.tools).toEqual(['WebSearch'])
         expect(settings.persistSession).toBe(false)
