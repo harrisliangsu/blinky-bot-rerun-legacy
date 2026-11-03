@@ -24,6 +24,9 @@ targets:
       - path: Sources/BlinkyBot
       - path: Sources/BlinkyComposeURL
       - path: Sources/BlinkyLocalRuntime
+      # File reference, not a copied folder, so actool compiles AppIcon into BlinkyBot.app.
+      - path: Resources/Assets.xcassets
+        type: file
     settings:
       base:
         PRODUCT_NAME: BlinkyBot
@@ -32,6 +35,7 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Info.plist
         COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
 schemes:
   BlinkyBot:
     build:
