@@ -398,6 +398,12 @@ async function openThread(page, state) {
     }
 }
 
+async function clickPicker(page) {
+    const picker = page.getByRole('main').getByTestId('model-picker').last()
+    await picker.scrollIntoViewIfNeeded()
+    await picker.click()
+}
+
 async function sendChat(page, text) {
     const box = page.getByRole('main').getByTestId('composer').last()
     await box.waitFor({ state: 'visible', timeout: 20_000 })
