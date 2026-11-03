@@ -193,6 +193,12 @@ rex_settings() {
     "$OUT/window-probe" --contains "Rex is not installed" >"$OUT/rex-off-probe.json" 2>/dev/null || true
     close_settings
     install_rex_fixture
+    stop_app
+    launch_app "$OUT/app-rex.out"
+    if ! wait_ready "$OUT/app-rex.out"; then
+        write_json "$OUT/rex-ui.json" false "BlinkyBot did not come back after the Rex.app fixture was installed."
+        exit 1
+    fi
     open_settings
     local _try ready=0
     for _try in $(seq 1 8); do
