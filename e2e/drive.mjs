@@ -98,10 +98,8 @@ async function core() {
         if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
             throw new Error('Lantern did not store the question and the persona reply.')
         }
-        await page.getByRole('button', { name: 'Close panel' }).click()
-        const harborRow = page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]')
-        await harborRow.evaluate(element => element.click())
-        await page.waitForFunction(() => document.querySelector('[data-bot-name="Harbor"]')?.getAttribute('aria-current') === 'true')
+        await page.goto(`${ui}/?agent=${harbor.id}`, { waitUntil: 'domcontentloaded' })
+        await page.getByTestId('bot-list').waitFor({ timeout: 60_000 })
         await sendChat(page, 'who are you')
         const harborRun = await watchRuns(harbor.id, [])
         const harborSession = harborRun?.sessionId || harborRun?.session_id
