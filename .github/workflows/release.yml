@@ -177,6 +177,7 @@ jobs:
       - name: Offer it to Sparkle
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           case "$VERSION" in
             *-*)
