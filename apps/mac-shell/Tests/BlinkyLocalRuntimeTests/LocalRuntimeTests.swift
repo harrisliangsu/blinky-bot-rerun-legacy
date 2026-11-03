@@ -325,22 +325,23 @@ final class LocalRuntimeTests: XCTestCase {
         address.sin_port = 0
         let bound = withUnsafePointer(to: &address) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
-                bind(fd, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
+                // Inside this closure, unqualified `bind` is a Swift instance method.
+                darwinBind(fd, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
         XCTAssertEqual(bound, 0)
-        XCTAssertEqual(listen(fd, 1), 0)
+        XCTAssertEqual(darwinListen(fd, 1), 0)
         var stored = sockaddr_in()
         var length = socklen_t(MemoryLayout<sockaddr_in>.size)
         let named = withUnsafeMutablePointer(to: &stored) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
-                getsockname(fd, socketAddress, &length)
+                darwinGetsockname(fd, socketAddress, &length)
             }
         }
         XCTAssertEqual(named, 0)
         let port = Int(UInt16(bigEndian: stored.sin_port))
         XCTAssertTrue(PortProbe.isListening(port: port))
-        XCTAssertEqual(close(fd), 0)
+        XCTAssertEqual(darwinClose(fd), 0)
         XCTAssertFalse(PortProbe.isListening(port: port))
     }
 
@@ -399,6 +400,38 @@ final class LocalRuntimeTests: XCTestCase {
             return pid
         }
     }
+}
+
+private func darwinBind(_ fd: Int32, _ address: UnsafePointer<sockaddr>, _ length: socklen_t) -> Int32 {
+#if canImport(Darwin)
+    Darwin.bind(fd, address, length)
+#else
+    bind(fd, address, length)
+#endif
+}
+
+private func darwinListen(_ fd: Int32, _ backlog: Int32) -> Int32 {
+#if canImport(Darwin)
+    Darwin.listen(fd, backlog)
+#else
+    listen(fd, backlog)
+#endif
+}
+
+private func darwinGetsockname(_ fd: Int32, _ address: UnsafeMutablePointer<sockaddr>, _ length: UnsafeMutablePointer<socklen_t>) -> Int32 {
+#if canImport(Darwin)
+    Darwin.getsockname(fd, address, length)
+#else
+    getsockname(fd, address, length)
+#endif
+}
+
+private func darwinClose(_ fd: Int32) -> Int32 {
+#if canImport(Darwin)
+    Darwin.close(fd)
+#else
+    close(fd)
+#endif
 }
 
 private final class FakeTree {

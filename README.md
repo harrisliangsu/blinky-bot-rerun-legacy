@@ -44,7 +44,7 @@ That writes `build.noindex/BlinkyBot.app`. The `Contents/Resources/runtime` layo
 
 The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
 
-A published Mac build is a GitHub Release. The version is the `VERSION` file. Tagging `v0.1.0` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-0.1.0.dmg` (and a zip of the same app). The tag also pushes the upstream engine container image. That image is not the Phase 1 Mac install.
+A published Mac build is a GitHub Release. The version is the `VERSION` file. Tagging `v0.1.0` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-0.1.0.dmg` (and a zip of the same app).
 
 ## Upstream server install (Docker)
 

@@ -50,7 +50,7 @@ pnpm --filter rerun test
 pnpm --filter rerun-engine test
 ```
 
-CI runs the same, plus the migrations on an empty database and both Docker images.
+CI runs the same, plus `pnpm bundle:check`, and on a Mac runner `swift build`, `swift test`, and `Scripts/bundle.sh` for `apps/mac-shell`.
 
 ## The code
 

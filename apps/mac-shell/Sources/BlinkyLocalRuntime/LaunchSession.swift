@@ -247,7 +247,7 @@ public enum PortProbe {
         address.sin_addr.s_addr = inet_addr(host)
         let connected = withUnsafePointer(to: &address) { pointer in
             pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) { socketAddress in
-                connect(fd, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
+                darwinConnect(fd, socketAddress, socklen_t(MemoryLayout<sockaddr_in>.size))
             }
         }
         return connected == 0
@@ -261,6 +261,14 @@ public var blinkyStreamSocketType: Int32 {
     SOCK_STREAM
 #else
     Int32(SOCK_STREAM.rawValue)
+#endif
+}
+
+private func darwinConnect(_ fd: Int32, _ address: UnsafePointer<sockaddr>, _ length: socklen_t) -> Int32 {
+#if canImport(Darwin)
+    Darwin.connect(fd, address, length)
+#else
+    connect(fd, address, length)
 #endif
 }
 
