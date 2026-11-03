@@ -88,7 +88,6 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           ./Scripts/bundle.sh --zip
-          ./Scripts/dmg.sh --reuse
           rm -rf "$HOME/Applications/BlinkyBot.app"
           mkdir -p "$HOME/Applications"
           cp -cR build.noindex/BlinkyBot.app "$HOME/Applications/BlinkyBot.app"
