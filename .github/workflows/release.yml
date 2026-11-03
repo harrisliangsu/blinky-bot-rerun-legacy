@@ -85,22 +85,30 @@ jobs:
       - name: Official Node for the app bundle
         run: |
           set -euo pipefail
-          case "$(uname -m)" in
+          host_arch="$(uname -m)"
+          case "$host_arch" in
             arm64) arch=arm64 ;;
             x86_64) arch=x64 ;;
-            *) echo "::error::Unsupported architecture $(uname -m)"; exit 1 ;;
+            *) echo "::error::Unsupported architecture ${host_arch}"; exit 1 ;;
           esac
+          # macos-14 is Apple Silicon, so uname -m is arm64 and the Node
+          # dist name is darwin-arm64. darwin-x64 is only for an Intel host.
+          echo "host_arch=${host_arch} node_dist_arch=${arch}"
           version=22.23.4
+          tarball="node-v${version}-darwin-${arch}.tar.gz"
           mkdir -p build.noindex
-          curl -fsSL -o build.noindex/node-SHASUMS256.txt "https://nodejs.org/dist/v${version}/SHASUMS256.txt"
-          curl -fsSL -o build.noindex/node.tar.gz "https://nodejs.org/dist/v${version}/node-v${version}-darwin-${arch}.tar.gz"
+          curl -fsSL -o build.noindex/SHASUMS256.txt "https://nodejs.org/dist/v${version}/SHASUMS256.txt"
+          # shasum -c opens the filename in the checksum line. Saving the
+          # download as node.tar.gz makes it look for node-v*-darwin-*.tar.gz
+          # and fail with "No such file or directory".
+          curl -fsSL -o "build.noindex/${tarball}" "https://nodejs.org/dist/v${version}/${tarball}"
           (
             cd build.noindex
-            grep "node-v${version}-darwin-${arch}.tar.gz" node-SHASUMS256.txt | shasum -a 256 -c -
+            grep -F "  ${tarball}" SHASUMS256.txt | shasum -a 256 -c -
           )
           rm -rf build.noindex/node-dist
           mkdir -p build.noindex/node-dist
-          tar -xzf build.noindex/node.tar.gz -C build.noindex/node-dist --strip-components=1
+          tar -xzf "build.noindex/${tarball}" -C build.noindex/node-dist --strip-components=1
           test -x build.noindex/node-dist/bin/node
           echo "BLINKY_NODE=$PWD/build.noindex/node-dist/bin/node" >> "$GITHUB_ENV"
 
