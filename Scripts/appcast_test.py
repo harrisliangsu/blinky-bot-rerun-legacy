@@ -10,6 +10,11 @@ import appcast
 
 
 class FeedTests(unittest.TestCase):
+    def test_feed_url_is_the_release_asset(self) -> None:
+        url = appcast.feed_url("appcast.xml", "harrisliangsu/blinky-bot")
+        self.assertEqual(url, "https://github.com/harrisliangsu/blinky-bot/releases/latest/download/appcast.xml")
+        self.assertIn(url, appcast.skeleton("harrisliangsu/blinky-bot"))
+
     def test_one_item_carries_both_languages_and_a_full_zip(self) -> None:
         notes = appcast.descriptions("0.1.2", "https://github.com/harrisliangsu/blinky-bot")
         self.assertIn('xml:lang="zh-Hans"', notes)

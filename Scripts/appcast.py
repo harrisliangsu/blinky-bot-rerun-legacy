@@ -72,7 +72,7 @@ def github_repo() -> str:
 
 def feed_url(name: str, repo: str | None = None) -> str:
     slug = repo or github_repo()
-    return f"https://raw.githubusercontent.com/{slug}/main/{name}"
+    return f"https://github.com/{slug}/releases/latest/download/{name}"
 
 
 def skeleton(repo: str | None = None) -> str:

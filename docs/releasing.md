@@ -124,11 +124,11 @@ To build the same artifacts on a Mac without publishing, with `BLINKY_NODE` set 
 
 ## Updates
 
-Installed copies from 0.1.2 on check [appcast.xml](https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml) with Sparkle. The check is about every 12 hours. Settings → Updates can turn that off, and BlinkyBot → Check for Updates… asks now. There is no beta channel. The archive Sparkle installs is the full zip, not a delta. Before the bundle is replaced, BlinkyBot stops the local engine and Compose.
+Installed copies check for updates with Sparkle about every 12 hours. Settings → Updates can turn that off, and BlinkyBot → Check for Updates… asks now. There is no beta channel. The archive Sparkle installs is the full zip, not a delta. Before the bundle is replaced, BlinkyBot stops the local engine and Compose.
 
-0.1.1 has no updater. Install 0.1.2 from the disk image once. Later versions can update in place.
+0.1.1 has no updater. Install a later disk image once. 0.1.2 and 0.1.3 read [appcast.xml on main](https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml). The next build reads the feed from the latest GitHub Release instead: `https://github.com/harrisliangsu/blinky-bot/releases/latest/download/appcast.xml`.
 
-The release workflow signs the zip with Sparkle's `sign_update` and the `SPARKLE_PRIVATE_KEY` Actions secret, then commits `appcast.xml`, `appcast-zh.xml`, and `appcast-en.xml` to `main`. The public half is `Scripts/sparkle-public-key.txt`, baked into `SUPublicEDKey`. Do not commit the private key. A pre-release tag (`1.2.3-beta.1`) is not written into the feed.
+The release workflow signs the zip with Sparkle's `sign_update` and the `SPARKLE_PRIVATE_KEY` Actions secret, uploads `appcast.xml`, `appcast-zh.xml`, and `appcast-en.xml` onto the release, and opens a pull request so `main` gets the same files. It does not push to `main`. That pull request stays necessary while an installed copy still has the `main` feed URL. The public half is `Scripts/sparkle-public-key.txt`, baked into `SUPublicEDKey`. Do not commit the private key. A pre-release tag (`1.2.3-beta.1`) is not written into the feed.
 
 ## Not in this version
 

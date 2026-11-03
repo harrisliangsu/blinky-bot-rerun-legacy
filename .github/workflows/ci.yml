@@ -31,9 +31,9 @@ jobs:
 
   mac-shell:
     name: Mac shell build, tests, and bundle
-    # Opens the built app on the current macOS runner. The release job repeats
-    # that open check on macos-14 before it publishes, against the bits it ships.
-    runs-on: macos-latest
+    # Same image as the release job. macos-latest is cancelled while still
+    # queued on this repo (no runner, no steps), so the open check never starts.
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
       - name: Swift build and test
@@ -83,7 +83,7 @@ jobs:
           test -f build.noindex/BlinkyBot-*.dmg
           test -d build.noindex/BlinkyBot.app/Contents/Frameworks/Sparkle.framework
           test "$(plutil -extract SUPublicEDKey raw build.noindex/BlinkyBot.app/Contents/Info.plist)" = "$(tr -d '[:space:]' < Scripts/sparkle-public-key.txt)"
-          plutil -extract SUFeedURL raw build.noindex/BlinkyBot.app/Contents/Info.plist | grep -q '/main/appcast.xml'
+          plutil -extract SUFeedURL raw build.noindex/BlinkyBot.app/Contents/Info.plist | grep -q '/releases/latest/download/appcast.xml'
       - name: Open BlinkyBot and check Compose
         run: |
           chmod +x Scripts/open-smoke.sh

@@ -223,7 +223,7 @@ if [[ "$repo" != */* ]]; then
     echo "Could not tell which GitHub repository this is. Set GITHUB_REPOSITORY." >&2
     exit 1
 fi
-feed="https://raw.githubusercontent.com/${repo}/main/appcast.xml"
+feed="https://github.com/${repo}/releases/latest/download/appcast.xml"
 public_key="$(tr -d '[:space:]' < Scripts/sparkle-public-key.txt)"
 node Scripts/plan.mjs patch-sparkle "$app/Contents/Info.plist" "$feed" "$public_key"
 if [[ ! -d "$app/Contents/Frameworks/Sparkle.framework" ]]; then
