@@ -53,7 +53,7 @@ async function core() {
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         await page.screenshot({ path: join(shots, 'workspace.png') })
         const before = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
-        await page.getByRole('button', { name: 'New coworker' }).click()
+        await page.getByRole('button', { name: 'New coworker', exact: true }).click()
         await page.getByRole('heading', { name: 'What should your new coworker do?' }).waitFor({ timeout: 20_000 })
         await page.getByRole('button', { name: suggestion }).click()
         await page.getByRole('button', { name: `Create ${suggestion}` }).click()

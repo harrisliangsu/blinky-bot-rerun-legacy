@@ -50,7 +50,7 @@ function filesUnder(dir, extensions) {
         return found
     }
     for (const name of entries) {
-        if (SKIP.has(name)) continue
+        if (SKIP.has(name) || name.startsWith('.')) continue
         const path = join(dir, name)
         let info
         try {

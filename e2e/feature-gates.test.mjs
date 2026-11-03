@@ -14,6 +14,16 @@ test('feature hooks stay skipped until their code is on the tree', () => {
     }
 })
 
+test('a Sparkle build product does not turn on the menu bar hook', () => {
+    const root = tree({
+        'apps/mac-shell/.build/debug/Sparkle.framework/Updater.app/Contents/Info.plist': '<key>LSUIElement</key>',
+        'apps/mac-shell/Sources/BlinkyBot/ContentView.swift': 'struct ContentView {}',
+    })
+    const features = probeFeatures(root)
+    assert.equal(features.menuBar.enabled, false)
+    assert.match(features.menuBar.reason, /^Skipped:/)
+})
+
 test('a landed marker enables only that hook', () => {
     const root = tree({
         'apps/mac-shell/Sources/BlinkyBot/FirstRunOnboarding.swift': 'struct FirstRunOnboarding {}',
