@@ -98,10 +98,14 @@ async function core() {
         if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
             throw new Error('Lantern did not store the question and the persona reply.')
         }
-        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').evaluate(element => element.click())
+        const harborRow = page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]')
+        await harborRow.evaluate(element => element.click())
+        await page.waitForFunction(() => document.querySelector('[data-bot-name="Harbor"]')?.getAttribute('aria-current') === 'true')
         await sendChat(page, 'who are you')
         const harborRun = await watchRuns(harbor.id, [])
-        const harborMessages = await engine(`/agents/${harbor.id}/sessions/${harborRun.sessionId}/messages`)
+        const harborSession = harborRun?.sessionId || harborRun?.session_id
+        if (!harborSession) throw new Error(`Harbor did not start a run. Last: ${JSON.stringify(harborRun)}`)
+        const harborMessages = await engine(`/agents/${harbor.id}/sessions/${harborSession}/messages`)
         const harborStored = JSON.stringify(harborMessages)
         if (!harborStored.includes(reply) || harborStored.includes('lighthouse keeper')) {
             throw new Error('Harbor used Lantern’s persona.')
