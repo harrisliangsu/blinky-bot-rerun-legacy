@@ -15,7 +15,7 @@ struct BlinkyBotApp: App {
     @StateObject private var onboarding = OnboardingModel()
 
     var body: some Scene {
-        WindowGroup("BlinkyBot") {
+        WindowGroup("BlinkyBot", id: "main") {
             ShellRoot()
                 .environmentObject(model)
                 .environmentObject(browser)
@@ -37,6 +37,13 @@ struct BlinkyBotApp: App {
                 .disabled(!AppUpdate.shared.canCheck)
             }
         }
+
+        MenuBarExtra {
+            MenuBarMenu()
+        } label: {
+            MenuBarGlyph()
+        }
+        .menuBarExtraStyle(.menu)
 
         Settings {
             BlinkySettingsView()

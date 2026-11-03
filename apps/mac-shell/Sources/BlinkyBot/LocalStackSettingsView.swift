@@ -22,6 +22,8 @@ struct BlinkySettingsView: View {
                 UpdateSettingsView()
                 Divider()
                 LocalStackSettingsView()
+                Divider()
+                LoginItemSettingsView()
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)

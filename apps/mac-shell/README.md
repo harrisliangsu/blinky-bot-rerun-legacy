@@ -61,9 +61,9 @@ The supervisor does not read a repo `.env` and does not pass Supabase variables,
 
 Stdout and stderr append to `logs/engine.log` and `logs/ui.log`. Pid files are `run/engine.pid` and `run/ui.pid`. On a later launch, a live pid whose executable is still Node is adopted when its ready URL answers. A dead pid is replaced. A port taken by some other process is left alone, and the window shows that error.
 
-Quit (last window closed, or the app terminates) sends `SIGTERM` to each child this launch owns, waits 5 seconds, then `SIGKILL`. Pid files are removed after the processes exit. Children are started in their own process group, so the engine's CLI grandchildren stop with the engine.
+Quit (the menu bar item **Quit**, or the app terminates) sends `SIGTERM` to each child this launch owns, waits 5 seconds, then `SIGKILL`. Closing the window does not quit and does not stop those children. Pid files are removed after the processes exit. Children are started in their own process group, so the engine's CLI grandchildren stop with the engine.
 
-If start fails, the window keeps a banner and a **Retry** button. Typical cases: Node is missing, `dist/cli/bin.js` or the Next server is not built, or the port is already in use.
+If start fails, or a service exits after it was ready, the window shows a native error view: a short explanation, the last 30 log lines in a collapsible box, and **Retry**, **Copy Diagnostics**, and **Open Logs Folder**. The text is English or Chinese from the Mac language. It does not show the page address. Typical cases, each with its own hint: a missing Node module (`MODULE_NOT_FOUND`), a port already in use, a folder BlinkyBot cannot read or write, Node missing, the engine or Compose build missing, or the 30 second timeout.
 
 ## Where Node and the servers come from
 
@@ -201,23 +201,24 @@ Bundle id: `bot.blinky.shell`. Settings is also in the app menu (Command-,). **C
 
 ## What the window does
 
-- On launch, starts the local stack, then loads Compose. The title is **BlinkyBot**. The subtitle is the page URL.
+- On launch, starts the local stack, then loads Compose. The title is **BlinkyBot**. The window does not show the page address.
 - A status line while the engine and Compose are starting.
-- A banner with Retry when startup fails (missing Node, missing build, port in use, process exit, 30 second timeout).
-- A banner with the load error and Reload when the page itself fails. Cancelled navigations are ignored.
-- Unified toolbar: back, forward, reload, and a spinner while the page loads.
+- A native error view when startup fails or a service exits (missing module, port in use, permissions, missing Node, missing build, process exit, 30 second timeout), with Retry, Copy Diagnostics, and Open Logs Folder. The log excerpt is the last 30 lines. Diagnostics include the app version, macOS version, and CPU architecture, and leave out tokens and the page address.
+- Reload, inside the window, when the page itself fails. Cancelled navigations are ignored. The window does not show the browser's error page.
 - `target="_blank"` and `window.open` load in the same view, so a Compose sign-in popup is not dropped.
 - Cookies use the default `WKWebsiteDataStore`, so a Compose session survives relaunch of the shell.
 - The user agent appends `BlinkyBot/<version>`, where `<version>` is `CFBundleShortVersionString`. The bundle script sets that from the root `VERSION` file. An Xcode Run uses `MARKETING_VERSION` in `project.yml`, which stays equal to `VERSION`.
 - The web view is inspectable (Safari-style web inspector from the context menu, when WebKit inspection is allowed).
 - Compose menu: Back (Command-[), Forward (Command-]), Reload (Command-R), Open configured URL (Command-Shift-R).
-- Closing the last window quits the app and stops the children it started.
+- A menu bar item, using the BlinkyBot icon as a template glyph. It shows whether the service is running, starting, stopped, or in error, and it can open the window, restart the service, open the logs folder, check for updates, or quit.
+- Closing the window leaves BlinkyBot running. The Dock icon stays, so the app does not look like it quit. Click the Dock icon or **Open BlinkyBot** in the menu bar to bring the window back. Quit from the menu bar stops the children this launch owns.
+- Settings → Startup → **Open at login** is off until it is turned on (`SMAppService`).
 
 The coworker's screen viewer, when Compose shows one, talks to the engine at `RERUN_ENGINE_BROWSER_URL` (`http://127.0.0.1:3001`). The shell does not proxy that port. Phase 1 sets `RERUN_DESKTOP=off`, so that viewer stays off the install path.
 
 ## First launch
 
-The first time the app opens, a native setup cover sits on top of Compose. It does not show the page address or the web toolbar. **Skip** and **Done** both record `blinkyOnboardingCompleted` in UserDefaults and the cover stays dismissed. Settings → Coding tools (编程工具 when the Mac language is Chinese) opens it again. `BLINKY_ONBOARDING=off` skips the cover. `BLINKY_ONBOARDING=always` shows it even after it was completed.
+The first time the app opens, a native setup cover sits on top of Compose. It does not show the page address or the web toolbar. If the local service fails, the cover steps aside for the error view, and it returns once the service is starting or ready again. **Skip** and **Done** both record `blinkyOnboardingCompleted` in UserDefaults and the cover stays dismissed. Settings → Coding tools (编程工具 when the Mac language is Chinese) opens it again. `BLINKY_ONBOARDING=off` skips the cover. `BLINKY_ONBOARDING=always` shows it even after it was completed.
 
 The cover lists Codex, Kimi, Grok, and ego(lite). A Finder launch does not inherit a login-shell `PATH`, so the lookup uses the process `PATH` and then Homebrew (`/opt/homebrew/bin`, `/usr/local/bin`), npm and pnpm global bins, `~/.local/bin`, Volta, bun, asdf, fnm, and nvm. `RERUN_CODEX_PATH`, `RERUN_KIMI_PATH`, and `RERUN_GROK_PATH` are used alone when they are set, same as the engine.
 
@@ -272,11 +273,12 @@ apps/mac-shell/
   Info.plist
   Resources/Assets.xcassets/AppIcon.appiconset/   Phase 1 Mac app icon
   Sources/BlinkyComposeURL/ComposeURL.swift
-  Sources/BlinkyLocalRuntime/   plan, ready checks, spawn, API key
+  Sources/BlinkyLocalRuntime/   plan, ready checks, spawn, API key, failure diagnosis
   Sources/BlinkyOnboarding/     CLI and ego(lite) probes, copy, first-run flag
-  Sources/BlinkyBot/            SwiftUI window, WKWebView, ProcessSupervisor, onboarding cover
+  Sources/BlinkyBot/            SwiftUI window, menu bar, WKWebView, ProcessSupervisor, onboarding cover
   Tests/BlinkyComposeURLTests/
   Tests/BlinkyLocalRuntimeTests/
+  Tests/BlinkyOnboardingTests/
 ```
 
 License: [AGPL-3.0-only](../../LICENSE), same as the rest of BlinkyBot (a fork of Rerun).
