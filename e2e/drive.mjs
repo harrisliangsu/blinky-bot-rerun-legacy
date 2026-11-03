@@ -310,7 +310,7 @@ async function chat() {
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await openThread(page, state)
-        await page.getByRole('main').getByTestId('model-picker').last().click({ force: true })
+        await clickPicker(page)
         await page.getByText('Kimi for Coding', { exact: true }).waitFor({ timeout: 15_000 })
         await page.getByText('Grok 4.7', { exact: true }).waitFor({ timeout: 5_000 })
         await page.screenshot({ path: join(shots, 'model-picker.png') })
@@ -318,14 +318,14 @@ async function chat() {
         await sendChat(page, 'hello kimi')
         await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'kimi-reply.png') })
-        await page.getByRole('main').getByTestId('model-picker').last().click({ force: true })
+        await clickPicker(page)
         await page.getByText('Grok 4.7', { exact: true }).click()
         await sendChat(page, 'hello grok')
         await page.getByText(/Grok CLI is not logged in/).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'grok-signed-out.png') })
         const kimiPath = process.env.RERUN_KIMI_PATH
         const hidden = `${kimiPath}.off`
-        await page.getByRole('main').getByTestId('model-picker').last().click({ force: true })
+        await clickPicker(page)
         await page.getByText('Kimi for Coding', { exact: true }).click()
         renameSync(kimiPath, hidden)
         try {
