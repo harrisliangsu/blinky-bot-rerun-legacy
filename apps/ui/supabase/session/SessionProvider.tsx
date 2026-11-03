@@ -4,6 +4,8 @@ import { isAdminEmail } from '@/lib/auth/admin-emails'
 import { Database } from '@/app/api/database.types'
 import { routes } from '@/lib/routes'
 import { parsePriceArm, PRICE_EXPERIMENT_KEY, PRICE_PROPERTY, isSubscriptionEntitled, TRIAL_CARD_PROPERTY, trialArm } from '@/cloud/billing'
+import { LocalAuthMode } from '@/lib/local-auth/mode-context'
+import type { LocalSnapshot } from '@/lib/local-auth/snapshot'
 import { createClient } from '@/supabase/client'
 import { useBoardStore } from '@/stores/board.store'
 import { useForemanStore } from '@/stores/foreman.store'
@@ -86,7 +88,47 @@ export type SessionContextValue = {
 
 const SessionContext = createContext<SessionContextValue | null>(null)
 
-export function SessionProvider({ children }: PropsWithChildren) {
+function localContextValue(snapshot: LocalSnapshot): SessionContextValue {
+    const session = {
+        access_token: snapshot.token,
+        refresh_token: '',
+        expires_in: 30 * 24 * 60 * 60,
+        expires_at: Math.floor(Date.parse(snapshot.expiresAt) / 1000),
+        token_type: 'bearer',
+        user: snapshot.authUser,
+    } as Session
+    return {
+        user: snapshot.user,
+        workspace: snapshot.workspace,
+        workspaceAnswers: null,
+        workspaces: [snapshot.workspace],
+        session,
+        isAnonymous: false,
+        phoneStep: 'clear',
+        phoneStatus: 'none',
+        refreshPhoneStep: async () => {},
+        loading: false,
+        signOut: async () => {
+            await fetch('/api/local-auth/sign-out', { method: 'POST', redirect: 'manual' })
+            window.location.assign('/')
+        },
+        refreshWorkspace: async () => {},
+        refreshUser: async () => {},
+    }
+}
+
+export function SessionProvider({ children, local }: PropsWithChildren<{ local?: LocalSnapshot | null }>) {
+    if (local) {
+        return (
+            <LocalAuthMode>
+                <SessionContext.Provider value={localContextValue(local)}>{children}</SessionContext.Provider>
+            </LocalAuthMode>
+        )
+    }
+    return <CloudSessionProvider>{children}</CloudSessionProvider>
+}
+
+function CloudSessionProvider({ children }: PropsWithChildren) {
     const [user, setUser] = useState<User | null>(null)
     const [workspace, setWorkspace] = useState<Workspace | null>(null)
     const [loadedAnswers, setLoadedAnswers] = useState<{ workspaceId: number; answers: WorkspaceAnswers | null } | null>(null)

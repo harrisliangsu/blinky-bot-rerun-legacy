@@ -2,6 +2,8 @@ import { HomeContent } from '@/components/layout/HomeContent'
 import { AppLoader } from '@/components/layout/AppLoader'
 import { hasPendingCreatorTerms } from '@/app/api/_auth/expert'
 import { resolveCreatorLandingWorkspace } from '@/app/api/_services/sandbox.service'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
+import { readRequestSnapshot } from '@/lib/local-auth/snapshot'
 import { createClient } from '@/supabase/server'
 import { selectMany, selectMaybeSingle } from '@/supabase/supabase-helpers'
 import type { SpacePublic } from '@/lib/board/types'
@@ -14,6 +16,15 @@ import { Suspense } from 'react'
 export default async function Home() {
     let initialSpaces: SpacePublic[] = []
     let initialWorkspaceId: number | null = null
+
+    if (isBlinkyLocalAuth()) {
+        const snapshot = await readRequestSnapshot()
+        return (
+            <Suspense fallback={<AppLoader />}>
+                <HomeContent initialSpaces={[]} initialWorkspaceId={snapshot?.workspace.id ?? null} />
+            </Suspense>
+        )
+    }
 
     const supabase = await createClient()
     const {

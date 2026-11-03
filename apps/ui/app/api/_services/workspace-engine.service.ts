@@ -5,6 +5,8 @@ import { claimPoolEngine } from '@/cloud/engines'
 import { requestCompanyBrainSeed } from '@/lib/brain/request-seed'
 import { buildBaseUrl } from '@/lib/engine/base-url'
 import type { EngineConnection } from '@/lib/engine/types'
+import { readLocalWorkspace } from '@/lib/local-auth/db'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMaybeSingle, selectMaybeSingleWithJoins } from '@/supabase/supabase-helpers'
 
@@ -32,6 +34,11 @@ export type WorkspaceEngine = {
 }
 
 export async function findWorkspaceEngine(workspaceId: number): Promise<WorkspaceEngine | null> {
+    if (isBlinkyLocalAuth()) {
+        const workspace = readLocalWorkspace()
+        if (!workspace?.engine_host || !workspace.engine_api_key || workspace.id !== workspaceId) return null
+        return { instanceId: 'local', conn: { baseUrl: buildBaseUrl(workspace.engine_host), apiKey: workspace.engine_api_key }, managed: false }
+    }
     const supabase = createServiceRoleClient()
     const { data } = await selectMaybeSingle(supabase, 'engine_pool', ENGINE_COLUMNS, { claimed_by_workspace_id: workspaceId })
     if (!data?.engine_host) return null
@@ -119,6 +126,11 @@ export type AuthenticatedWorkspace = { workspaceId: number; isSandbox: boolean }
 // as nobody.
 export async function authenticateEngineToken(token: string): Promise<AuthenticatedWorkspace | null> {
     if (!token) return null
+    if (isBlinkyLocalAuth()) {
+        const workspace = readLocalWorkspace()
+        if (!workspace?.engine_api_key || token !== workspace.engine_api_key) return null
+        return { workspaceId: workspace.id, isSandbox: false }
+    }
     const supabase = createServiceRoleClient()
     const { data } = await selectMaybeSingleWithJoins(
         supabase,

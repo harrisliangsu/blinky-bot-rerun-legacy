@@ -1,6 +1,7 @@
 import { getSession, listRuns, listSessions } from '@/lib/engine/client'
 import type { AgentLink, AgentStatus } from '@/lib/board/types'
 import type { EngineConnection } from '@/lib/engine/types'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMaybeSingle, selectMany } from '@/supabase/supabase-helpers'
 import { findWorkspaceEngine } from './workspace-engine.service'
@@ -89,6 +90,15 @@ async function resolveCaller(conn: EngineConnection, engineAgentId: string): Pro
 }
 
 export async function checkAllAgentsHealth(workspaceId: number): Promise<AgentHealthResult> {
+    if (isBlinkyLocalAuth()) {
+        const engine = await findWorkspaceEngine(workspaceId)
+        const engineStatuses = engine ? await fetchEngineStatuses(engine.conn) : null
+        const statuses: Record<string, AgentStatus | 'unconfigured'> = {}
+        if (engineStatuses) {
+            for (const [id, status] of engineStatuses) statuses[id] = status === 'busy' ? 'working' : 'idle'
+        }
+        return { statuses, links: [] }
+    }
     const supabase = createServiceRoleClient()
 
     const [{ data: agents }, { data: workspace }] = await Promise.all([

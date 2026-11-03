@@ -1,6 +1,8 @@
 import 'server-only'
 
 import type { Database } from '@/app/api/database.types'
+import { LOCAL_ENGINE_HOST } from '@/lib/local-auth/constants'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMaybeSingle } from '@/supabase/supabase-helpers'
 
@@ -16,6 +18,9 @@ const UNIQUE_VIOLATION = '23505'
 // (RERUN_ENGINE_URL and RERUN_ENGINE_API_KEY) goes to the first workspace that needs one; every
 // other workspace gets its engine by pairing a server from Servers, in the workspace menu.
 export async function claimPoolEngine(workspaceId: number): Promise<EngineClaim> {
+    if (isBlinkyLocalAuth()) {
+        return { ok: true, instance: { id: 'local', engineHost: process.env.RERUN_ENGINE_URL?.trim() || LOCAL_ENGINE_HOST, engineApiKey: process.env.RERUN_ENGINE_API_KEY?.trim() ?? '' } }
+    }
     const engineHost = process.env.RERUN_ENGINE_URL?.trim()
     const engineApiKey = process.env.RERUN_ENGINE_API_KEY?.trim()
     if (!engineHost || !engineApiKey) return { ok: false, raced: false, error: NO_SERVER }

@@ -118,6 +118,27 @@ describe('proxy staging gate', () => {
     })
 })
 
+describe('proxy local auth', () => {
+    beforeEach(() => vi.stubEnv('BLINKY_LOCAL_AUTH', '1'))
+
+    it('does not call the Supabase session when the flag is set', async () => {
+        const response = await proxy(new NextRequest('http://127.0.0.1:3000/', { headers: { cookie: 'blinky_session=abc' } }))
+
+        expect(response.status).toBe(200)
+        expect(mocks.updateSession).not.toHaveBeenCalled()
+    })
+
+    it('sends a first request without a session cookie to the local enter route', async () => {
+        const response = await proxy(new NextRequest('http://127.0.0.1:3000/'))
+
+        expect(response.status).toBe(307)
+        const location = new URL(response.headers.get('location') ?? '')
+        expect(location.pathname).toBe('/api/local-auth/enter')
+        expect(location.searchParams.get('next')).toBe('/')
+        expect(mocks.updateSession).not.toHaveBeenCalled()
+    })
+})
+
 describe('proxy matcher', () => {
     it('runs on app pages', () => {
         expect(matches('/')).toBe(true)
