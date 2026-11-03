@@ -160,8 +160,11 @@ if ! env npm_config_package_import_method=copy pnpm --filter rerun --prod deploy
 fi
 rm -rf "$stage/ui/.next" "$stage/ui/public"
 ditto "apps/ui/.next" "$stage/ui/.next"
+rm -rf "$stage/ui/.next/cache"
 ditto "apps/ui/public" "$stage/ui/public"
 ditto "apps/ui/next.config.ts" "$stage/ui/next.config.ts"
+node Scripts/plan.mjs contain-links "$stage/ui"
+node Scripts/plan.mjs contain-links "$stage/engine"
 
 mkdir -p "$stage/node/bin"
 cp "$node_real" "$stage/node/bin/node"

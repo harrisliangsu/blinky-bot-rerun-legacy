@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
-import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, it } from 'node:test'
@@ -9,6 +9,7 @@ import {
     STAGED_RUNTIME_FILES,
     alignmentProblems,
     deployFailedMessage,
+    containRuntimeLinks,
     escapedSymlinks,
     formatMissingCheckout,
     formatMissingRuntime,
@@ -164,6 +165,28 @@ describe('staging checks', () => {
         }
     })
 
+    it('keeps Next traces and drops node-gyp shims', () => {
+        const root = mkdtempSync(join(tmpdir(), 'blinky-contain-'))
+        try {
+            const trace = join(root, '.next/node_modules')
+            const sharp = join(root, 'node_modules/sharp')
+            mkdirSync(trace, { recursive: true })
+            mkdirSync(sharp, { recursive: true })
+            writeFileSync(join(sharp, 'index.js'), 'sharp')
+            symlinkSync('../../../../node_modules/.pnpm/sharp@0.35.1/node_modules/sharp', join(trace, 'sharp-abcdef12'))
+            const shimDir = join(root, 'node_modules/.pnpm/cpu-features@0.0.10/node_modules/cpu-features/build/node_gyp_bins')
+            mkdirSync(shimDir, { recursive: true })
+            symlinkSync('/opt/homebrew/opt/python@3.14/bin/python3.14', join(shimDir, 'python3'))
+            const result = containRuntimeLinks(root)
+            assert.equal(result.retargeted.length, 1)
+            assert.equal(result.removed.length, 1)
+            assert.equal(escapedSymlinks(root).length, 0)
+            assert.equal(readlinkSync(join(trace, 'sharp-abcdef12')), '../../node_modules/sharp')
+        } finally {
+            rmSync(root, { recursive: true, force: true })
+        }
+    })
+
     it('explains a failed pnpm deploy', () => {
         assert.match(deployFailedMessage('engine'), /rerun-engine/)
         assert.match(deployFailedMessage('ui'), /--filter rerun --prod deploy/)
@@ -199,6 +222,7 @@ describe('Scripts/bundle.sh', () => {
         assert.match(source, /patch-plist/)
         assert.match(source, /verify-runtime/)
         assert.match(source, /audit-symlinks/)
+        assert.match(source, /contain-links/)
         assert.match(source, /blinky-local\.mjs build/)
         assert.match(source, /xcodebuild/)
         assert.match(source, /xcodegen generate/)
