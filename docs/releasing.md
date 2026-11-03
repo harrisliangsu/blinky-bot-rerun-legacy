@@ -122,9 +122,15 @@ To build the same artifacts on a Mac without publishing, with `BLINKY_NODE` set 
 ./Scripts/dmg.sh --reuse
 ```
 
-## Not in this version
+## Updates
 
-**Sparkle / appcast.** blinky-mac signs a zip with `SPARKLE_PRIVATE_KEY` and commits `appcast.xml`. BlinkyBot does not link Sparkle, has no feed, and does not check GitHub for updates. The hand-written changelog and `Scripts/changelog.py --html` are what a later feed would read. Wiring Sparkle means a framework in the app, a public key in Info.plist, a private key in Actions secrets, and a feed committed after the assets exist. Until that lands, upgrades are a new DMG.
+Installed copies from 0.1.2 on check [appcast.xml](https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml) with Sparkle. The check is about every 12 hours. Settings → Updates can turn that off, and BlinkyBot → Check for Updates… asks now. There is no beta channel. The archive Sparkle installs is the full zip, not a delta. Before the bundle is replaced, BlinkyBot stops the local engine and Compose.
+
+0.1.1 has no updater. Install 0.1.2 from the disk image once. Later versions can update in place.
+
+The release workflow signs the zip with Sparkle's `sign_update` and the `SPARKLE_PRIVATE_KEY` Actions secret, then commits `appcast.xml`, `appcast-zh.xml`, and `appcast-en.xml` to `main`. The public half is `Scripts/sparkle-public-key.txt`, baked into `SUPublicEDKey`. Do not commit the private key. A pre-release tag (`1.2.3-beta.1`) is not written into the feed.
+
+## Not in this version
 
 **Notarization and Developer ID.** `Scripts/bundle.sh` ad-hoc signs unless `CODESIGN_IDENTITY` is set. That does not satisfy Gatekeeper. A certificate and notarization would remove the first-launch bypass. They are not required to publish the DMG.
 

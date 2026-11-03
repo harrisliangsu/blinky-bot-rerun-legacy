@@ -13,7 +13,9 @@ enum AboutBlinkyBot {
         paragraph.alignment = .center
         let credits = NSAttributedString(
             string: """
-            BlinkyBot starts the local engine and Compose on this Mac, then loads Compose.
+            BlinkyBot \(version) starts the local engine and Compose on this Mac, then loads Compose.
+
+            Check for Updates… is in the BlinkyBot menu. Installed copies also look for a new version about every 12 hours.
 
             Licensed under the GNU Affero General Public License v3.0 (AGPL-3.0-only). The license text is the LICENSE file in the BlinkyBot repository.
 

@@ -15,12 +15,15 @@ struct BlinkySettingsView: View {
             VStack(alignment: .leading, spacing: 24) {
                 ComposeSettingsView()
                 Divider()
+                UpdateSettingsView()
+                Divider()
                 LocalStackSettingsView()
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(width: 520, height: 640)
+        .frame(minWidth: 360, idealWidth: 520, maxWidth: 640, minHeight: 420, idealHeight: 720)
+        .frame(width: 520, height: 720)
     }
 }
 
