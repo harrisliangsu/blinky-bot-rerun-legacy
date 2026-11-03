@@ -12,13 +12,15 @@ struct BlinkyBotApp: App {
     @StateObject private var model = ShellModel()
     @StateObject private var browser = ComposeBrowser()
     @StateObject private var supervisor = ProcessSupervisor.shared
+    @StateObject private var onboarding = OnboardingModel()
 
     var body: some Scene {
         WindowGroup("BlinkyBot") {
-            ContentView()
+            ShellRoot()
                 .environmentObject(model)
                 .environmentObject(browser)
                 .environmentObject(supervisor)
+                .environmentObject(onboarding)
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 1200, height: 800)
@@ -39,6 +41,7 @@ struct BlinkyBotApp: App {
         Settings {
             BlinkySettingsView()
                 .environmentObject(model)
+                .environmentObject(onboarding)
         }
     }
 }

@@ -215,6 +215,31 @@ Bundle id: `bot.blinky.shell`. Settings is also in the app menu (Command-,). **C
 
 The coworker's screen viewer, when Compose shows one, talks to the engine at `RERUN_ENGINE_BROWSER_URL` (`http://127.0.0.1:3001`). The shell does not proxy that port. Phase 1 sets `RERUN_DESKTOP=off`, so that viewer stays off the install path.
 
+## First launch
+
+The first time the app opens, a native setup cover sits on top of Compose. It does not show the page address or the web toolbar. **Skip** and **Done** both record `blinkyOnboardingCompleted` in UserDefaults and the cover stays dismissed. Settings → Coding tools (编程工具 when the Mac language is Chinese) opens it again. `BLINKY_ONBOARDING=off` skips the cover. `BLINKY_ONBOARDING=always` shows it even after it was completed.
+
+The cover lists Codex, Kimi, Grok, and ego(lite). A Finder launch does not inherit a login-shell `PATH`, so the lookup uses the process `PATH` and then Homebrew (`/opt/homebrew/bin`, `/usr/local/bin`), npm and pnpm global bins, `~/.local/bin`, Volta, bun, asdf, fnm, and nvm. `RERUN_CODEX_PATH`, `RERUN_KIMI_PATH`, and `RERUN_GROK_PATH` are used alone when they are set, same as the engine.
+
+| Step | Ready | Needs a person | Not installed |
+| --- | --- | --- | --- |
+| Codex | `codex login status` exits 0, or `CODEX_HOME/auth.json` (default `~/.codex`) holds a token, or `CODEX_API_KEY` / `OPENAI_API_KEY` is set | Installed, and none of those. **Sign in in Terminal** runs `codex login` | `npm install -g @openai/codex` in Terminal when `npm` resolves, else `brew install --cask codex`, else a copyable installer |
+| Kimi | A credential file under `KIMI_CODE_HOME` (default `~/.kimi-code/credentials`), or `config.toml` has `api_key` / `api_key_env` | Installed, and none of those. The button runs `kimi login`. A bare `KIMI_API_KEY` does not count | `npm install -g @moonshot-ai/kimi-code`, else `brew install kimi-code`, else a copyable installer |
+| Grok | `GROK_HOME/auth.json` (default `~/.grok`) has a live `key`, or `XAI_API_KEY` is set | Installed, and none of those. The button runs `grok login` | `npm install -g @xai-official/grok` when `npm` resolves, else a copyable installer |
+| ego(lite) | `ego-browser` resolves on that expanded PATH | `ego lite.app` is in `/Applications` or `~/Applications`, and `ego-browser` does not resolve. **Open ego(lite)** launches the app so its own setup can add the command, usually at `~/.local/bin` | Download page `https://lite.ego.app/download` |
+
+Install and sign-in open Terminal.app with the command. They are not run in the background. **Recheck** runs the probes again. Copy stays next to the command. Text follows the Mac language: Chinese when the preferred language starts with `zh`, English otherwise. `BLINKY_ONBOARDING_LANG=zh` and `BLINKY_ONBOARDING_APPEARANCE=dark` force a screenshot.
+
+The list is `OnboardingCatalog.makeSteps` in `Sources/BlinkyOnboarding`. Replace a step by id, or append one. `OnboardingStepID.egoLite` is the browser step, and `evaluateEgoLite` is the built-in probe:
+
+```swift
+OnboardingCatalog.makeSteps = { signals in
+    mergingOnboardingSteps(builtInOnboardingSteps(signals), replacements: [myStep])
+}
+```
+
+Set that before the first recheck. The cover is `ShellRoot`, so the window contents and the menu bar stay in their own files.
+
 ## Phase 1 constraints
 
 This directory is the Mac window and the process supervisor:
@@ -248,7 +273,8 @@ apps/mac-shell/
   Resources/Assets.xcassets/AppIcon.appiconset/   Phase 1 Mac app icon
   Sources/BlinkyComposeURL/ComposeURL.swift
   Sources/BlinkyLocalRuntime/   plan, ready checks, spawn, API key
-  Sources/BlinkyBot/            SwiftUI window, WKWebView, ProcessSupervisor
+  Sources/BlinkyOnboarding/     CLI and ego(lite) probes, copy, first-run flag
+  Sources/BlinkyBot/            SwiftUI window, WKWebView, ProcessSupervisor, onboarding cover
   Tests/BlinkyComposeURLTests/
   Tests/BlinkyLocalRuntimeTests/
 ```

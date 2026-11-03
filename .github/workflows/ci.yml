@@ -95,3 +95,15 @@ jobs:
           name: compose-open-logs
           path: /tmp/blinky-open-smoke
           if-no-files-found: ignore
+      - name: Onboarding screenshots
+        continue-on-error: true
+        run: |
+          chmod +x Scripts/onboarding-screenshots.sh
+          perl -e 'alarm shift; exec @ARGV' 90 bash Scripts/onboarding-screenshots.sh build.noindex/BlinkyBot.app
+      - name: Upload onboarding screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: onboarding-screenshots
+          path: build.noindex/onboarding-screenshots
+          if-no-files-found: ignore

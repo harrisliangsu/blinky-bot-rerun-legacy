@@ -13,6 +13,8 @@ struct BlinkySettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                OnboardingSettingsSection()
+                Divider()
                 ComposeSettingsView()
                 Divider()
                 EgoLiteSettingsView()

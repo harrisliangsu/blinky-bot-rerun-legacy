@@ -16,6 +16,7 @@ let package = Package(
     products: [
         .library(name: "BlinkyComposeURL", targets: ["BlinkyComposeURL"]),
         .library(name: "BlinkyLocalRuntime", targets: ["BlinkyLocalRuntime"]),
+        .library(name: "BlinkyOnboarding", targets: ["BlinkyOnboarding"]),
         .executable(name: "BlinkyBot", targets: ["BlinkyBot"]),
     ],
     dependencies: [
@@ -30,11 +31,16 @@ let package = Package(
             name: "BlinkyLocalRuntime",
             path: "Sources/BlinkyLocalRuntime"
         ),
+        .target(
+            name: "BlinkyOnboarding",
+            path: "Sources/BlinkyOnboarding"
+        ),
         .executableTarget(
             name: "BlinkyBot",
             dependencies: [
                 "BlinkyComposeURL",
                 "BlinkyLocalRuntime",
+                "BlinkyOnboarding",
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             path: "Sources/BlinkyBot",
@@ -51,6 +57,11 @@ let package = Package(
             name: "BlinkyLocalRuntimeTests",
             dependencies: ["BlinkyLocalRuntime"],
             path: "Tests/BlinkyLocalRuntimeTests"
+        ),
+        .testTarget(
+            name: "BlinkyOnboardingTests",
+            dependencies: ["BlinkyOnboarding"],
+            path: "Tests/BlinkyOnboardingTests"
         ),
     ]
 )
