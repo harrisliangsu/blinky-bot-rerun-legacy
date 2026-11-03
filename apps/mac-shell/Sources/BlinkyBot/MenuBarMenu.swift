@@ -54,6 +54,12 @@ struct MenuBarMenu: View {
         }
         .accessibilityIdentifier("blinky.menu.open")
 
+        Button(menu.newBotTitle) {
+            MainWindow.open()
+            NotificationCenter.default.post(name: .blinkyNewBot, object: nil)
+        }
+        .accessibilityIdentifier("blinky.menu.new-bot")
+
         Button(menu.restartTitle) {
             supervisor.retry()
         }
@@ -127,6 +133,7 @@ enum MenuBarIcon {
 
 extension Notification.Name {
     static let blinkyOpenMainWindow = Notification.Name("blinky.openMainWindow")
+    static let blinkyNewBot = Notification.Name("blinky.newBot")
 }
 
 enum MainWindow {

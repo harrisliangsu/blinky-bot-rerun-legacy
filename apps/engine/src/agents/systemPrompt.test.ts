@@ -421,3 +421,12 @@ describe('paid data section', () => {
         expect(await paidDataSection()).toContain('never paid_data, a capability id or a catalog')
     })
 })
+
+describe('Bot vocabulary and persona', () => {
+    it('tells the model to say Bot, and puts the persona in the identity the chat runs', async () => {
+        const prompt = await buildSystemPrompt({ ...agent, soul: 'You answer as a lighthouse keeper.' }, { source: 'chat' })
+        expect(prompt).toContain('Say "Bot"')
+        expect(prompt).toContain('You answer as a lighthouse keeper.')
+        expect(prompt).toContain('call_agent')
+    })
+})

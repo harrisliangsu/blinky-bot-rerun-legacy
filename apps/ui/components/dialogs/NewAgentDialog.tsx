@@ -32,10 +32,12 @@ export function NewAgentDialog({ open, onOpenChange, onBrowseTemplates, spaceId 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <SplitDialogContent aside={null} gridClassName="sm:grid-cols-1">
-                <DialogTitle className="sr-only">New coworker</DialogTitle>
+                <DialogTitle data-testid="new-bot-title" className="sr-only">New Bot</DialogTitle>
                 <DialogDescription className="sr-only">Describe the job, or start from a suggestion or a template.</DialogDescription>
                 <NewAgentForm suggestions={suggestions} suggestionsHeading={heading} catalog={catalog} read={readAgentJobAction} onCreate={create} onBrowseTemplates={() => onBrowseTemplates()} />
             </SplitDialogContent>
         </Dialog>
     )
 }
+
+export const NewBotDialog = NewAgentDialog

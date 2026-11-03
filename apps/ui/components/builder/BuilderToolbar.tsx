@@ -18,6 +18,8 @@ import { useControlCenterStore } from '@/stores/control-center.store'
 import { useSession } from '@/supabase/session/SessionProvider'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { TooltipDisabledReason, TooltipLabeled } from '@/components/ui/tooltip'
+import { placementProgress } from '@/lib/blinky/bot-copy'
+import { useBotCopy, useBotLocale } from '@/lib/blinky/bot-locale'
 import { CirclePlusIcon, GridIcon, PlusIcon, SearchIcon } from '@/lib/icons'
 
 export function BuilderToolbar() {
@@ -33,6 +35,8 @@ export function BuilderToolbar() {
     const { isAnonymous } = useSession()
     const viewerSignals = useLibraryViewerSignals()
     const { needsMachineReason } = useWorkspaceAccess()
+    const copy = useBotCopy()
+    const locale = useBotLocale()
 
     const unplacedAgents = agents.filter(a => !isPlaced(a.position))
     const placingFromQueue = !!placement && !placement.installing
@@ -40,9 +44,9 @@ export function BuilderToolbar() {
 
     // Une template pose plusieurs agents à la suite : on nomme celui qu'on attend, et la jauge dit où
     // on en est du lot. Un agent seul n'a pas de progression à afficher.
-    const placementPrompt = placement ? `Tap a tile to place ${placementLabel(placement)}` : 'Tap a tile to place your coworker'
+    const placementPrompt = placement ? `Tap a tile to place ${placementLabel(placement)}` : copy.placeBot
     const placementQueue = placement && placement.labels.length > 1 ? placement : null
-    const placementProgressLabel = placementQueue ? `Coworker ${placementQueue.placed.length + 1} of ${placementQueue.labels.length}` : ''
+    const placementProgressLabel = placementQueue ? placementProgress(locale, placementQueue.placed.length + 1, placementQueue.labels.length) : ''
 
     // Pendant l'onboarding « recrute ton premier agent » (placeholder sur la grille), on masque les deux
     // boutons pour forcer le passage par le bloc fantôme ; le logout reste dans le switcher.
@@ -80,7 +84,7 @@ export function BuilderToolbar() {
                         {!recruitingFirstAgent && (
                             <>
                                 <div className="hidden sm:contents">
-                                    <ChromeButton icon={CirclePlusIcon} label="New coworker" disabledReason={needsMachineReason} onClick={openNewAgent} />
+                                    <ChromeButton data-testid="board-new-bot" icon={CirclePlusIcon} label={copy.newBot} disabledReason={needsMachineReason} onClick={openNewAgent} />
                                     <ChromeDivider />
                                     <ChromeButton icon={GridIcon} label="Template" disabledReason={needsMachineReason} onClick={() => openLibrary()} />
                                 </div>
@@ -95,7 +99,7 @@ export function BuilderToolbar() {
                                         <DropdownMenuContent side="top" align="center" sideOffset={12}>
                                             <DropdownMenuItem onSelect={openNewAgent} className="gap-2 whitespace-nowrap">
                                                 <CirclePlusIcon className="size-4" />
-                                                New coworker
+                                                {copy.newBot}
                                             </DropdownMenuItem>
                                             <DropdownMenuItem onSelect={() => openLibrary()} className="gap-2 whitespace-nowrap">
                                                 <GridIcon className="size-4" />

@@ -380,6 +380,6 @@ describe('request_takeover', () => {
 
     it('summarises the request for the notification', () => {
         expect(takeoverSummary({ reason: 'Sign in to LinkedIn' })).toBe('Needs you in the browser: Sign in to LinkedIn')
-        expect(takeoverSummary(undefined)).toBe('The coworker needs you in the browser')
+        expect(takeoverSummary(undefined)).toBe('The Bot needs you in the browser')
     })
 })

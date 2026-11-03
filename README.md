@@ -4,7 +4,9 @@
 [![macOS 14+](https://img.shields.io/badge/macOS-14%2B-black.svg)](https://github.com/harrisliangsu/blinky-bot/releases)
 [![GitHub release](https://img.shields.io/github/v/release/harrisliangsu/blinky-bot)](https://github.com/harrisliangsu/blinky-bot/releases)
 
-BlinkyBot is a local agent hub for Mac. Open the app and it runs on this machine: a local engine, the Compose board, and the CLIs you already have. Your coworkers, their memory, and approvals stay in `~/Library/Application Support/BlinkyBot`.
+BlinkyBot is a local agent hub for Mac. Open the app and it runs on this machine: a local engine, the Compose board, and the CLIs you already have. Your Bots, their memory, and approvals stay in `~/Library/Application Support/BlinkyBot`.
+
+BlinkyBot 是跑在这台 Mac 上的 Bot 应用。打开之后，本地引擎和 Compose 界面都在本机运行。每个 Bot 的对话、记忆和审批都留在 `~/Library/Application Support/BlinkyBot`。
 
 This repository is a public fork of [Rerun](https://github.com/rerun-build/rerun) (AGPL-3.0-only). The Rerun name, logo, and coworker characters remain trademarks of Rerun. BlinkyBot is not endorsed by Rerun. See [TRADEMARK.md](TRADEMARK.md).
 

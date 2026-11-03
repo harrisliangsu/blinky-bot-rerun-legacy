@@ -80,6 +80,7 @@ export type IsoAgent = {
     // describes what a live agent is doing right now.
     disabledAt: string | null
     disabledReason: string | null
+    avatarEmoji?: string | null
 }
 
 type AgentRowFields = Pick<AgentRow, 'id' | 'name' | 'handle' | 'description' | 'template_id' | 'status' | 'col' | 'row' | 'workspace_id' | 'space_id' | 'disabled_at' | 'disabled_reason'>

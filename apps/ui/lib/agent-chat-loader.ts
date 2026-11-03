@@ -45,7 +45,7 @@ export function liveActivityLabel(message: MessageLike | undefined, toolLabel: (
         if (progress.kind === 'call-agent') return `Waiting on ${progress.tasks[0].title}${trouble}`
         // The onboarding's build reports on a delegation's block, and it builds agents rather than waiting on them.
         if (part.type === 'tool-build_team') return counts.total === 1 ? `Building ${progress.tasks[0].title}` : `Building ${counts.total} coworkers · ${counts.done + counts.failed} done${trouble}`
-        return `Waiting on ${counts.total} sub-coworker${counts.total > 1 ? 's' : ''} · ${counts.done + counts.failed} done${trouble}`
+        return `Waiting on ${counts.total} sub-Bot${counts.total > 1 ? 's' : ''} · ${counts.done + counts.failed} done${trouble}`
     }
 
     const last = message.parts.findLast(part => !part.type.startsWith('data-'))

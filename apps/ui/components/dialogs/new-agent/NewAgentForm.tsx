@@ -2,6 +2,8 @@
 
 import { Orb } from '@rerun/ui/foreman'
 import { type AgentSuggestion, BrowseTemplates, Composer, type ConnectorCatalog, fall, Floor, type FloorLight, ForYouCards, SUGGESTION_CARDS, type JobReader, type JobReading, type NewAgentDraft, type NewAgentRequest, OrbLight, useFollow, useNewAgentDraft } from '@rerun/ui/new-agent'
+import { whatShouldBotDo } from '@/lib/blinky/bot-copy'
+import { useBotCopy, useBotLocale } from '@/lib/blinky/bot-locale'
 import { type ReactNode, type RefObject, useRef } from 'react'
 
 const ORB_SIZE = 56
@@ -35,9 +37,11 @@ export function NewAgentForm({ suggestions, suggestionsHeading, catalog, read, o
     const anchorRef = useRef<HTMLSpanElement>(null)
     const gaze = useFollow({ rootRef, anchorRef, cursorRef: still?.cursorRef, aim: still?.aim })
     const { name, described, pending, editing, composer, forYou } = useNewAgentDraft({ suggestions, shown: SUGGESTION_CARDS, read, onCreate, seed: still })
+    const copy = useBotCopy()
+    const locale = useBotLocale()
 
     return (
-        <div ref={rootRef} className="relative isolate flex min-h-0 flex-1 flex-col items-center overflow-x-hidden overflow-y-auto bg-background px-4 sm:h-full sm:overflow-hidden sm:px-10">
+        <div ref={rootRef} data-testid="new-bot-dialog" className="relative isolate flex min-h-0 flex-1 flex-col items-center overflow-x-hidden overflow-y-auto bg-background px-4 sm:h-full sm:overflow-hidden sm:px-10">
             {/* Sits a little above the middle of the dialog, where the eye puts the centre. */}
             <div className="relative flex w-full max-w-[700px] flex-col items-center pt-6 pb-8 sm:my-auto sm:pt-0 sm:pb-12">
                 <div className="hidden sm:contents">
@@ -50,7 +54,7 @@ export function NewAgentForm({ suggestions, suggestionsHeading, catalog, read, o
                         <Orb state={pending ? 'thinking' : 'listening'} size={ORB_SIZE} gaze={gaze} />
                     </div>
                 </div>
-                <h2 className="mt-5 text-center font-heading text-2xl font-medium tracking-tight">{name ? `What should ${name} do?` : 'What should your new coworker do?'}</h2>
+                <h2 data-testid="new-bot-heading" className="mt-5 text-center font-heading text-2xl font-medium tracking-tight">{name ? whatShouldBotDo(locale, name) : copy.whatShouldNew}</h2>
                 <Composer {...composer} catalog={catalog} drawnCaret={Boolean(still?.drawnCaret) && !editing} className="mt-6 w-full" />
                 <ForYouCards {...forYou} heading={suggestionsHeading} catalog={catalog} className="mt-9 w-full" />
                 <BrowseTemplates onBrowse={onBrowseTemplates} className="mt-7 w-full" />

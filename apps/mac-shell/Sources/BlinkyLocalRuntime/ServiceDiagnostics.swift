@@ -35,6 +35,7 @@ public struct ServiceMenuModel: Equatable {
     public var dot: ServiceStatusDot
     public var statusTitle: String
     public var openTitle: String
+    public var newBotTitle: String
     public var restartTitle: String
     public var logsTitle: String
     public var updatesTitle: String
@@ -61,6 +62,7 @@ public func serviceMenuModel(phase: ServicePhase, language: ShellLanguage) -> Se
         dot: statusDot(status),
         statusTitle: ShellCopy.status(language, status),
         openTitle: ShellCopy.openBlinkyBot(language),
+        newBotTitle: ShellCopy.newBot(language),
         restartTitle: ShellCopy.restartServices(language),
         logsTitle: ShellCopy.openLogsFolder(language),
         updatesTitle: ShellCopy.checkForUpdates(language),

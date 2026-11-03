@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
+import { useBotCopy } from '@/lib/blinky/bot-locale'
 import { useBoardStore } from '@/stores/board.store'
 
 type DeleteAgentDialogProps = {
@@ -15,6 +16,7 @@ type DeleteAgentDialogProps = {
 }
 
 export function DeleteAgentDialog({ agentId, agentName, children, open: controlledOpen, onOpenChange }: DeleteAgentDialogProps) {
+    const copy = useBotCopy()
     const removeAgent = useBoardStore(s => s.removeAgent)
     const selectAgent = useBoardStore(s => s.selectAgent)
     const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
@@ -38,19 +40,18 @@ export function DeleteAgentDialog({ agentId, agentName, children, open: controll
     return (
         <AlertDialog open={open} onOpenChange={handleOpenChange}>
             {children && <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>}
-            <AlertDialogContent>
+            <AlertDialogContent data-testid="bot-delete-dialog">
                 <AlertDialogHeader>
-                    <AlertDialogTitle>Delete this coworker?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        This will permanently delete the coworker and its data on the engine. This action cannot be undone.
-                    </AlertDialogDescription>
+                    <AlertDialogTitle>{copy.deleteTitle}</AlertDialogTitle>
+                    <AlertDialogDescription>{copy.deleteBody}</AlertDialogDescription>
                 </AlertDialogHeader>
                 {agentName && (
                     <div className="grid gap-2">
                         <p className="text-sm text-muted-foreground">
-                            Type <span className="font-medium text-foreground">{agentName}</span> to confirm.
+                            {copy.deleteType} <span className="font-medium text-foreground">{agentName}</span>
                         </p>
                         <Input
+                            data-testid="bot-delete-name"
                             value={confirmText}
                             onChange={e => setConfirmText(e.target.value)}
                             onKeyDown={e => {
@@ -62,8 +63,8 @@ export function DeleteAgentDialog({ agentId, agentName, children, open: controll
                     </div>
                 )}
                 <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleDelete} variant="destructive" disabled={!canDelete}>Delete</AlertDialogAction>
+                    <AlertDialogCancel>{copy.cancel}</AlertDialogCancel>
+                    <AlertDialogAction data-testid="bot-delete-confirm" onClick={handleDelete} variant="destructive" disabled={!canDelete}>{copy.delete}</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

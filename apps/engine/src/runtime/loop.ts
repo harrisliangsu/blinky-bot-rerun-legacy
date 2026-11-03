@@ -90,10 +90,10 @@ function coerceJsonArray(value: unknown): unknown {
 function questionSummary(input: Record<string, unknown> | undefined): string {
     const questions = coerceJsonArray(input?.questions) as Array<{ question?: unknown }> | undefined
     if (Array.isArray(questions) && questions.length > 0) {
-        const first = String(questions[0]?.question ?? 'The coworker has a question')
+        const first = String(questions[0]?.question ?? 'The Bot has a question')
         return questions.length > 1 ? `${first} (+${questions.length - 1} more)` : first
     }
-    return String(input?.question ?? 'The coworker has a question')
+    return String(input?.question ?? 'The Bot has a question')
 }
 
 function serviceSummary(input: Record<string, unknown> | undefined): string {

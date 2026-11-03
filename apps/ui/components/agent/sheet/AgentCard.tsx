@@ -100,7 +100,7 @@ export function AgentCard({ agent, onOpen, onClose, onShare, onDelete, onOpenCom
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-destructive/10 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/15 disabled:opacity-50 disabled:hover:bg-destructive/10"
                     >
                         <Trash2Icon className="size-4" />
-                        Delete this coworker
+                        Delete this Bot
                     </button>
                 </TooltipDisabledReason>
             </div>

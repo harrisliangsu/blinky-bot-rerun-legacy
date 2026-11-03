@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { AgentBuddy } from '@rerun/ui/iso-grid'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
+import { useBotCopy } from '@/lib/blinky/bot-locale'
 import { COWORKER_MODE_META } from './scope-meta'
 import { SETTINGS_CARD, SettingsSection } from './SettingsSection'
 
@@ -34,6 +35,7 @@ type CoworkerRulesProps = {
 }
 
 export function CoworkerRules({ coworkers, rules, onChange, pinnedId, renderPicker }: CoworkerRulesProps) {
+    const copy = useBotCopy()
     const [adding, setAdding] = useState(false)
     const pinnedRow = useRef<HTMLDivElement>(null)
     const ruleOf = (id: string) => rules[id] ?? DEFAULT_COWORKER_RULE
@@ -47,10 +49,10 @@ export function CoworkerRules({ coworkers, rules, onChange, pinnedId, renderPick
 
     return (
         <SettingsSection
-            title="Per coworker"
-            detail="Also set from the bell on each coworker."
+            title={copy.perBot}
+            detail={copy.perBotDetail}
             action={
-                <TooltipDisabledReason reason={nothingToAdd ? 'Every coworker is already listed' : undefined}>
+                <TooltipDisabledReason reason={nothingToAdd ? copy.everyListed : undefined}>
                     <Button type="button" variant="ghost" size="sm" disabled={nothingToAdd} aria-expanded={adding} onClick={() => setAdding(a => !a)}>
                         <Plus />
                         Add
@@ -70,7 +72,7 @@ export function CoworkerRules({ coworkers, rules, onChange, pinnedId, renderPick
                 </div>
             )}
             <div className={SETTINGS_CARD}>
-                {listed.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">Every coworker follows the rule above.</p>}
+                {listed.length === 0 && <p className="px-3 py-3 text-xs text-muted-foreground">{copy.everyFollows}</p>}
                 {listed.map(c => {
                     const rule = ruleOf(c.id)
                     return (

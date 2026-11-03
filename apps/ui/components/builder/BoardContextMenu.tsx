@@ -118,7 +118,7 @@ export function BoardContextMenu({ children, target, onTargetClear }: BoardConte
             {shareAgentId && (
                 <ShareAgentDialog
                     agentId={shareAgentId}
-                    agentName={shareAgent?.name ?? 'this coworker'}
+                    agentName={shareAgent?.name ?? 'this Bot'}
                     open
                     onOpenChange={open => {
                         if (!open) setShareAgentId(null)

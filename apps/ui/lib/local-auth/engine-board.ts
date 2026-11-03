@@ -4,7 +4,7 @@ import { agentStatusForBoard, sessionsWithRunStatus, type BoardRun } from './boa
 import { LOCAL_SPACE_ID, LOCAL_WORKSPACE_ID } from './constants'
 import { readLocalWorkspace, type LocalWorkspaceRow } from './db'
 
-type EngineAgent = { id: string; name: string; status?: string; createdAt?: string }
+type EngineAgent = { id: string; name: string; displayName?: string; avatarEmoji?: string; status?: string; createdAt?: string }
 type EngineSession = { id: string; agentId?: string; agent_id?: string; originAgentId?: string | null; status?: string }
 type EngineRun = { sessionId?: string; session_id?: string; status?: string; startedAt?: string; started_at?: string }
 
@@ -60,8 +60,9 @@ export async function localBoard(workspace: LocalWorkspaceRow): Promise<{ agents
     )
     const agents: IsoAgent[] = details.map(({ agent, sessions, runsKnown }, index) => ({
         id: agent.id,
-        name: agent.name,
-        handle: null,
+        name: agent.displayName?.trim() || agent.name,
+        handle: agent.name,
+        avatarEmoji: agent.avatarEmoji || null,
         description: null,
         templateId: null,
         status: agentStatusForBoard(agent.status, sessions, runsKnown),

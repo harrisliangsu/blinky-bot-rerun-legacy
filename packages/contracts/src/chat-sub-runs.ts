@@ -42,11 +42,11 @@ export const SUB_RUN_TOOL_NAMES: Record<SubRunProgress['kind'], string> = { dele
 export function subRunProgressOf(part: PartLike): SubRunProgress | null {
     if (part.type === 'data-delegate') {
         const data = part.data as DelegatePartData
-        return { kind: 'delegate', tasks: (data.tasks ?? []).map((task, i) => ({ ...task, title: task.title || `Sub-coworker ${i + 1}` })) }
+        return { kind: 'delegate', tasks: (data.tasks ?? []).map((task, i) => ({ ...task, title: task.title || `Sub-Bot ${i + 1}` })) }
     }
     if (part.type === 'data-call-agent') {
         const { agentName, ...task } = part.data as CallAgentPartData
-        return { kind: 'call-agent', tasks: [{ ...task, title: agentName || 'Coworker' }] }
+        return { kind: 'call-agent', tasks: [{ ...task, title: agentName || 'Bot' }] }
     }
     return null
 }
@@ -189,7 +189,7 @@ export function subRunHeadline({ kind, tasks }: SubRunProgress, live: boolean, t
         if (live) return { label: `Building ${agent.title}` }
         return { label: counts.failed ? `${agent.title} could not be built${duration}` : `${agent.title} built${duration}` }
     }
-    if (live) return { label: building ? `Building your team · ${plural(counts.total, 'coworker')}` : `Delegating · ${plural(counts.total, 'task')}`, summary: `${counts.done + counts.failed}/${counts.total} done${trouble}` }
-    if (counts.failed === 0) return building ? { label: `${plural(counts.total, 'coworker')} built${duration}`, summary: 'Open one from the board' } : { label: `${plural(counts.total, 'task')} done${duration}` }
+    if (live) return { label: building ? `Building your team · ${plural(counts.total, 'Bot')}` : `Delegating · ${plural(counts.total, 'task')}`, summary: `${counts.done + counts.failed}/${counts.total} done${trouble}` }
+    if (counts.failed === 0) return building ? { label: `${plural(counts.total, 'Bot')} built${duration}`, summary: 'Open one from the board' } : { label: `${plural(counts.total, 'task')} done${duration}` }
     return { label: `${counts.done} done · ${counts.failed} failed${duration}` }
 }

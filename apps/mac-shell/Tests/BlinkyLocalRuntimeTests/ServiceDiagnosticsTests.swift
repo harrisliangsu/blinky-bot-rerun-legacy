@@ -160,6 +160,7 @@ final class ServiceDiagnosticsTests: XCTestCase {
         XCTAssertEqual(chinese.dot, .red)
         XCTAssertEqual(chinese.statusTitle, "服务出错")
         XCTAssertEqual(chinese.openTitle, "打开 BlinkyBot")
+        XCTAssertEqual(chinese.newBotTitle, "新建 Bot")
         XCTAssertEqual(chinese.restartTitle, "重启服务")
         XCTAssertEqual(chinese.logsTitle, "打开日志文件夹")
         XCTAssertEqual(chinese.updatesTitle, "检查更新")
@@ -173,6 +174,7 @@ final class ServiceDiagnosticsTests: XCTestCase {
         XCTAssertEqual(serviceMenuModel(phase: .idle, language: .english).dot, .gray)
         XCTAssertEqual(serviceMenuModel(phase: .external, language: .english).status, .running)
         XCTAssertEqual(serviceMenuModel(phase: .external, language: .english).openTitle, "Open BlinkyBot")
+        XCTAssertEqual(serviceMenuModel(phase: .external, language: .english).newBotTitle, "New Bot")
         XCTAssertEqual(serviceMenuModel(phase: .external, language: .english).quitTitle, "Quit")
     }
 

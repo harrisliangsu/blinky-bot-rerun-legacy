@@ -56,8 +56,8 @@ public struct OnboardingCopy: Equatable {
     public var headline: String { pick("Set up tools on this Mac", "在这台 Mac 上准备工具") }
     public var subtitle: String {
         pick(
-            "BlinkyBot can use Codex, Kimi, Grok, and the ego(lite) browser. Install or sign in here, or skip and come back from Settings.",
-            "BlinkyBot 可以使用 Codex、Kimi、Grok 和 ego(lite) 浏览器。可以在这里安装或登录，也可以先跳过，稍后在设置里继续。"
+            "BlinkyBot runs your Bots on this Mac. It can use Codex, Kimi, Grok, and the ego(lite) browser. Install or sign in here, or skip and come back from Settings.",
+            "BlinkyBot 在这台 Mac 上运行你的 Bot。它可以使用 Codex、Kimi、Grok 和 ego(lite) 浏览器。可以在这里安装或登录，也可以先跳过，稍后在设置里继续。"
         )
     }
     public var footer: String {

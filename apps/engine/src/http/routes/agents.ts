@@ -40,7 +40,15 @@ function publicView(id: string, config: unknown, soul: string, install: string, 
 
 agentRoutes.get('/', async c => {
     const index = await listAgentIndex()
-    return c.json({ agents: index })
+    const agents = await Promise.all(index.map(async row => {
+        try {
+            const config = await readAgentConfig(row.id)
+            return { ...row, displayName: config.displayName?.trim() || row.name, avatarEmoji: config.avatar?.emoji ?? '' }
+        } catch {
+            return { ...row, displayName: row.name, avatarEmoji: '' }
+        }
+    }))
+    return c.json({ agents })
 })
 
 agentRoutes.post('/', async c => {

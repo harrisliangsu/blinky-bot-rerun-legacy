@@ -134,6 +134,21 @@ export function isSetupAnswered(setup: { required: boolean | null; prompt: strin
     return setup.required === false || (setup.required === true && setup.prompt.trim().length > 0)
 }
 
+const AVATAR_IMAGE = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,[a-z0-9+/=\s]+$/i
+
+// What the product calls a Bot's face. Emoji is the short mark; image is a small data URL the
+// settings form writes. Absent on every agent created before the field existed.
+export const agentAvatarSchema = z.object({
+    emoji: z.string().max(32).default(''),
+    image: z
+        .string()
+        .max(120_000)
+        .default('')
+        .refine(value => value === '' || AVATAR_IMAGE.test(value), 'avatar image must be a data URL'),
+})
+export type AgentAvatar = z.infer<typeof agentAvatarSchema>
+export const botAvatarSchema = agentAvatarSchema
+
 export const agentConfigSchema = z.object({
     name: z.string(),
     // `foreman` is the one built-in agent each engine writes for itself at boot. Never settable
@@ -145,6 +160,7 @@ export const agentConfigSchema = z.object({
     // config written before this flag existed reads as a live agent.
     enabled: z.boolean().default(true),
     displayName: z.string().optional(),
+    avatar: agentAvatarSchema.optional(),
     description: z.string().default(''),
     // The box connection this agent draws its credentials from. Null means "not resolved yet":
     // an imported template or an agent created through MCP with a bare provider, which the engine
@@ -182,6 +198,8 @@ export const createCoworkerSchema = z.object({
     spaceId: z.string().uuid(),
 })
 export type CreateCoworkerInput = z.infer<typeof createCoworkerSchema>
+export const createBotSchema = createCoworkerSchema
+export type CreateBotInput = CreateCoworkerInput
 
 // `active` is false when the plan has no free coworker slot: the coworker exists but stays off, and
 // nothing was sent to it. `sessionId` and `runId` name the first conversation when one started.
@@ -196,6 +214,8 @@ export type CreatedCoworker = z.infer<typeof createdCoworkerSchema>
 // Renaming only changes what is displayed: the handle other coworkers mention it by stays put.
 export const renameCoworkerSchema = z.object({ name: z.string().trim().min(1).max(60) })
 export type RenameCoworkerInput = z.infer<typeof renameCoworkerSchema>
+export const renameBotSchema = renameCoworkerSchema
+export type RenameBotInput = RenameCoworkerInput
 
 // The caller's own rule for one coworker, the web bell's three choices. `default` follows the
 // caller's workspace-wide setting.

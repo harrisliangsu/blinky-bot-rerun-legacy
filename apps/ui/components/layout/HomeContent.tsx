@@ -36,6 +36,8 @@ import { useTemplateFlowStore } from '@/stores/template-flow.store'
 import { selectForemanVisible, useForemanStore } from '@/stores/foreman.store'
 import { useResumePendingStart } from '@/lib/onboarding/useResumePendingStart'
 import { openConversationFromNotification } from '@/lib/notifications/open-conversation'
+import { BotSidebar } from '@/components/bot/BotSidebar'
+import { BotLocaleBoot } from '@/lib/blinky/bot-locale'
 import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { createClient } from '@/supabase/client'
 import { selectMaybeSingle } from '@/supabase/supabase-helpers'
@@ -415,11 +417,15 @@ export function HomeContent({ initialSpaces = [], initialWorkspaceId = null }: {
     }
 
     return (
-        <div className="flex flex-col h-full bg-background overflow-hidden">
-            <main className="flex-1 relative overflow-hidden">
-                <BuilderView initialSpaces={serverBoardMatchesTab ? initialSpaces : []} />
-                <WorkspaceSwitcher />
-                <WorkspacePausedBanner />
+        <div className="flex h-full flex-col overflow-hidden bg-background">
+            <BotLocaleBoot />
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+                {localAuth && <BotSidebar />}
+                <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+                    <BuilderView initialSpaces={serverBoardMatchesTab ? initialSpaces : []} />
+                    <WorkspaceSwitcher />
+                    <WorkspacePausedBanner />
+                </div>
             </main>
             {/* Hors du `<main>` comme il est hors du cadre : l'orbe est `fixed`, sa place ne dépend
                 pas de l'endroit où il est monté. Ici il reste derrière l'écran de chargement. Pas

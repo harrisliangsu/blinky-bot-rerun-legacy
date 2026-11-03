@@ -52,6 +52,9 @@ struct ContentView: View {
             guard supervisor.phase == .external else { return }
             browser.load(model.address)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .blinkyNewBot)) { _ in
+            browser.requestNewBot()
+        }
         .onChange(of: browser.errorText) { _, text in
             if text != nil {
                 supervisor.notePageDidFail()
