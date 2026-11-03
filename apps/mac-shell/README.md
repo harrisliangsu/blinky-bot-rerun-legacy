@@ -115,6 +115,12 @@ open -n --env BLINKY_SUPERVISE=0 --env BLINKY_COMPOSE_URL=http://127.0.0.1:3050 
 
 `docker compose` reproduces the Rerun server. Leave it for that. The steps are [INSTALL.md](../../INSTALL.md). The shell does not start it.
 
+## Distributable app
+
+On a Mac, `Scripts/bundle.sh` at the repository root writes `build.noindex/BlinkyBot.app`. It builds this Xcode target, then stages Node, the engine, and Compose under `Contents/Resources/runtime`, and sets `CFBundleShortVersionString` from the root `VERSION` file. The steps and the CI check (`pnpm bundle:check`, `Scripts/bundle.sh --plan`) are in [Scripts/README.md](../../Scripts/README.md).
+
+The Xcode Run below is the developer loop from a checkout. The bundle script is the app you hand to someone else.
+
 ## Build on a Mac
 
 You need macOS 14 or newer and Xcode 15 or newer. The supported artifact is an `.app` bundle so `Info.plist` (local HTTP, the default URL, the About copyright) is actually used.
@@ -196,7 +202,7 @@ Bundle id: `bot.blinky.shell`. Settings is also in the app menu (Command-,). **C
 - Unified toolbar: back, forward, reload, and a spinner while the page loads.
 - `target="_blank"` and `window.open` load in the same view, so a Compose sign-in popup is not dropped.
 - Cookies use the default `WKWebsiteDataStore`, so a Compose session survives relaunch of the shell.
-- The user agent appends `BlinkyBot/0.1.0`.
+- The user agent appends `BlinkyBot/<version>`, where `<version>` is `CFBundleShortVersionString`. The bundle script sets that from the root `VERSION` file. An Xcode Run uses `MARKETING_VERSION` in `project.yml`, which stays equal to `VERSION`.
 - The web view is inspectable (Safari-style web inspector from the context menu, when WebKit inspection is allowed).
 - Compose menu: Back (Command-[), Forward (Command-]), Reload (Command-R), Open configured URL (Command-Shift-R).
 - Closing the last window quits the app and stops the children it started.
@@ -225,6 +231,8 @@ Local auth for the Phase 1 boot lives in the UI, behind `BLINKY_LOCAL_AUTH=1`. T
 The Phase 1 Mac app icon is the confirmed mascot (fluffy cream, lime sprout and ear tips, one eye winking). The asset catalog is `Resources/Assets.xcassets/AppIcon.appiconset`. [`project.yml`](project.yml) includes that catalog as a file source and sets `ASSETCATALOG_COMPILER_APPICON_NAME` to `AppIcon`, so the built BlinkyBot.app shows this icon. [`Info.plist`](Info.plist) sets `CFBundleIconName` to the same name.
 
 ## Layout
+
+The distributable bundle command is [Scripts/bundle.sh](../../Scripts/bundle.sh) at the repository root. `MARKETING_VERSION` in `project.yml` matches the root `VERSION` file. `Info.plist` leaves `CFBundleShortVersionString` as `$(MARKETING_VERSION)`.
 
 ```
 apps/mac-shell/

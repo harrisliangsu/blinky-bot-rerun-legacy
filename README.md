@@ -34,6 +34,14 @@ node scripts/blinky-local/blinky-local.mjs start
 
 The UI listens on `http://127.0.0.1:3000` and the engine on `http://127.0.0.1:3001`, with `BLINKY_LOCAL_AUTH=1`. Data is `~/Library/Application Support/BlinkyBot` on macOS and `~/.blinkybot` elsewhere. Details: [scripts/blinky-local/README.md](scripts/blinky-local/README.md).
 
+A Mac with Xcode builds the distributable app:
+
+```bash
+./Scripts/bundle.sh
+```
+
+That writes `build.noindex/BlinkyBot.app`. The `Contents/Resources/runtime` layout, the `VERSION` file, and the Linux `--plan` check are in [Scripts/README.md](Scripts/README.md).
+
 The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
 
 ## Upstream server install (Docker)

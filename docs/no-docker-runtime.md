@@ -37,6 +37,8 @@ BlinkyBot.app/Contents/Resources/runtime/ui/         next build (.next/, the fil
 
 The engine entry is the `rerun` bin from `apps/engine/package.json`: `node dist/cli/bin.js run`. The UI entry is `next start` from `apps/ui` (`"start": "next start"`).
 
+`Scripts/bundle.sh` is the Mac command that builds this `.app`. It reads the version from the root `VERSION` file, writes that into `CFBundleShortVersionString` and `CFBundleVersion`, and stages the runtime tree above. Builder notes, including what a Linux CI machine can check, are in [Scripts/README.md](../Scripts/README.md). `Scripts/bundle.sh --plan` prints the layout on any system.
+
 A developer checkout may use system Node 22 instead of the bundled binary. The flags, ports, and environment below stay the same. Build first (`pnpm --filter rerun-engine build` and `pnpm --filter rerun build`), then start with those env vars. `pnpm dev:engine` and `pnpm dev:ui` remain the hot-reload loop (engine on 3000, UI on 3050, per [CONTRIBUTING.md](../CONTRIBUTING.md)). Point the shell at `http://127.0.0.1:3050` for that loop only. The bundled app always uses 3000 and 3001.
 
 ## Commands the app starts

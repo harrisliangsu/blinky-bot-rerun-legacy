@@ -22,7 +22,8 @@
         "db:reset": "supabase db reset",
         "db:fresh:local": "supabase start && supabase db reset",
         "local": "node scripts/blinky-local/blinky-local.mjs",
-        "local:check": "node --test --test-concurrency=1 scripts/blinky-local/blinky-local.test.mjs"
+        "local:check": "node --test --test-concurrency=1 scripts/blinky-local/blinky-local.test.mjs",
+        "bundle:check": "node --test --test-concurrency=1 Scripts/plan.test.mjs"
     },
     "devDependencies": {
         "concurrently": "^10.0.4",
