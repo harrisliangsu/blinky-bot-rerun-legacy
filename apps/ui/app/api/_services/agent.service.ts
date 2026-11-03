@@ -11,6 +11,7 @@ import {
 import type { EngineAgentConfigPatch } from '@/lib/engine/types'
 import { AGENT_SPAN, UNPLACED_COL, agentsOverlap, isPlaced } from '@/lib/board/iso'
 import type { GridPosition } from '@/lib/board/types'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMany, selectSingle } from '@/supabase/supabase-helpers'
 import { sanitizeIdentifier } from '@/lib/utils'
@@ -152,6 +153,25 @@ export async function createAgent(params: CreateAgentParams) {
     })
 
     const cell = position ?? (await findFreeCellInSpace(supabase, spaceId))
+    if (isBlinkyLocalAuth()) {
+        return {
+            id: detail.id,
+            name,
+            handle,
+            description: description || null,
+            engine_agent_id: detail.id,
+            workspace_id: workspaceId,
+            space_id: spaceId,
+            col: cell ? cell.col : UNPLACED_COL,
+            row: cell ? cell.row : UNPLACED_COL,
+            disabled_at: enabled ? null : new Date().toISOString(),
+            disabled_reason: enabled ? null : PLAN_LIMIT_REASON,
+            disabled_schedule_slugs: [],
+            template_id: null,
+            status: 'idle',
+            created_at: new Date().toISOString(),
+        }
+    }
     const { data: agent, error } = await supabase
         .from('agents')
         .insert<Database['public']['Tables']['agents']['Insert']>({

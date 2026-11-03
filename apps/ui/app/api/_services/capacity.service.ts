@@ -1,4 +1,5 @@
 import { activeAgentLimitFor, isSubscriptionEntitled } from '@/cloud/billing'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectCount, selectSingle } from '@/supabase/supabase-helpers'
 
@@ -20,6 +21,7 @@ export function isPlanLimited(disabledReason: string | null): boolean {
 // subscription that is really over collapses it to zero. `past_due` keeps its full allowance: a
 // declined charge archives the machine, and the agents have to come back as they were once it is paid.
 export async function activeAgentLimit(workspaceId: number): Promise<number | null> {
+    if (isBlinkyLocalAuth()) return null
     const supabase = createServiceRoleClient()
     const { data: workspace } = await selectSingle(supabase, 'workspaces', ['max_agents', 'subscription_status'] as const, { id: workspaceId })
     if (!workspace) return 0

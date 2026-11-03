@@ -1,7 +1,7 @@
 import { realEmail } from '@/lib/auth/placeholder-email'
 import type { Database } from '@/app/api/database.types'
 import { emptySupabase } from '@/lib/local-auth/empty-client'
-import { LOCAL_SPACE_ID } from '@/lib/local-auth/constants'
+import { LOCAL_SPACE_ID, LOCAL_WORKSPACE_ID } from '@/lib/local-auth/constants'
 import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { getServerSession, getSessionWorkspace } from '@/supabase/session/getServerSession'
@@ -108,6 +108,10 @@ type OwnedSpace = { workspace_id: number }
 // The workspace comes in explicitly for the callers that proved their identity with an API key
 // rather than a browser session; the session variant below is the same check, one line thinner.
 export async function assertSpaceOwnedBy(workspaceId: number, spaceId: string): Promise<OwnedSpace> {
+    if (isBlinkyLocalAuth()) {
+        if (spaceId !== LOCAL_SPACE_ID || workspaceId !== LOCAL_WORKSPACE_ID) throw new AuthorizationError('Space not found')
+        return { workspace_id: LOCAL_WORKSPACE_ID }
+    }
     const supabase = createServiceRoleClient()
     const { data: space } = await selectSingle(supabase, 'spaces', ['workspace_id'] as const, { id: spaceId })
     if (!space || space.workspace_id !== workspaceId) throw new AuthorizationError('Space not found')

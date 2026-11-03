@@ -1,9 +1,12 @@
+import { createAgent as engineCreateAgent } from '@/lib/engine/client'
 import { selectMany, selectSingle } from '@/supabase/supabase-helpers'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 
-import { findFreeCellInSpace, moveAgentToBox } from './agent.service'
+import { createAgent, findFreeCellInSpace, moveAgentToBox } from './agent.service'
+import { hasFreeAgentSlot } from './capacity.service'
+import { getSpaceConnection } from './space.service'
 
 vi.mock('@/lib/engine/client', () => ({
     createAgent: vi.fn(),
@@ -70,5 +73,29 @@ describe('moveAgentToBox', () => {
     it('refuses the Box the agent is already in', async () => {
         await expect(moveAgentToBox('agent', 'from')).resolves.toEqual({ ok: false, error: 'This coworker is already in that Box' })
         expect(update).not.toHaveBeenCalled()
+    })
+})
+
+describe('createAgent in local auth', () => {
+    afterEach(() => vi.unstubAllEnvs())
+
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.stubEnv('BLINKY_LOCAL_AUTH', '1')
+        vi.mocked(hasFreeAgentSlot).mockResolvedValue(true)
+        vi.mocked(getSpaceConnection).mockResolvedValue({ baseUrl: 'http://127.0.0.1:3001', apiKey: 'k' })
+        vi.mocked(selectMany).mockResolvedValue({ data: [] } as never)
+        vi.mocked(engineCreateAgent).mockResolvedValue({ id: 'engine-1' } as never)
+    })
+
+    it('keeps the engine coworker instead of rolling it back when Supabase has no row', async () => {
+        const insert = vi.fn()
+        vi.mocked(createServiceRoleClient).mockReturnValue({ from: () => ({ insert }) } as never)
+
+        const agent = await createAgent({ name: 'Scout', workspaceId: 1, spaceId: 'local-home', position: { col: 1, row: 1 } })
+
+        expect(agent).toMatchObject({ id: 'engine-1', engine_agent_id: 'engine-1', name: 'Scout', space_id: 'local-home', disabled_at: null, col: 1, row: 1 })
+        expect(insert).not.toHaveBeenCalled()
+        expect(engineCreateAgent).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ config: expect.objectContaining({ displayName: 'Scout', enabled: true }) }))
     })
 })
