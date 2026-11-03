@@ -33,7 +33,7 @@ function promptFromArgs(argv) {
     const divider = argv.indexOf('--')
     if (divider !== -1 && argv[divider + 1]) return argv[divider + 1]
     const print = argv.indexOf('-p')
-    if (print !== -1 && argv[print + 1]) return argv[print + 1]
+    if (print !== -1 && argv[print + 1] && !argv[print + 1].startsWith('-')) return argv[print + 1]
     const positional = argv.filter(arg => !arg.startsWith('-'))
     return positional.at(-1) ?? ''
 }
