@@ -4,7 +4,7 @@ This is the Phase 1 install contract. BlinkyBot on a Mac installs and opens. The
 
 `docker-compose.yml` remains in the tree for the upstream Rerun server install. The Phase 1 Mac path does not invoke it.
 
-The window sources in `apps/mac-shell` spawn the processes below, set `BLINKY_LOCAL_AUTH=1`, and load `http://127.0.0.1:3000` when both ready URLs answer. Local auth is implemented in `apps/ui/lib/local-auth`. A developer checkout can also start the same two Node processes by hand. That remains a dev loop, and it still does not use Docker.
+The window sources in `apps/mac-shell` spawn the processes below, set `BLINKY_LOCAL_AUTH=1`, and load `http://127.0.0.1:3000` when both ready URLs answer. Local auth is implemented in `apps/ui/lib/local-auth`. A checkout starts the same two Node processes with `node scripts/blinky-local/blinky-local.mjs` ([scripts/blinky-local/README.md](../scripts/blinky-local/README.md)). That script is not the `.app`, and it does not use Docker.
 
 ## Process model
 
@@ -136,6 +136,8 @@ Stdout and stderr append to `logs/engine.log` and `logs/ui.log`.
 ```
 
 The engine half is the data-dir documented in `apps/engine/README.md`. Credentials for coworkers stay there. The default `~/.rerun` is what a bare `rerun run` uses. The Mac app always sets `RERUN_DATA_DIR` to the `engine/` folder above, so a Phase 1 install does not write `~/.rerun`.
+
+On macOS the checkout script uses `~/Library/Application Support/BlinkyBot/`, the same directory as the Mac app. On Linux and other systems it uses `~/.blinkybot/` with the same files inside, and it sets `BLINKY_LOCAL_AUTH_DB` so `local-auth.sqlite` stays there. `BLINKY_SUPPORT_DIR` overrides either path, for the script and for the Mac app.
 
 CLI login files stay where those CLIs already keep them (`~/.codex`, `~/.kimi-code`, `~/.grok`, `~/.claude`, or the home variable each CLI documents). Phase 1 does not move them into Application Support. The engine forwards the environment it was given; tokens stay off argv. See [cli-adapters-phase1.md](cli-adapters-phase1.md).
 
