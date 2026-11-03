@@ -45,8 +45,8 @@ func roleOf(_ element: AXUIElement) -> String {
     return roleRef as? String ?? ""
 }
 
-func isSwitch(_ element: AXUIElement) -> Bool {
-    ["AXCheckBox", "AXSwitch", "AXToggle", "AXButton"].contains(roleOf(element))
+func isCheckbox(_ element: AXUIElement) -> Bool {
+    ["AXCheckBox", "AXSwitch", "AXToggle"].contains(roleOf(element))
 }
 
 func press(_ element: AXUIElement) -> Bool {
@@ -60,13 +60,15 @@ func childrenOf(_ element: AXUIElement) -> [AXUIElement] {
 }
 
 func pressSwitch(element: AXUIElement, parent: AXUIElement?) -> Bool {
-    var candidates = [element]
-    if let parent { candidates.append(parent) }
-    if let parent { candidates.append(contentsOf: childrenOf(parent)) }
-    candidates.append(contentsOf: childrenOf(element))
-    for candidate in candidates where isSwitch(candidate) {
-        if press(candidate) { return true }
+    if isCheckbox(element), press(element) { return true }
+    if let parent, isCheckbox(parent), press(parent) { return true }
+    let scope = parent ?? element
+    let boxes = childrenOf(scope).filter(isCheckbox)
+    if !boxes.isEmpty {
+        return boxes.contains { press($0) }
     }
+    if roleOf(element) == "AXButton", press(element) { return true }
+    if let parent, roleOf(parent) == "AXButton", press(parent) { return true }
     return false
 }
 
