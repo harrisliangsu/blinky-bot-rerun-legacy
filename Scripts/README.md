@@ -110,3 +110,16 @@ Logs, if they do not: `~/Library/Application Support/BlinkyBot/logs/`.
 There is no universal binary. Ship one `.app` per architecture, each with a Node binary of that architecture.
 
 `docker compose` remains the upstream server install in [INSTALL.md](../INSTALL.md). Phase 1 Mac builds use this script.
+
+## GitHub Release
+
+A tag `v$(cat VERSION)` publishes the app. The workflow on `macos-14` runs:
+
+```bash
+./Scripts/bundle.sh --zip
+./Scripts/dmg.sh --reuse
+```
+
+`--zip` writes `build.noindex/BlinkyBot-<version>.zip`. `dmg.sh --reuse` writes `build.noindex/BlinkyBot-<version>.dmg` from that same app (Applications alias and a bilingual Read Me) and does not build again. The hosted job sets `BLINKY_NODE` to the official Node 22 macOS tarball before `bundle.sh`, because the Actions Node is not the binary that ships.
+
+Notes, the `VERSION` / changelog gate, and Sparkle as a follow-up are in [docs/releasing.md](../docs/releasing.md). `0.1.0` is the first version.

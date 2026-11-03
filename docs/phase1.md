@@ -42,6 +42,8 @@ Phase 1 does not build or depend on these. The code stays in the tree so later p
 
 Parallel agent branches merge into [`phase1/verify`](https://github.com/harrisliangsu/blinky-bot/tree/phase1/verify). See [CONTRIBUTING-BLINKY.md](../CONTRIBUTING-BLINKY.md).
 
+A Mac install artifact is cut by tagging `v*` on a commit whose `VERSION` matches. The flow is [releasing.md](releasing.md).
+
 A change that makes the Mac app require Docker, a Supabase project, or `npx supabase start` misses this phase.
 
 ## What this phase does not change yet

@@ -44,6 +44,8 @@ That writes `build.noindex/BlinkyBot.app`. The `Contents/Resources/runtime` layo
 
 The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
 
+A published Mac build is a GitHub Release. The version is the `VERSION` file. Tagging `v0.1.0` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-0.1.0.dmg` (and a zip of the same app). The tag also pushes the upstream engine container image. That image is not the Phase 1 Mac install.
+
 ## Upstream server install (Docker)
 
 [docker-compose.yml](docker-compose.yml) is the upstream Rerun self-host: the Next.js app (`apps/ui`) and the engine (`apps/engine`) in containers, with Supabase outside the file. It is how you reproduce a Rerun server. It is not the Phase 1 Mac install.
@@ -66,4 +68,4 @@ To work on the UI from source, follow [CONTRIBUTING.md](CONTRIBUTING.md): `pnpm 
 
 ## 中文说明
 
-BlinkyBot 是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0），目标是跑在 Mac 上的本地智能体中枢。第一阶段的安装方式是打开 Mac 应用：应用自己拉起本地 Engine 和本地 Compose 界面，不需要 Docker，也不需要 Supabase 项目。界面、Foreman、记忆和人工确认（HITL）保留，Codex CLI、Kimi CLI、Grok CLI 作为首批运行时。运行契约见 `docs/no-docker-runtime.md`。Rex、Ego Browser、以云端 Engine 或 Supabase 为主的部署，以及 iOS、Windows、Linux 外壳不在第一阶段范围内。`docker-compose.yml` 仍是上游 Rerun 的服务器安装方式，留在仓库里，Mac 安装路径不会启动它。Rex 目前不在这个仓库里。并行分支合并进 `phase1/verify` 做验收。Rerun 的名称与标识仍属于上游，本项目不声称获得 Rerun 背书。
+BlinkyBot 是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0），目标是跑在 Mac 上的本地智能体中枢。第一阶段的安装方式是打开 Mac 应用：应用自己拉起本地 Engine 和本地 Compose 界面，不需要 Docker，也不需要 Supabase 项目。界面、Foreman、记忆和人工确认（HITL）保留，Codex CLI、Kimi CLI、Grok CLI 作为首批运行时。运行契约见 `docs/no-docker-runtime.md`。Rex、Ego Browser、以云端 Engine 或 Supabase 为主的部署，以及 iOS、Windows、Linux 外壳不在第一阶段范围内。`docker-compose.yml` 仍是上游 Rerun 的服务器安装方式，留在仓库里，Mac 安装路径不会启动它。Rex 目前不在这个仓库里。并行分支合并进 `phase1/verify` 做验收。打上 `v*` tag 并推送后，GitHub Release 会附上 Mac 安装盘（见 `docs/releasing.md`）。Rerun 的名称与标识仍属于上游，本项目不声称获得 Rerun 背书。

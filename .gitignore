@@ -5,6 +5,8 @@ build.noindex/
 .next/
 .turbo/
 *.tsbuildinfo
+__pycache__/
+*.pyc
 .env
 .env.*
 !.env.example
