@@ -117,7 +117,7 @@ enum MenuBarIcon {
     private static func fallback() -> NSImage {
         let source = NSImage(named: NSImage.applicationIconName) ?? NSApp.applicationIconImage
         let image = NSImage(size: pointSize, flipped: false) { rect in
-            source.draw(in: rect.insetBy(dx: 1, dy: 1), from: .zero, operation: .sourceOver, fraction: 1)
+            source?.draw(in: rect.insetBy(dx: 1, dy: 1), from: .zero, operation: .sourceOver, fraction: 1)
             return true
         }
         image.isTemplate = true
