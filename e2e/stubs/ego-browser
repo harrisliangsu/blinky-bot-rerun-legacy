@@ -1,0 +1,6 @@
+#!/usr/bin/env node
+import { appendFileSync } from 'node:fs'
+
+const file = process.env.BLINKY_STUB_LOG
+if (file) appendFileSync(file, `${JSON.stringify({ bin: 'ego-browser', argv: process.argv.slice(2) })}\n`)
+process.stdout.write('{"ok":true,"routed":"ego-browser"}\n')

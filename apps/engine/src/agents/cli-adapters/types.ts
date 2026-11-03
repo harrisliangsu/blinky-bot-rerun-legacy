@@ -40,11 +40,17 @@ export type CliInvocation = {
     systemDelivery: CliSystemDelivery
 }
 
+export type CliParsedOutput = {
+    text: string
+    sessionId?: string
+}
+
 export type CliRunResult = {
     invocation: CliInvocation
     exitCode: number | null
     stdout: string
     stderr: string
+    parsed: CliParsedOutput
 }
 
 export type CliAdapterInfo = {

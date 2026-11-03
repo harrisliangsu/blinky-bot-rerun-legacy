@@ -1,9 +1,12 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { egoBrowserSystem } from '../../browser/ego-browser.js'
 import { cliInvocation, CliAdapterError, enabledCliRuntimes, listCliAdapters, runLocalCli, type CliRunRequest, type CliRuntimeId } from './index.js'
+
+const stubCli = join(dirname(fileURLToPath(import.meta.url)), '../../../../../e2e/stubs/agent-cli.mjs')
 
 const cwd = mkdtempSync(join(tmpdir(), 'cli-adapters-'))
 const base: CliRunRequest = { prompt: 'Say hi', cwd }
@@ -226,5 +229,46 @@ process.stderr.write('stderr-note')
         const signal = new AbortController()
         signal.abort()
         await expect(runLocalCli('claude', base, { processEnv: envFor('claude', '/no/such/claude-binary'), signal: signal.signal })).rejects.toThrow(/was aborted/)
+    })
+})
+
+describe('stub CLI contract', () => {
+    const secret = 'contract-secret-value'
+    const prompt = 'hello from contract'
+
+    function envFor(id: CliRuntimeId, log: string): NodeJS.ProcessEnv {
+        const pathEnv = { codex: 'RERUN_CODEX_PATH', kimi: 'RERUN_KIMI_PATH', grok: 'RERUN_GROK_PATH', claude: 'RERUN_CLAUDE_PATH' }[id]
+        return {
+            PATH: process.env.PATH,
+            RERUN_CLI_ADAPTERS: 'codex,kimi,grok,claude',
+            BLINKY_STUB_ID: id,
+            BLINKY_STUB_LOG: log,
+            [pathEnv]: stubCli,
+        }
+    }
+
+    it.each(['codex', 'kimi', 'grok', 'claude'] as const)('invokes %s with the expected args and parses the stub output', async id => {
+        const log = join(cwd, `stub-${id}.jsonl`)
+        writeFileSync(log, '')
+        const home = join(cwd, `${id}-home`)
+        const result = await runLocalCli(
+            id,
+            { prompt, cwd, model: 'm', system: 'Be brief', session: { kind: 'resume', id: 'sess-contract' }, home, env: { CODEX_API_KEY: secret, KIMI_API_KEY: secret, XAI_API_KEY: secret, CLAUDE_CODE_OAUTH_TOKEN: secret } },
+            { processEnv: envFor(id, log) },
+        )
+        expect(result.exitCode).toBe(0)
+        expect(result.parsed.text).toContain(prompt)
+        expect(result.parsed.sessionId).toBe(`stub-${id}-session`)
+        expect(result.invocation.args.join(' ')).not.toContain(secret)
+        const recorded = JSON.parse(readFileSync(log, 'utf8').trim()) as { argv: string[]; env: Record<string, string> }
+        expect(recorded.argv.join(' ')).toContain(prompt)
+        expect(recorded.argv.join(' ')).toContain('sess-contract')
+        expect(recorded.argv.join(' ')).not.toContain(secret)
+        expect(recorded.env.CODEX_API_KEY).toBe('[set]')
+        expect(recorded.env.KIMI_API_KEY).toBe('[set]')
+        expect(recorded.env.XAI_API_KEY).toBe('[set]')
+        expect(recorded.env.CLAUDE_CODE_OAUTH_TOKEN).toBe('[set]')
+        const homeEnv = { codex: 'CODEX_HOME', kimi: 'KIMI_CODE_HOME', grok: 'GROK_HOME', claude: 'CLAUDE_CONFIG_DIR' }[id]
+        expect(recorded.env[homeEnv]).toBe(home)
     })
 })

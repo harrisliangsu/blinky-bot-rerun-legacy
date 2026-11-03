@@ -20,3 +20,5 @@ private-key-file
 /AGENTS.md
 .temp
 .context/
+e2e/node_modules/
+e2e/out/
