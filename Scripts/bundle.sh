@@ -159,7 +159,10 @@ if ! node Scripts/plan.mjs stage-ui "$stage/ui"; then
 fi
 node Scripts/plan.mjs contain-links "$stage/ui"
 node Scripts/plan.mjs contain-links "$stage/engine"
-node Scripts/plan.mjs prune-runtime "$stage/ui" "$stage/engine"
+node Scripts/plan.mjs hoist-pnpm "$stage/ui"
+node Scripts/plan.mjs prune-runtime "$stage/engine"
+echo "Checking that the packaged Compose server stays up…"
+node Scripts/smoke-ui.mjs "$stage/ui" "$stage/node/bin/node"
 
 mkdir -p "$stage/node/bin"
 cp "$node_real" "$stage/node/bin/node"

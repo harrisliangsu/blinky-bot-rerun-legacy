@@ -2,7 +2,7 @@
 // Copyright (C) 2026 BlinkyBot contributors.
 
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const moduleDir = dirname(fileURLToPath(import.meta.url))
@@ -102,7 +102,7 @@ export function formatPlan(version) {
         '  2. node scripts/blinky-local/blinky-local.mjs build',
         '  3. pnpm --filter rerun-engine --prod deploy, then copy apps/engine/dist and apps/engine/assets',
         '  4. stage apps/ui/.next/standalone (server.js) plus .next/static and public',
-        '  5. prune node_modules docs, tests, source maps, foreign native builds, and browser caches',
+        '  5. link pnpm packages into node_modules so Next can resolve them, then prune the engine tree',
         '  6. copy Node to Contents/Resources/runtime/node/bin/node',
         '  7. xcodegen generate && xcodebuild -configuration Release',
         '  8. write CFBundleShortVersionString and CFBundleVersion from VERSION',
@@ -458,17 +458,130 @@ function tracedPackageName(linkName) {
     return pkg && pkg !== linkName ? pkg : null
 }
 
-function findDeployedPackage(root, pkg) {
-    const direct = join(root, 'node_modules', pkg)
-    if (existsSync(direct)) return direct
-    const store = join(root, 'node_modules', '.pnpm')
-    if (!existsSync(store)) return null
-    for (const entry of readdirSync(store)) {
-        if (entry !== pkg && !entry.startsWith(`${pkg}@`)) continue
-        const candidate = join(store, entry, 'node_modules', pkg)
+function packageSpec(linkPath) {
+    const name = basename(linkPath)
+    const parent = basename(dirname(linkPath))
+    if (parent.startsWith('@')) return `${parent}/${name}`
+    return name
+}
+
+function pnpmStoreKey(spec) {
+    return spec.startsWith('@') ? spec.replace('/', '+') : spec
+}
+
+export function pnpmPackageDirs(root) {
+    const found = []
+    function walk(dir) {
+        let entries
+        try {
+            entries = readdirSync(dir, { withFileTypes: true })
+        } catch {
+            return
+        }
+        for (const entry of entries) {
+            if (entry.isSymbolicLink() || !entry.isDirectory()) continue
+            const full = join(dir, entry.name)
+            if (entry.name === '.pnpm' && basename(dirname(full)) === 'node_modules') {
+                found.push(full)
+                continue
+            }
+            walk(full)
+        }
+    }
+    walk(root)
+    return found
+}
+
+function packageInStore(store, spec) {
+    const key = pnpmStoreKey(spec)
+    let folders
+    try {
+        folders = readdirSync(store, { withFileTypes: true })
+    } catch {
+        return null
+    }
+    for (const folder of folders) {
+        if (folder.isSymbolicLink() || !folder.isDirectory()) continue
+        if (folder.name !== key && !folder.name.startsWith(`${key}@`)) continue
+        const candidate = join(store, folder.name, 'node_modules', spec)
         if (existsSync(candidate)) return candidate
     }
     return null
+}
+
+function findDeployedPackage(root, pkg) {
+    const direct = join(root, 'node_modules', pkg)
+    if (existsSync(direct)) return direct
+    for (const store of pnpmPackageDirs(root)) {
+        const found = packageInStore(store, pkg)
+        if (found) return found
+    }
+    return null
+}
+
+function ensurePackageLink(dir, name, target, linked) {
+    const dest = join(dir, name)
+    try {
+        lstatSync(dest)
+        return
+    } catch {
+        // absent
+    }
+    if (resolve(dest) === resolve(target)) return
+    mkdirSync(dir, { recursive: true })
+    symlinkSync(relative(dir, target), dest)
+    linked.push(dest)
+}
+
+function linkStorePackages(inner, nodeModules, linked) {
+    let names
+    try {
+        names = readdirSync(inner, { withFileTypes: true })
+    } catch {
+        return
+    }
+    for (const entry of names) {
+        if (entry.name === '.bin' || entry.name === '.pnpm') continue
+        const src = join(inner, entry.name)
+        if (entry.name.startsWith('@') && entry.isDirectory() && !entry.isSymbolicLink()) {
+            let subs
+            try {
+                subs = readdirSync(src, { withFileTypes: true })
+            } catch {
+                continue
+            }
+            const scopeDir = join(nodeModules, entry.name)
+            for (const sub of subs) {
+                if (sub.name === '.bin') continue
+                ensurePackageLink(scopeDir, sub.name, join(src, sub.name), linked)
+            }
+            continue
+        }
+        ensurePackageLink(nodeModules, entry.name, src, linked)
+    }
+}
+
+// Next's standalone trace keeps the package bodies under node_modules/.pnpm
+// and often omits the sibling link Node walks to (`node_modules/@swc/helpers`).
+// A require from apps/ui/node_modules/next then fails with MODULE_NOT_FOUND.
+export function hoistPnpmPackages(root) {
+    const linked = []
+    for (const store of pnpmPackageDirs(root)) {
+        const nodeModules = dirname(store)
+        let folders
+        try {
+            folders = readdirSync(store, { withFileTypes: true })
+        } catch {
+            continue
+        }
+        for (const folder of folders) {
+            if (folder.isSymbolicLink() || !folder.isDirectory()) continue
+            const inner = join(store, folder.name, 'node_modules')
+            if (!existsSync(inner)) continue
+            linkStorePackages(inner, nodeModules, linked)
+        }
+    }
+    return linked
 }
 
 export function containRuntimeLinks(root) {
@@ -514,9 +627,9 @@ export function containRuntimeLinks(root) {
                 removed.push(full)
                 continue
             }
-            const pkg = tracedPackageName(entry.name)
+            const pkg = tracedPackageName(entry.name) || packageSpec(full)
             const deployed = pkg ? findDeployedPackage(rootReal, pkg) : null
-            if (deployed) {
+            if (deployed && resolve(deployed) !== resolve(dirname(full), target)) {
                 unlinkSync(full)
                 symlinkSync(relative(dirname(full), deployed), full)
                 retargeted.push(full)
@@ -635,6 +748,13 @@ function main(argv) {
         })
         if (!staged.ok) fail(staged.error)
         console.log(`staged Compose standalone (${staged.serverRel})`)
+        return
+    }
+    if (command === 'hoist-pnpm') {
+        const root = argv[1]
+        if (!root) fail('hoist-pnpm needs a staged runtime directory')
+        const linked = hoistPnpmPackages(root)
+        console.log(`hoisted pnpm packages in ${root}: ${linked.length} links`)
         return
     }
     if (command === 'prune-runtime') {

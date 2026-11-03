@@ -36,7 +36,7 @@ export BLINKY_NODE=/path/to/node-v22/bin/node
 
 ## What the script does
 
-1. Read `VERSION` at the repository root (`0.1.2` today).
+1. Read `VERSION` at the repository root (`0.1.3` today).
 2. `pnpm install --frozen-lockfile`.
 3. `node scripts/blinky-local/blinky-local.mjs build`, which builds `@rerun/contracts`, `rerun-engine`, and Compose with `BLINKY_LOCAL_AUTH=1` and `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000`.
 4. `pnpm --filter rerun-engine --prod deploy`, then copy `apps/engine/dist` and `apps/engine/assets` on top. `dist/` is gitignored, so deploy alone would drop it.
