@@ -1,5 +1,9 @@
 import { AgentProcessError, runAgentProcess } from '../rex/launch.js'
 import { readRexWatch } from '../rex/protocol.js'
+import { agentConfigSchema } from '../types.js'
+import { agentProcessEnv } from '../process-env.js'
+import { resolveCliCwd } from '../../workspace/cwd.js'
+import { omitForeignAgentEnv } from '../../workspace/env.js'
 import { claudeAdapter } from './claude.js'
 import { codexAdapter } from './codex.js'
 import { grokAdapter } from './grok.js'
@@ -41,17 +45,35 @@ export type RunLocalCliOptions = {
     processEnv?: NodeJS.ProcessEnv
     signal?: AbortSignal
     timeoutMs?: number
+    // When set, cwd must stay inside this agent's workspace and the child env drops other agents' paths.
+    agentId?: string
 }
 
 // Spawns one local CLI turn and buffers stdout/stderr until the process exits. Foreman's
 // streaming providers do not go through here; see docs/cli-adapters-phase1.md.
 export async function runLocalCli(id: CliRuntimeId, request: CliRunRequest, options: RunLocalCliOptions = {}): Promise<CliRunResult> {
-    const processEnv = options.processEnv ?? process.env
-    if (!enabledCliRuntimes(processEnv).has(id)) {
+    const inherited = options.processEnv ?? process.env
+    if (!enabledCliRuntimes(inherited).has(id)) {
         throw new CliAdapterError(`CLI adapter "${id}" is off. Add "${id}" to RERUN_CLI_ADAPTERS to spawn it.`)
     }
-    const invocation = cliInvocation(id, request, processEnv)
-    return spawnCli(invocation, options, request)
+    const scoped = scopeCliRun(options.agentId ? { ...request, agentId: options.agentId } : request, inherited)
+    const invocation = cliInvocation(id, scoped.request, scoped.processEnv)
+    return spawnCli(invocation, { ...options, processEnv: scoped.processEnv }, scoped.request)
+}
+
+function scopeCliRun(request: CliRunRequest, processEnv: NodeJS.ProcessEnv): { request: CliRunRequest; processEnv: NodeJS.ProcessEnv } {
+    const agentId = request.agentId
+    if (!agentId) return { request, processEnv }
+    const cwd = resolveCliCwd(agentId, request.cwd)
+    const agentEnv = agentProcessEnv({
+        id: agentId,
+        env: request.env ?? {},
+        config: agentConfigSchema.parse({ name: agentId, tools: { sharedDb: false } }),
+    }).env
+    return {
+        request: { ...request, cwd, env: { ...omitForeignAgentEnv(agentId, request.env ?? {}), ...agentEnv } },
+        processEnv: omitForeignAgentEnv(agentId, processEnv),
+    }
 }
 
 function assertCliRequest(request: CliRunRequest): void {

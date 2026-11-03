@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from 'node:fs/promises'
-import { agentDir, configPath, installPath, skillsDir, soulPath, workspaceDir } from '../config/paths.js'
+import { agentDir, configPath, installPath, skillsDir, soulPath } from '../config/paths.js'
+import { ensureWorkspaceLayout } from '../workspace/cwd.js'
 import { resolve } from 'node:path'
 import { newId } from '../lib/ids.js'
 import { insertAgentIndex } from '../db/repos/agents.js'
@@ -21,7 +22,7 @@ export async function createAgent(input: CreateAgentInput): Promise<LoadedAgent>
     const env = input.keys ?? {}
     // Refused keys must fail before the folder exists, or the agent is left on disk with no index row.
     serializeEnv(env)
-    await mkdir(workspaceDir(id), { recursive: true })
+    await ensureWorkspaceLayout(id)
     await mkdir(skillsDir(id), { recursive: true })
     await mkdir(resolve(agentDir(id), 'memory'), { recursive: true })
     const soul = input.soul ?? defaultSoul(config)

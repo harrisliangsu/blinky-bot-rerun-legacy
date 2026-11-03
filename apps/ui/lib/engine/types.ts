@@ -43,6 +43,12 @@ import {
     runStepsListSchema,
     toolCallSchema,
     toolCallsListSchema,
+    agentRepoSchema,
+    agentRepoListSchema,
+    githubRepoListSchema,
+    repoAccessResultSchema,
+    agentWorkspaceSnapshotSchema,
+    repoMutationSchema,
 } from '@rerun/contracts'
 import type {
     Tools,
@@ -81,6 +87,12 @@ import type {
     RunStepsList,
     ToolCall,
     ToolCallsList,
+    AgentRepo,
+    AgentRepoList,
+    GithubRepo,
+    GithubRepoList,
+    AgentWorkspaceSnapshot,
+    AgentRunProcess,
 } from '@rerun/contracts'
 
 // How to reach a box's engine. Not to be confused with a `BoxConnection`, which is an AI provider
@@ -133,6 +145,12 @@ export const engineRunStepSchema = runStepSchema
 export const engineRunStepsListSchema = runStepsListSchema
 export const engineToolCallSchema = toolCallSchema
 export const engineToolCallsListSchema = toolCallsListSchema
+export const engineAgentRepoSchema = agentRepoSchema
+export const engineAgentRepoListSchema = agentRepoListSchema
+export const engineGithubRepoListSchema = githubRepoListSchema
+export const engineRepoAccessResultSchema = repoAccessResultSchema
+export const engineAgentWorkspaceSchema = agentWorkspaceSnapshotSchema
+export const engineRepoMutationSchema = repoMutationSchema
 
 export type EngineTools = Tools
 export type EngineToolDescriptor = ToolDescriptor
@@ -180,6 +198,12 @@ export type EngineRunStep = RunStep
 export type EngineRunStepsList = RunStepsList
 export type EngineToolCall = ToolCall
 export type EngineToolCallsList = ToolCallsList
+export type EngineAgentRepo = AgentRepo
+export type EngineAgentRepoList = AgentRepoList
+export type EngineGithubRepo = GithubRepo
+export type EngineGithubRepoList = GithubRepoList
+export type EngineAgentWorkspace = AgentWorkspaceSnapshot
+export type EngineAgentRunProcess = AgentRunProcess
 
 export const engineUploadResultSchema = z.object({ path: z.string(), bytes: z.number() })
 export type EngineUploadResult = z.infer<typeof engineUploadResultSchema>

@@ -36,4 +36,44 @@ describe('agentProcessEnv', () => {
     it('leaves process.env out, so each caller decides what the process inherits', () => {
         expect(agentProcessEnv(agent({ sharedDb: false })).env.PATH).toBeUndefined()
     })
+
+    it('starts in the active checkout and drops another coworker path from the agent env', async () => {
+        const { mkdirSync } = await import('node:fs')
+        const { writeRegistry } = await import('../workspace/registry.js')
+        const { repoCheckoutDir, workspaceDir } = await import('../config/paths.js')
+        const checkout = repoCheckoutDir('repo-agent', 'demo')
+        mkdirSync(checkout, { recursive: true })
+        const foreign = workspaceDir('someone-else')
+        writeRegistry('repo-agent', {
+            version: 1,
+            activeRepoId: 'r1',
+            quotaBytes: 10,
+            repos: [
+                {
+                    id: 'r1',
+                    slug: 'demo',
+                    remote: 'https://example.com/demo.git',
+                    remoteKey: 'example.com/demo',
+                    source: 'url',
+                    defaultBranch: 'main',
+                    branch: 'blinky/env/workspace',
+                    status: 'ready',
+                    error: null,
+                    warning: null,
+                    github: null,
+                    bytes: 1,
+                    lastUsedAt: null,
+                    createdAt: '2020-01-01T00:00:00.000Z',
+                    updatedAt: '2020-01-01T00:00:00.000Z',
+                    checkouts: [{ dirname: 'demo', branch: 'blinky/env/workspace', kind: 'primary', lastUsedAt: null }],
+                },
+            ],
+        })
+        const { cwd, env } = agentProcessEnv({ ...agent({ sharedDb: false }, { LEAK: foreign, API_TOKEN: 'x' }), id: 'repo-agent' })
+        expect(cwd).toBe(checkout)
+        expect(env.RERUN_WORKSPACE).toBe(workspaceDir('repo-agent'))
+        expect(env.RERUN_REPO).toBe(checkout)
+        expect(env.LEAK).toBeUndefined()
+        expect(env.API_TOKEN).toBe('x')
+    })
 })

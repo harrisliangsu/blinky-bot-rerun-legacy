@@ -5,6 +5,7 @@ import type { RequestOptions } from '@modelcontextprotocol/sdk/shared/protocol.j
 import { getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { LoadedAgent, McpServer } from '../agents/types.js'
 import { agentProcessEnv } from '../agents/process-env.js'
+import { mergeSpawnEnv } from '../workspace/env.js'
 import { logger } from '../lib/logger.js'
 import { mcpToolSet, openMcpClient, prepareMcpServer, resolveTransport, type McpCallResult, type McpSpawn, type McpTool } from './mcp.js'
 
@@ -124,7 +125,7 @@ export async function acquireMcp(agentId: string, server: McpServer, spawn: McpS
 // secrets, which a package fetched from npm has no business reading.
 export function agentMcpSpawn(agent: Pick<LoadedAgent, 'id' | 'env' | 'config'>): McpSpawn {
     const { cwd, env } = agentProcessEnv(agent)
-    return { cwd, env: { ...getDefaultEnvironment(), ...env } }
+    return { cwd, env: mergeSpawnEnv(agent.id, getDefaultEnvironment(), env) }
 }
 
 // For the providers the engine drives itself: the agent's MCP tools, served by the pooled connections.

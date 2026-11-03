@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import type { LanguageModel, ToolSet } from 'ai'
 
+import { trackCliProcess } from '../workspace/runs.js'
 import { cliInvocation } from './cli-adapters/index.js'
 import { augmentedCliPath, cliInstallHint, cliLoginHint, cliReady, locateCliBinary, type LocalChatCli } from './cli-search.js'
 import { cliEventsFromLine, type CliStreamEvent } from './cli-stream.js'
@@ -36,7 +37,7 @@ export type CliChatModel = {
     close: () => Promise<void>
 }
 
-export function openCliChatModel(input: { runtime: LocalChatCli; modelId: string; cwd: string; system?: string; tools?: ToolSet; env?: Record<string, string>; processEnv?: NodeJS.ProcessEnv }): CliChatModel {
+export function openCliChatModel(input: { runtime: LocalChatCli; modelId: string; cwd: string; system?: string; tools?: ToolSet; env?: Record<string, string>; processEnv?: NodeJS.ProcessEnv; agentId?: string }): CliChatModel {
     let stop: (() => void) | null = null
     const model = {
         specificationVersion: 'v3' as const,
@@ -71,7 +72,7 @@ export function openCliChatModel(input: { runtime: LocalChatCli; modelId: string
     }
 }
 
-async function streamCli(input: { runtime: LocalChatCli; modelId: string; cwd: string; system?: string; tools?: ToolSet; env?: Record<string, string>; processEnv?: NodeJS.ProcessEnv }, options: { prompt: Prompt; abortSignal?: AbortSignal }, arm: (kill: () => void) => void): Promise<ReadableStream<StreamPart>> {
+async function streamCli(input: { runtime: LocalChatCli; modelId: string; cwd: string; system?: string; tools?: ToolSet; env?: Record<string, string>; processEnv?: NodeJS.ProcessEnv; agentId?: string }, options: { prompt: Prompt; abortSignal?: AbortSignal }, arm: (kill: () => void) => void): Promise<ReadableStream<StreamPart>> {
     const processEnv: NodeJS.ProcessEnv = { ...(input.processEnv ?? process.env), ...input.env }
     const home = processEnv.HOME
     processEnv.PATH = augmentedCliPath(home || '', processEnv.PATH)
@@ -95,6 +96,7 @@ async function streamCli(input: { runtime: LocalChatCli; modelId: string; cwd: s
         throw error
     }
     const child = spawn(invocation.command, invocation.args, { cwd: invocation.cwd, env: invocation.env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const tracked = input.agentId ? trackCliProcess(input.agentId, input.runtime, invocation.command, child.pid ?? null) : null
     let stderr = ''
     child.stderr?.setEncoding('utf8')
     child.stderr?.on('data', (chunk: string) => {
@@ -167,6 +169,7 @@ async function streamCli(input: { runtime: LocalChatCli; modelId: string; cwd: s
                 child.once('error', () => resolve(null))
                 child.once('close', resolve)
             })
+            tracked?.end()
             if (buffer.trim()) take(buffer)
             endText()
             if (reasonOpen) controller.enqueue({ type: 'reasoning-end', id: 'reason-1' })
@@ -188,6 +191,7 @@ async function streamCli(input: { runtime: LocalChatCli; modelId: string; cwd: s
             controller.close()
         },
         cancel() {
+            tracked?.end()
             kill()
         },
     })

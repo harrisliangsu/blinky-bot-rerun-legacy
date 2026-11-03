@@ -53,6 +53,18 @@ describe('shell_exec child environment', () => {
 
     // Looks wrong: the whole engine environment is inherited, so any command the agent runs can read
     // the box API key it uses to authenticate to the hub.
+    it('does not pass another coworker directory through the inherited environment', async () => {
+        const { agentDir } = await import('../../config/paths.js')
+        process.env.OTHER_COWORKER = `${agentDir('someone-else')}/workspace`
+        try {
+            const options = await optionsSeenBy({})
+            expect(options.env?.OTHER_COWORKER).toBeUndefined()
+            expect(options.cwd).toBe(workspaceDir('env-agent'))
+        } finally {
+            delete process.env.OTHER_COWORKER
+        }
+    })
+
     it('passes the engine hub credentials to every command', async () => {
         const options = await optionsSeenBy({})
         expect(options.env?.RERUN_API_KEY).toBe('engine-space-key')

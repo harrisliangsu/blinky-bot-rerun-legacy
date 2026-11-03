@@ -3,7 +3,8 @@ import { promisify } from 'node:util'
 import { readFile, writeFile } from 'node:fs/promises'
 import { tool, type ToolSet } from 'ai'
 import { z } from 'zod'
-import { configPath, soulPath, workspaceDir } from '../../config/paths.js'
+import { configPath, soulPath } from '../../config/paths.js'
+import { agentWorkingDirectory } from '../../workspace/cwd.js'
 import { agentConfigSchema, mcpServerSchema, verbositySchema, BRIDGE_SERVER_NAME, MCP_SERVER_NAME_RE, type McpServer } from '../../agents/types.js'
 import { reloadAgent } from '../../agents/registry.js'
 import { withAgentLock } from '../../agents/lock.js'
@@ -79,7 +80,7 @@ export function selfTools(ctx: RunContext): ToolSet {
             execute: async ({ packages }) => {
                 const flag = packages.find(name => name.startsWith('-'))
                 if (flag) return `Install refused: ${flag} is not a package name.`
-                const cwd = workspaceDir(id)
+                const cwd = agentWorkingDirectory(id).cwd
                 try {
                     const { stdout, stderr } = await run('npm', ['install', '--no-fund', '--no-audit', '--', ...packages], { cwd, timeout: 300_000, maxBuffer: 10_000_000 })
                     return `Installed ${packages.join(', ')}\n${stdout}${stderr ? `\n${stderr}` : ''}`.slice(0, 20_000)

@@ -124,6 +124,16 @@ import {
     engineSkillSummariesListSchema,
     engineSkillProposalSchema,
     engineSkillProposalsListSchema,
+    engineAgentRepoSchema,
+    engineAgentRepoListSchema,
+    engineGithubRepoListSchema,
+    engineRepoAccessResultSchema,
+    engineAgentWorkspaceSchema,
+    engineRepoMutationSchema,
+    type EngineAgentRepo,
+    type EngineAgentRepoList,
+    type EngineGithubRepoList,
+    type EngineAgentWorkspace,
 } from './types'
 
 const CHAT_TIMEOUT_MS = Number(process.env.ENGINE_CHAT_TIMEOUT_MS) || 60 * 60 * 1000
@@ -430,6 +440,48 @@ export async function deleteAgent(conn: EngineConnection, id: string): Promise<v
         const body = await res.text().catch(() => 'Unknown error')
         throw new Error(`rerun-engine DELETE /agents/${id} failed: ${res.status} ${body}`)
     }
+}
+
+const REPO_TIMEOUT_MS = 5 * 60 * 1000
+
+export async function listAgentRepos(conn: EngineConnection, agentId: string): Promise<EngineAgentRepoList> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos`, { method: 'GET', signal: AbortSignal.timeout(30_000) }, d => engineAgentRepoListSchema.parse(d))
+}
+
+export async function attachAgentRepo(conn: EngineConnection, agentId: string, body: { source: 'url'; url: string } | { source: 'github'; nameWithOwner: string }): Promise<EngineAgentRepo> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos`, { method: 'POST', body: JSON.stringify(body), signal: AbortSignal.timeout(REPO_TIMEOUT_MS) }, d => engineAgentRepoSchema.parse(d))
+}
+
+export async function testAgentRepo(conn: EngineConnection, agentId: string, url: string): Promise<{ ok: true; remote: string; defaultBranch: string }> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/test`, { method: 'POST', body: JSON.stringify({ url }), signal: AbortSignal.timeout(30_000) }, d => engineRepoAccessResultSchema.parse(d))
+}
+
+export async function listGithubReposForAgent(conn: EngineConnection, agentId: string): Promise<EngineGithubRepoList> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/github`, { method: 'GET', signal: AbortSignal.timeout(30_000) }, d => engineGithubRepoListSchema.parse(d))
+}
+
+export async function fetchAgentRepo(conn: EngineConnection, agentId: string, repoId: string): Promise<EngineAgentRepo> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/${encodeURIComponent(repoId)}/fetch`, { method: 'POST', signal: AbortSignal.timeout(REPO_TIMEOUT_MS) }, d => engineAgentRepoSchema.parse(d))
+}
+
+export async function setActiveAgentRepo(conn: EngineConnection, agentId: string, repoId: string | null): Promise<EngineAgentRepoList> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/active`, { method: 'POST', body: JSON.stringify({ repoId }), signal: AbortSignal.timeout(30_000) }, d => engineAgentRepoListSchema.parse(d))
+}
+
+export async function removeAgentRepo(conn: EngineConnection, agentId: string, repoId: string): Promise<void> {
+    await request(conn, `/agents/${encodeURIComponent(agentId)}/repos/${encodeURIComponent(repoId)}`, { method: 'DELETE' }, () => undefined)
+}
+
+export async function gcAgentRepos(conn: EngineConnection, agentId: string): Promise<{ ok: true; removed?: number; skipped?: number }> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/gc`, { method: 'POST', body: JSON.stringify({}), signal: AbortSignal.timeout(REPO_TIMEOUT_MS) }, d => engineRepoMutationSchema.parse(d))
+}
+
+export async function clearAgentRepoCache(conn: EngineConnection, agentId: string): Promise<{ ok: true; removed?: number }> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/repos/clear`, { method: 'POST', signal: AbortSignal.timeout(REPO_TIMEOUT_MS) }, d => engineRepoMutationSchema.parse(d))
+}
+
+export async function getAgentWorkspace(conn: EngineConnection, agentId: string): Promise<EngineAgentWorkspace> {
+    return request(conn, `/agents/${encodeURIComponent(agentId)}/workspace`, { method: 'GET' }, d => engineAgentWorkspaceSchema.parse(d))
 }
 
 // --- Sessions ---

@@ -35,6 +35,7 @@ import { HostBreaker } from '../tools/host-breaker.js'
 import type { PartialResult, RunContext, RunTrigger, SkillProposalNotice } from './context.js'
 import { partialResultsNote } from './partial-results.js'
 import { registerRunAbort, setRunCancel, unregisterRunAbort } from './run-control.js'
+import { trackAgentRun } from '../workspace/runs.js'
 import { runCurator } from './curator.js'
 import { repairToolCall } from './tool-repair.js'
 import { stepWithScreenshots } from './screenshots.js'
@@ -216,6 +217,7 @@ async function runTurn(baseAgent: LoadedAgent, sessionId: string, userText: stri
     // and headless callers the row was already inserted, and a throw in `resolveRunModel` or the
     // tool/MCP setup would otherwise leave it `running` forever with no terminal event for the hub.
     const run = runId ? { id: runId } : await startRun(baseAgent.id, sessionId)
+    const tracked = trackAgentRun(baseAgent.id, sessionId, run.id)
     const controller = registerRunAbort(run.id)
     const author = trigger.source === 'chat' ? trigger.author : undefined
 
@@ -270,6 +272,7 @@ async function runTurn(baseAgent: LoadedAgent, sessionId: string, userText: stri
     const settle = async (settlement: Settlement): Promise<RunOutcome> => {
         if (settled) return settledPromise
         settled = true
+        tracked.end()
 
         await appendP.catch(() => {})
 
@@ -388,6 +391,7 @@ async function runTurn(baseAgent: LoadedAgent, sessionId: string, userText: stri
         const resolved = await resolveRunModel(baseAgent, override)
         agent = resolved === baseAgent.resolved ? baseAgent : { ...baseAgent, resolved }
         ;({ connection, provider, model } = resolved)
+        tracked.setRuntime(provider)
         const t0 = Date.now()
         const order = turnOrder(provider, await answeringModel(provider, model))
         const ctx: RunContext = { agent, sessionId, logger, provider, model, turnOrder: order, author, writer, abortSignal: controller.signal, callTargets: [], hostBreaker: new HostBreaker(), partialResults, skillProposals }
