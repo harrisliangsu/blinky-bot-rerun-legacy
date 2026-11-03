@@ -1,0 +1,224 @@
+import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { describe, it } from 'node:test'
+import {
+    APP_OUTPUT,
+    STAGED_RUNTIME_FILES,
+    alignmentProblems,
+    deployFailedMessage,
+    escapedSymlinks,
+    formatMissingCheckout,
+    formatMissingRuntime,
+    formatMissingTools,
+    formatNodeLibraryProblem,
+    formatPlan,
+    hostRefusal,
+    infoPlistVersion,
+    marketingVersion,
+    missingCheckoutArtifacts,
+    missingRuntimeEntries,
+    nodeMachOProblem,
+    nodeMajorProblem,
+    nonRelocatableLibraries,
+    patchInfoPlist,
+    readVersion,
+    symlinkEscapesRoot,
+    versionAlignmentProblems,
+    xcodeMajorProblem,
+} from './plan.mjs'
+
+const repoRoot = join(import.meta.dirname, '..')
+const bundleSh = join(repoRoot, 'Scripts/bundle.sh')
+
+describe('VERSION', () => {
+    it('reads major.minor.patch and rejects anything else', () => {
+        assert.equal(readVersion('0.1.0\n'), '0.1.0')
+        assert.equal(readVersion('  1.2.3  \n'), '1.2.3')
+        assert.throws(() => readVersion(''), /one version line/)
+        assert.throws(() => readVersion('0.1\n'), /major\.minor\.patch/)
+        assert.throws(() => readVersion('0.1.0\n1.0.0\n'), /one version line/)
+    })
+
+    it('matches the Mac shell marketing version and the server package versions', () => {
+        const { version, problems } = alignmentProblems(repoRoot)
+        assert.equal(version, '0.1.0')
+        assert.deepEqual(problems, [])
+        const yml = readFileSync(join(repoRoot, 'apps/mac-shell/project.yml'), 'utf8')
+        assert.equal(marketingVersion(yml), version)
+    })
+
+    it('names each file that drifted', () => {
+        const problems = versionAlignmentProblems({
+            version: '0.1.0',
+            marketingVersion: '0.0.1',
+            uiVersion: '0.1.0',
+            engineVersion: null,
+        })
+        assert.equal(problems.length, 2)
+        assert.match(problems[0], /project\.yml/)
+        assert.match(problems[1], /apps\/engine\/package\.json/)
+    })
+})
+
+describe('bundle layout', () => {
+    it('prints the runtime paths the Mac shell resolves', () => {
+        const text = formatPlan('0.1.0')
+        assert.match(text, new RegExp(APP_OUTPUT.replaceAll('.', '\\.')))
+        assert.match(text, /CFBundleShortVersionString = 0\.1\.0/)
+        assert.match(text, /CFBundleVersion = 0\.1\.0/)
+        for (const entry of STAGED_RUNTIME_FILES) {
+            assert.match(text, new RegExp(entry.replaceAll('/', '\\/')))
+        }
+        assert.match(text, /node\/bin\/node/)
+        assert.match(text, /engine\/dist\/cli\/bin\.js/)
+        assert.match(text, /ui\/node_modules\/next\/dist\/bin\/next/)
+        assert.match(text, /xcodebuild/)
+        assert.match(text, /blinky-local\.mjs build/)
+    })
+
+    it('tells a non-Mac host where the app is built', () => {
+        const text = hostRefusal('Linux')
+        assert.match(text, /macOS/)
+        assert.match(text, /Linux/)
+        assert.match(text, /build\.noindex\/BlinkyBot\.app/)
+        assert.match(text, /Scripts\/README\.md/)
+    })
+})
+
+describe('host checks', () => {
+    it('names the install hint for each missing Mac tool', () => {
+        const text = formatMissingTools(['xcodegen', 'pnpm'])
+        assert.match(text, /Missing xcodegen\. brew install xcodegen/)
+        assert.match(text, /Missing pnpm\. corepack enable/)
+    })
+
+    it('requires Node 22 and Xcode 15', () => {
+        assert.equal(nodeMajorProblem('v22.14.0'), null)
+        assert.match(nodeMajorProblem('v20.11.0'), /too old/)
+        assert.equal(xcodeMajorProblem('Xcode 15.4\nBuild version 15F31d'), null)
+        assert.match(xcodeMajorProblem('Xcode 14.2\n'), /too old/)
+        assert.match(xcodeMajorProblem('no xcode'), /Could not read/)
+    })
+
+    it('rejects a Node binary that links outside the system SDK', () => {
+        const otool = [
+            '/opt/homebrew/bin/node:',
+            '\t/opt/homebrew/Cellar/node/22.0.0/bin/node (compatibility version 0.0.0, current version 0.0.0)',
+            '\t/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1351.0.0)',
+            '\t/opt/homebrew/opt/icu4c/lib/libicuuc.74.dylib (compatibility version 74.0.0, current version 74.2.0)',
+            '\t@rpath/libnode.128.dylib (compatibility version 0.0.0, current version 0.0.0)',
+        ].join('\n')
+        const libs = nonRelocatableLibraries(otool)
+        assert.deepEqual(libs, ['/opt/homebrew/opt/icu4c/lib/libicuuc.74.dylib'])
+        assert.match(formatNodeLibraryProblem(libs), /BLINKY_NODE/)
+        assert.match(formatNodeLibraryProblem(libs), /--allow-host-node/)
+    })
+
+    it('accepts a Mach-O node and rejects a script', () => {
+        assert.equal(nodeMachOProblem('/usr/local/bin/node: Mach-O 64-bit executable arm64'), null)
+        assert.match(nodeMachOProblem('/usr/bin/node: POSIX shell script'), /Mach-O/)
+    })
+})
+
+describe('staging checks', () => {
+    it('lists checkout artifacts that are not built yet', () => {
+        const missing = missingCheckoutArtifacts('/missing', () => false)
+        assert.equal(missing.length > 0, true)
+        assert.match(formatMissingCheckout(missing), /blinky-local\.mjs build/)
+        assert.deepEqual(missingCheckoutArtifacts('/work', () => true), [])
+    })
+
+    it('lists runtime entries the app will look up', () => {
+        const root = mkdtempSync(join(tmpdir(), 'blinky-runtime-'))
+        try {
+            const missing = missingRuntimeEntries(root)
+            assert.equal(missing.includes('node/bin/node'), true)
+            assert.match(formatMissingRuntime(missing), /Contents\/Resources\/runtime/)
+            mkdirSync(join(root, 'node/bin'), { recursive: true })
+            writeFileSync(join(root, 'node/bin/node'), '')
+            assert.equal(missingRuntimeEntries(root).includes('node/bin/node'), false)
+        } finally {
+            rmSync(root, { recursive: true, force: true })
+        }
+    })
+
+    it('flags a symlink that leaves the app', () => {
+        const root = mkdtempSync(join(tmpdir(), 'blinky-links-'))
+        const outside = mkdtempSync(join(tmpdir(), 'blinky-outside-'))
+        try {
+            mkdirSync(join(root, 'engine/node_modules'), { recursive: true })
+            symlinkSync(outside, join(root, 'engine/node_modules/hono'))
+            symlinkSync('bin.js', join(root, 'engine/self'))
+            assert.equal(symlinkEscapesRoot(join(root, 'engine/node_modules/hono'), outside, root), true)
+            assert.equal(symlinkEscapesRoot(join(root, 'engine/self'), 'bin.js', root), false)
+            const escapes = escapedSymlinks(root)
+            assert.equal(escapes.length, 1)
+            assert.match(escapes[0].link, /hono$/)
+            assert.equal(lstatSync(join(root, 'engine/self')).isSymbolicLink(), true)
+        } finally {
+            rmSync(root, { recursive: true, force: true })
+            rmSync(outside, { recursive: true, force: true })
+        }
+    })
+
+    it('explains a failed pnpm deploy', () => {
+        assert.match(deployFailedMessage('engine'), /rerun-engine/)
+        assert.match(deployFailedMessage('ui'), /--filter rerun --prod deploy/)
+    })
+})
+
+describe('Info.plist version', () => {
+    it('writes CFBundleShortVersionString and CFBundleVersion from VERSION', () => {
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+\t<key>CFBundleShortVersionString</key>
+\t<string>$(MARKETING_VERSION)</string>
+\t<key>CFBundleVersion</key>
+\t<string>1</string>
+</dict></plist>
+`
+        const patched = patchInfoPlist(xml, '0.1.0')
+        assert.equal(infoPlistVersion(patched, 'CFBundleShortVersionString'), '0.1.0')
+        assert.equal(infoPlistVersion(patched, 'CFBundleVersion'), '0.1.0')
+        const shipped = patchInfoPlist(readFileSync(join(repoRoot, 'apps/mac-shell/Info.plist'), 'utf8'), '0.1.0')
+        assert.equal(infoPlistVersion(shipped, 'CFBundleShortVersionString'), '0.1.0')
+        assert.equal(infoPlistVersion(shipped, 'CFBundleVersion'), '0.1.0')
+        assert.match(shipped, /BlinkyComposeBaseURL/)
+        assert.throws(() => patchInfoPlist('<plist><dict></dict></plist>', '0.1.0'), /CFBundleShortVersionString/)
+        assert.throws(() => patchInfoPlist(xml, 'nope'), /major\.minor\.patch/)
+    })
+})
+
+describe('Scripts/bundle.sh', () => {
+    const source = readFileSync(bundleSh, 'utf8')
+
+    it('stages the runtime, stamps the plist, and does not call docker', () => {
+        assert.match(source, /patch-plist/)
+        assert.match(source, /verify-runtime/)
+        assert.match(source, /audit-symlinks/)
+        assert.match(source, /blinky-local\.mjs build/)
+        assert.match(source, /xcodebuild/)
+        assert.match(source, /xcodegen generate/)
+        assert.match(source, /Contents\/Resources\/runtime/)
+        assert.doesNotMatch(source, /\bdocker\b/i)
+    })
+
+    it('prints the plan on this machine', () => {
+        const result = spawnSync('bash', [bundleSh, '--plan'], { cwd: repoRoot, encoding: 'utf8' })
+        assert.equal(result.status, 0, result.stderr)
+        assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
+        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.0/)
+    })
+
+    it('refuses to assemble an app when the host is not macOS', () => {
+        if (process.platform === 'darwin') return
+        const result = spawnSync('bash', [bundleSh], { cwd: repoRoot, encoding: 'utf8' })
+        assert.notEqual(result.status, 0)
+        assert.match(result.stderr, /macOS/)
+        assert.match(result.stderr, /Scripts\/README\.md/)
+        assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /\bdocker\b/i)
+    })
+})

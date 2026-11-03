@@ -23,7 +23,8 @@ final class ComposeBrowser: NSObject, ObservableObject, WKNavigationDelegate, WK
     override init() {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
-        configuration.applicationNameForUserAgent = "BlinkyBot/0.1.0"
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
+        configuration.applicationNameForUserAgent = "BlinkyBot/\(version)"
         webView = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         webView.navigationDelegate = self

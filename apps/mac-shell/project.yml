@@ -11,6 +11,8 @@ settings:
   base:
     SWIFT_VERSION: "5.9"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
+    # Keep in step with the VERSION file at the repository root.
+    # Scripts/bundle.sh writes that version into the built Info.plist.
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
     CODE_SIGN_STYLE: Automatic
