@@ -1,0 +1,40 @@
+# One application target compiles both source folders into the BlinkyBot module.
+# `swift build` compiles BlinkyComposeURL as its own library; the app imports it only then.
+name: BlinkyBot
+options:
+  minimumXcodeGenVersion: 2.38.0
+  deploymentTarget:
+    macOS: "14.0"
+  groupSortPosition: top
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  BlinkyBot:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/BlinkyBot
+      - path: Sources/BlinkyComposeURL
+    settings:
+      base:
+        PRODUCT_NAME: BlinkyBot
+        PRODUCT_BUNDLE_IDENTIFIER: bot.blinky.shell
+        PRODUCT_MODULE_NAME: BlinkyBot
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        COMBINE_HIDPI_IMAGES: YES
+schemes:
+  BlinkyBot:
+    build:
+      targets:
+        BlinkyBot: all
+    run:
+      config: Debug
