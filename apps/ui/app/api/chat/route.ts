@@ -5,6 +5,7 @@ import { recordSessionParticipant, recordSessionRead } from '@/app/api/_services
 import type { Database } from '@/app/api/database.types'
 import { generateSessionTitle } from '@/lib/ai/generate-title'
 import { reconnectRun } from '@/lib/engine/client'
+import { engineChatFailure } from '@/lib/chat/engine-failure'
 import { QUEUED_RETRY_DELAYS_MS, startChat } from '@/lib/chat/start-chat'
 import { stripAttachmentsRef } from '@/lib/chat/attachments-marker'
 import { installSessionTitle, parseInstallMessage } from '@/lib/chat/install-marker'
@@ -123,7 +124,8 @@ export async function POST(request: Request) {
 
     if (!engineRes.ok || !engineRes.body) {
         const errBody = await engineRes.text().catch(() => '')
-        return Response.json({ error: `Engine error: ${engineRes.status} ${errBody}` }, { status: 502 })
+        const failure = engineChatFailure(engineRes.status, errBody)
+        return Response.json({ error: failure.error }, { status: failure.status })
     }
 
     // The engine returns the (possibly newly created) session id as a header.

@@ -13,7 +13,7 @@ export const grokAdapter: CliAdapterInfo & { build(request: CliRunRequest, proce
     build(request, processEnv) {
         const resolved = resolveCommand(this.pathEnv, this.binaryName, processEnv)
         const session = request.session ?? { kind: 'new' }
-        const args = [...resolved.args, '--no-auto-update', '--always-approve', '--output-format', 'json', '--cwd', request.cwd]
+        const args = [...resolved.args, '--no-auto-update', '--always-approve', '--output-format', request.stream ? 'streaming-json' : 'json', '--cwd', request.cwd]
         if (request.model) args.push('-m', request.model)
         args.push('--system-prompt-override', egoBrowserSystem(request.system))
         const systemDelivery: CliSystemDelivery = 'flag'

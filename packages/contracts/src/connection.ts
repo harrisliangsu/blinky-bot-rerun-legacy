@@ -115,6 +115,8 @@ export const CONNECTION_TOKEN_KEY: Record<z.infer<typeof providerSchema>, string
     anthropic: 'ANTHROPIC_API_KEY',
     claude: 'CLAUDE_CODE_OAUTH_TOKEN',
     codex: 'CODEX_OAUTH_TOKEN',
+    kimi: 'KIMI_API_KEY',
+    grok: 'XAI_API_KEY',
     openai: 'OPENAI_API_KEY',
     google: 'GOOGLE_GENERATIVE_AI_API_KEY',
     openrouter: 'OPENROUTER_API_KEY',
@@ -136,6 +138,8 @@ export const CONNECTION_SATELLITE_KEYS: Record<z.infer<typeof providerSchema>, s
     anthropic: [],
     claude: ['CLAUDE_CODE_OAUTH_REFRESH_TOKEN', 'CLAUDE_CODE_OAUTH_EXPIRES_AT'],
     codex: ['CODEX_OAUTH_REFRESH_TOKEN', 'CODEX_OAUTH_ID_TOKEN', 'CODEX_OAUTH_ACCOUNT_ID', 'CODEX_OAUTH_EXPIRES_AT'],
+    kimi: [],
+    grok: [],
     openai: [],
     // The engine still resolves this alias, so a migration has to carry it over.
     google: ['GOOGLE_API_KEY'],
@@ -186,6 +190,8 @@ export const DEFAULT_CONNECTION_MODELS: Record<z.infer<typeof providerSchema>, s
         'claude-haiku-4-5',
     ],
     codex: ['gpt-6-sol', 'gpt-6.1-sol', 'gpt-6-astra', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra', 'gpt-5.6-luna'],
+    kimi: ['kimi-for-coding'],
+    grok: ['grok-4.7'],
     openai: ['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6-sol', 'gpt-6.1-terra', 'gpt-6-luna', 'gpt-5.6-sol', 'gpt-5.5', 'gpt-5.4', 'gpt-5.4-mini'],
     google: ['gemini-4-argon', 'gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-3.5-flash-lite'],
     openrouter: [
@@ -214,6 +220,8 @@ export const PROVIDER_LABELS: Record<z.infer<typeof providerSchema>, string> = {
     anthropic: 'Anthropic',
     claude: 'Claude',
     codex: 'Codex',
+    kimi: 'Kimi',
+    grok: 'Grok',
     openai: 'OpenAI',
     google: 'Google',
     openrouter: 'OpenRouter',
@@ -248,7 +256,7 @@ export type SetAgentModelInput = z.infer<typeof setAgentModelSchema>
 
 // The AI providers screen of the app, shaped by the hub with the web dialog's own rules (catalog,
 // hidden and locked models, plan windows, credit), since those live in apps/ui.
-export const addableProviderSchema = providerSchema.exclude(['rerun'])
+export const addableProviderSchema = providerSchema.exclude(['rerun', 'kimi', 'grok'])
 export type AddableProvider = z.infer<typeof addableProviderSchema>
 
 export const aiConnectionKindSchema = z.enum(['included', 'plan', 'key'])

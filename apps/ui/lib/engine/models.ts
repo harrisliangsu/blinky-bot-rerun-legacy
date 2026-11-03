@@ -110,6 +110,20 @@ export const ENGINE_MODEL_CATALOG: CatalogProvider[] = [
         ],
     },
     {
+        provider: 'kimi',
+        label: 'Kimi',
+        keyName: 'KIMI_API_KEY',
+        section: 'subscription',
+        models: [model('kimi-for-coding', 4)],
+    },
+    {
+        provider: 'grok',
+        label: 'Grok',
+        keyName: 'XAI_API_KEY',
+        section: 'subscription',
+        models: [model('grok-4.7', 4)],
+    },
+    {
         provider: 'openai',
         label: 'OpenAI',
         keyName: 'OPENAI_API_KEY',

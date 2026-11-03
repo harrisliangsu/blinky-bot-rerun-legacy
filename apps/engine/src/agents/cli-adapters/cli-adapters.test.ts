@@ -90,6 +90,10 @@ describe('cliInvocation', () => {
         expect(continued.args).toContain('--continue')
         expect(continued.args).not.toContain('--resume')
 
+        const streamed = cliInvocation('grok', { ...base, stream: true }, { RERUN_GROK_PATH: '/opt/bin/grok' })
+        expect(streamed.args).toContain('streaming-json')
+        expect(streamed.args).not.toContain('json')
+
         const fresh = cliInvocation('grok', base, {})
         expect(fresh.systemDelivery).toBe('flag')
         expect(fresh.args).toContain(egoBrowserSystem(undefined))

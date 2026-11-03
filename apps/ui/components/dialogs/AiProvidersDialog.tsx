@@ -3,8 +3,8 @@
 import { AiProvidersPanel, type InitialConnection } from '@/components/connections/AiProvidersPanel'
 import { PanelDialogContent } from '@/components/dialogs/PanelDialogContent'
 import { Dialog, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import type { AddableProvider } from '@/lib/engine/ai-sources'
 import { useWorkspaceSettingsStore } from '@/stores/workspace-settings.store'
-import type { Provider } from '@rerun/contracts'
 import { useEffect, useState } from 'react'
 
 // Provider credentials belong to the workspace, not to a Box: one machine runs every agent on the
@@ -15,7 +15,7 @@ export function AiProvidersDialog({ open, onOpenChange }: { open: boolean; onOpe
     // The signal is cleared as soon as it is read, but the panel it asks for only mounts on the
     // next render, so what it carried is held here until that panel picks it up.
     const [initialConnection, setInitialConnection] = useState<InitialConnection | null>(null)
-    const [initialAddProvider, setInitialAddProvider] = useState<Exclude<Provider, 'rerun'> | null>(null)
+    const [initialAddProvider, setInitialAddProvider] = useState<AddableProvider | null>(null)
 
     useEffect(() => {
         if (!focus?.connectionId && !focus?.addProvider) return

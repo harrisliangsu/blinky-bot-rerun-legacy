@@ -95,6 +95,24 @@ const PROVIDER_ICONS: Record<string, (p: IconProps) => JSX.Element> = {
     google: GoogleIcon,
     apple: AppleIcon,
     openrouter: OpenRouterIcon,
+    kimi: KimiIcon,
+    grok: GrokIcon,
+}
+
+function KimiIcon({ className = 'size-3.5' }: IconProps) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M4 4h7.2v2.2H6.4v4.5H11V13H6.4V18H11.4V20H4V4zm9.2 0H20v2.2h-4.6v11.6H20V20h-6.8V4z" />
+        </svg>
+    )
+}
+
+function GrokIcon({ className = 'size-3.5' }: IconProps) {
+    return (
+        <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M5 4h2.4l4.6 7.2L16.6 4H19l-6.2 9.4V20h-2.4v-6.6L5 4z" />
+        </svg>
+    )
 }
 
 // Brand logo for a catalog provider id. A provider with no logo of its own — a user's own

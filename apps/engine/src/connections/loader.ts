@@ -1,6 +1,8 @@
 import { readFile, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { CONNECTION_TOKEN_KEY, RERUN_CONNECTION_ID, connectionConfigSchema, type ConnectionSummary } from '@rerun/contracts'
+import { cliReady, type LocalChatCli } from '../agents/cli-search.js'
+import { isLocalCliConnection, localCliProvider } from './local-cli.js'
 import { connectionConfigPath, connectionEnvPath, connectionsDir } from '../config/paths.js'
 import { readEnvFile } from '../lib/env-file.js'
 import { env } from '../config/env.js'
@@ -31,6 +33,10 @@ export function isConnected(connection: LoadedConnection): boolean {
     if (connection.id === RERUN_CONNECTION_ID) {
         const { RERUN_HUB_BASE_URL, RERUN_API_KEY } = env()
         return !!RERUN_HUB_BASE_URL && !!RERUN_API_KEY
+    }
+    if (isLocalCliConnection(connection.id)) {
+        const provider = localCliProvider(connection.id) as LocalChatCli
+        return cliReady(provider, process.env) !== 'missing'
     }
     const key = CONNECTION_TOKEN_KEY[connection.config.provider]
     return !!key && !!connection.env[key]
