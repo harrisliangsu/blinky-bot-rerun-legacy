@@ -315,8 +315,8 @@ describe('Info.plist version', () => {
 \t<key>SUFeedURL</key><string>https://example.invalid/appcast.xml</string>
 </dict></plist>
 `
-        const patched = patchSparklePlist(xml, 'https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml', 'abc=')
-        assert.match(patched, /harrisliangsu\/blinky-bot\/main\/appcast\.xml/)
+        const patched = patchSparklePlist(xml, 'https://github.com/harrisliangsu/blinky-bot/releases/latest/download/appcast.xml', 'abc=')
+        assert.match(patched, /harrisliangsu\/blinky-bot\/releases\/latest\/download\/appcast\.xml/)
         assert.match(patched, /<key>SUPublicEDKey<\/key>\s*<string>abc=<\/string>/)
         assert.throws(() => patchSparklePlist(xml, 'http://insecure.example/appcast.xml', 'abc='), /https/)
     })
@@ -328,6 +328,7 @@ describe('Scripts/bundle.sh', () => {
     it('stages the runtime, stamps the plist, and does not call docker', () => {
         assert.match(source, /patch-plist/)
         assert.match(source, /patch-sparkle/)
+        assert.match(source, /releases\/latest\/download\/appcast\.xml/)
         assert.match(source, /Sparkle\.framework/)
         assert.match(source, /verify-runtime/)
         assert.match(source, /audit-symlinks/)
@@ -349,6 +350,13 @@ describe('Scripts/bundle.sh', () => {
         assert.equal(result.status, 0, result.stderr)
         assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
         assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.3/)
+    })
+
+    it('publishes the Sparkle feed without pushing to main', () => {
+        const workflow = readFileSync(join(repoRoot, '.github/workflows/release.yml'), 'utf8')
+        assert.match(workflow, /gh pr create --base main --head "appcast-v\$VERSION"/)
+        assert.match(workflow, /gh pr merge/)
+        assert.doesNotMatch(workflow, /git push origin (HEAD:)?main\b/)
     })
 
     it('refuses to assemble an app when the host is not macOS', () => {

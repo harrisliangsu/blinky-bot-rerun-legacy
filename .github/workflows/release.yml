@@ -4,8 +4,10 @@ name: Release
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 #
-# mac-app, on macos-14, publishes the GitHub Release (DMG and zip),
-# signs the zip, and commits the Sparkle feed. Docker is not part of it.
+# mac-app, on macos-14, publishes the GitHub Release (DMG and zip)
+# and signs the zip. The Sparkle feed is a release asset. Installed
+# 0.1.3 still reads appcast.xml from main, so that copy is updated
+# through a pull request. Docker is not part of it.
 on:
   push:
     tags: ['v*']
@@ -29,6 +31,7 @@ jobs:
     runs-on: macos-14
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -201,8 +204,12 @@ jobs:
           cp appcast.xml appcast-zh.xml appcast-en.xml /tmp/blinky-feed/
           gh release upload "v$VERSION" appcast.xml appcast-zh.xml appcast-en.xml --clobber
           rm -f appcast.xml appcast-zh.xml appcast-en.xml
+          # 0.1.3's SUFeedURL is raw.githubusercontent.com/.../main/appcast.xml.
+          # Builds after this change read releases/latest/download/appcast.xml.
+          # main rejects a direct push, so the copy 0.1.3 still fetches lands
+          # through a pull request.
           git fetch origin main
-          git checkout -B main origin/main
+          git checkout -B "appcast-v$VERSION" origin/main
           cp /tmp/blinky-feed/appcast.xml /tmp/blinky-feed/appcast-zh.xml /tmp/blinky-feed/appcast-en.xml .
           git add appcast.xml appcast-zh.xml appcast-en.xml
           if git diff --cached --quiet -- appcast.xml appcast-zh.xml appcast-en.xml; then
@@ -211,30 +218,30 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "Offer $VERSION to Sparkle"
-            pushed=0
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              if ! git rebase origin/main; then
-                echo "::error::Could not rebase the Sparkle feed onto origin/main."
-                git rebase --abort || true
-                exit 1
-              fi
-              if git push origin main; then
-                pushed=1
-                break
-              fi
-              echo "Push to main was rejected (attempt ${attempt} of 5)."
-              if [ "$attempt" -lt 5 ]; then
-                sleep $((attempt * 2))
-              fi
-            done
-            if [ "$pushed" -ne 1 ]; then
-              echo "::error::Could not push the Sparkle feed to main."
+            git push --force origin "HEAD:appcast-v$VERSION"
+            existing="$(gh pr list --head "appcast-v$VERSION" --state open --json number --jq '.[0].number // empty')"
+            if [ -z "$existing" ]; then
+              gh pr create --base main --head "appcast-v$VERSION" \
+                --title "Offer $VERSION to Sparkle" \
+                --body "Signed appcast from the v$VERSION release. Installed 0.1.3 still reads this file from main."
+            fi
+            number="$(gh pr list --head "appcast-v$VERSION" --state open --json number --jq '.[0].number // empty')"
+            if [ -z "$number" ]; then
+              echo "::error::No pull request for appcast-v$VERSION."
               exit 1
             fi
+            gh pr merge "$number" --squash --delete-branch
           fi
-          git fetch origin main
-          if ! git show origin/main:appcast.xml | grep -q "<sparkle:shortVersionString>$VERSION<"; then
+          offered=0
+          for attempt in 1 2 3 4 5 6; do
+            git fetch origin main
+            if git show origin/main:appcast.xml | grep -q "<sparkle:shortVersionString>$VERSION<"; then
+              offered=1
+              break
+            fi
+            sleep $((attempt * 2))
+          done
+          if [ "$offered" -ne 1 ]; then
             echo "::error::appcast.xml on main does not offer $VERSION."
             exit 1
           fi
