@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>BlinkyBot</title>
+        <link>https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast-en.xml</link>
+        <description>Updates for BlinkyBot.</description>
+        <language>en</language>
+            <item>
+            <title>0.1.3</title>
+            <pubDate>Tue, 03 Nov 2026 16:51:09 -0000</pubDate>
+            <sparkle:version>0.1.3</sparkle:version>
+            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <link>https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.3</link>
+            <description><![CDATA[<style>
+  h2 { font-size: 1.05em; margin: 0 0 .5em; }
+  ul { margin: 0; padding-left: 1.2em; }
+  li { margin: .3em 0; }
+  p { margin: .8em 0 0; }
+</style><h2>BlinkyBot 0.1.3</h2><ul><li><strong>Compose starts.</strong> The packaged app was missing <code>@swc/helpers</code> on the path Next uses, so the window stayed on &quot;Compose is not open yet.&quot; The standalone server now links the packages Next loads at startup.</li><li><strong>A Mac open check gates the build.</strong> CI starts the built BlinkyBot.app and requires <code>http://127.0.0.1:3000/api/version</code> to answer. A missing module fails the job before a release is published.</li></ul><p><a href="https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.3">Release notes on GitHub</a></p>]]></description>
+            <enclosure url="https://github.com/harrisliangsu/blinky-bot/releases/download/v0.1.3/BlinkyBot-0.1.3.zip"
+                       length="314982401"
+                       type="application/octet-stream"
+                       sparkle:edSignature="uk3TPDCSj3JHOvNDpxL4oY8QUf0M2+/kW+K3GXcvqJmwGvFyT6GAYjjfaDr0ybeNIKjrjIX2GVocwg8Pf6CDBA==" />
+        </item>
+    </channel>
+</rss>
