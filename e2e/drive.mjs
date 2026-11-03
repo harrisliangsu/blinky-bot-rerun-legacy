@@ -396,7 +396,7 @@ async function openThread(page, state) {
 }
 
 async function sendChat(page, text) {
-    const box = page.getByRole('main').getByTestId('composer')
+    const box = page.getByRole('main').getByTestId('composer').last()
     await box.waitFor({ state: 'visible', timeout: 20_000 })
     await box.click({ force: true })
     await box.fill(text)
