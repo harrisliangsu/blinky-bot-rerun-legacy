@@ -394,9 +394,39 @@ final class LocalRuntimeTests: XCTestCase {
     }
 
     private func processGroupMembers(_ pgid: Int32) -> [Int32] {
-        guard let names = try? FileManager.default.contentsOfDirectory(atPath: "/proc") else { return [] }
-        return names.compactMap { name in
-            guard let pid = Int32(name), getpgid(pid) == pgid else { return nil }
+        if let names = try? FileManager.default.contentsOfDirectory(atPath: "/proc") {
+            let members = names.compactMap { name -> Int32? in
+                guard let pid = Int32(name), getpgid(pid) == pgid else { return nil }
+                return pid
+            }
+            if !members.isEmpty { return members }
+        }
+        return processGroupMembersFromPS(pgid)
+    }
+
+    private func processGroupMembersFromPS(_ pgid: Int32) -> [Int32] {
+        let pipe = Pipe()
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/ps")
+        process.arguments = ["-ax", "-o", "pid=,pgid="]
+        process.standardOutput = pipe
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+        } catch {
+            return []
+        }
+        process.waitUntilExit()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        guard let text = String(data: data, encoding: .utf8) else { return [] }
+        return text.split(separator: "\n").compactMap { line in
+            let fields = line.split(whereSeparator: { $0 == " " || $0 == "\t" })
+            guard fields.count >= 2,
+                  let pid = Int32(fields[0]),
+                  let group = Int32(fields[1]),
+                  group == pgid else {
+                return nil
+            }
             return pid
         }
     }
