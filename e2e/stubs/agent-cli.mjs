@@ -89,10 +89,12 @@ function write(value) {
 async function appServer() {
     const lines = createInterface({ input: process.stdin, crlfDelay: Infinity })
     let threadId = 'thr-stub'
+    let sawPersona = false
     const delay = Number(control().delayMs ?? process.env.BLINKY_STUB_DELAY_MS ?? '0')
     for await (const line of lines) {
         const trimmed = line.trim()
         if (!trimmed) continue
+        if (trimmed.includes('lighthouse keeper')) sawPersona = true
         let message
         try {
             message = JSON.parse(trimmed)
@@ -117,7 +119,7 @@ async function appServer() {
                 id: message.id,
                 result: { turn: { id: turnId, items: [], status: 'inProgress', error: null } },
             })
-            const text = 'BLINKY_E2E_REPLY'
+            const text = sawPersona ? 'BLINKY_E2E_REPLY lighthouse keeper' : 'BLINKY_E2E_REPLY'
             setTimeout(() => {
                 write({ method: 'item/agentMessage/delta', params: { threadId, turnId, itemId: 'item-1', delta: text } })
                 write({

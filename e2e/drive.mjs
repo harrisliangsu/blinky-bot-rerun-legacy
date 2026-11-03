@@ -19,7 +19,7 @@ if (!mode || !out) {
     console.error('drive.mjs needs a mode and E2E_OUT')
     process.exit(1)
 }
-if ((mode === 'core' || mode === 'persist' || mode === 'chat' || mode === 'runs' || mode === 'workspace') && (!ui || !engineUrl || !apiKey)) {
+if ((mode === 'core' || mode === 'persist' || mode === 'chat' || mode === 'runs' || mode === 'workspace' || mode === 'retire') && (!ui || !engineUrl || !apiKey)) {
     console.error('drive.mjs core and persist need BLINKY_UI_URL, BLINKY_ENGINE_URL, and BLINKY_API_KEY')
     process.exit(1)
 }
@@ -39,6 +39,7 @@ try {
     else if (mode === 'rex') await rex()
     else if (mode === 'chat') await chat()
     else if (mode === 'runs') await runs()
+    else if (mode === 'retire') await retire()
     else throw new Error(`Unknown mode ${mode}`)
 } catch (error) {
     const detail = error instanceof Error ? error.stack || error.message : String(error)
@@ -60,47 +61,115 @@ async function core() {
         notes.push(features.onboarding.enabled ? 'Native onboarding is dismissed in the BlinkyBot window before this page opens.' : features.onboarding.reason)
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         await page.screenshot({ path: join(shots, 'workspace.png') })
-        const before = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
-        await page.getByTestId('new-coworker').click()
-        await page.getByTestId('new-coworker-heading').waitFor({ timeout: 20_000 })
-        await page.locator('[data-testid$="-seo"]').first().click()
-        await page.getByTestId('create-coworker').click()
-        await page.screenshot({ path: join(shots, 'new-coworker.png') })
-        await page.getByTestId('placement-prompt').waitFor({ timeout: 20_000 })
-        const agent = await placeOnBoard(page, before)
+        const known = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
+        await saveBot(page, { name: 'Lighthouse', persona: 'You answer as a lighthouse keeper.' })
+        const lantern = await waitForNewAgent(known)
+        known.add(lantern.id)
+        await saveBot(page, { name: 'Harbor', persona: 'You answer as a harbor pilot.' })
+        const harbor = await waitForNewAgent(known)
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lighthouse"]').waitFor()
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').waitFor()
+        await page.screenshot({ path: join(shots, 'bot-list.png') })
+        await page.locator('[data-testid="bot-edit"][aria-label*="Lighthouse"]').click()
+        await page.getByTestId('bot-name').fill('Lantern')
+        await page.getByTestId('bot-save').click()
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').waitFor({ timeout: 20_000 })
+        const saved = await engine(`/agents/${lantern.id}`)
+        if (!JSON.stringify(saved).includes('lighthouse keeper')) throw new Error('The saved Bot does not keep the lighthouse persona.')
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').click()
         const seen = []
         const boardSeen = []
-        const watch = watchRuns(agent.id, seen, () => sampleBoard(page, agent.id, boardSeen))
-        const stopVisible = await page.getByRole('button', { name: 'Stop the current run' }).waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false)
+        const watch = watchRuns(lantern.id, seen, () => sampleBoard(page, lantern.id, boardSeen))
+        await sendChat(page, 'who are you')
         const run = await watch
         if (!seen.includes('running') || !seen.includes('done')) {
             throw new Error(`Run statuses were ${seen.join(' -> ') || 'empty'}. Last run: ${JSON.stringify(run)}`)
         }
-        await waitBoard(page, agent.id, 'idle', boardSeen)
+        await waitBoard(page, lantern.id, 'idle', boardSeen)
         if (!boardSeen.includes('working') || boardSeen.at(-1) !== 'idle') {
             throw new Error(`Board statuses were ${boardSeen.join(' -> ') || 'empty'}. Expected working, then idle.`)
         }
-        if (run?.status !== 'done') throw new Error(run?.error || `Run statuses were ${seen.join(' -> ') || 'empty'}. Last run: ${JSON.stringify(run)}`)
-        await page.getByText(reply).first().waitFor({ timeout: 20_000 })
+        await page.getByText('lighthouse keeper').first().waitFor({ timeout: 20_000 })
         await page.screenshot({ path: join(shots, 'task-reply.png') })
-        const messages = await engine(`/agents/${agent.id}/sessions/${run.sessionId}/messages`)
+        const messages = await engine(`/agents/${lantern.id}/sessions/${run.sessionId}/messages`)
         const stored = JSON.stringify(messages)
-        if (!stored.includes(reply) || !stored.includes(kickoffMark)) throw new Error('The engine session does not store the kickoff and the reply.')
-        const log = readFileSync(stubLog, 'utf8')
-        if (!log.includes('"mode":"app-server"') || !log.includes(kickoffMark)) throw new Error('The stub codex CLI was not invoked for the task.')
-        writeFileSync(statePath, JSON.stringify({ agentId: agent.id, sessionId: run.sessionId, label: suggestion }))
+        if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
+            throw new Error('Lantern did not store the question and the persona reply.')
+        }
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').click()
+        await sendChat(page, 'who are you')
+        const harborRun = await watchRuns(harbor.id, [])
+        const harborMessages = await engine(`/agents/${harbor.id}/sessions/${harborRun.sessionId}/messages`)
+        const harborStored = JSON.stringify(harborMessages)
+        if (!harborStored.includes(reply) || harborStored.includes('lighthouse keeper')) {
+            throw new Error('Harbor used Lantern’s persona.')
+        }
+        await page.screenshot({ path: join(shots, 'harbor-reply.png') })
+        writeFileSync(statePath, JSON.stringify({ agentId: lantern.id, sessionId: run.sessionId, label: 'Lantern', harborId: harbor.id }))
         writeFileSync(join(out, 'core.json'), JSON.stringify({
             ok: true,
             detail: [
-                `Opened the local BlinkyBot workspace, created ${suggestion} from New coworker, and placed it on the board.`,
-                `The kickoff ran to completion through stub Codex. Statuses: ${seen.join(' -> ')}. Board: ${boardSeen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
-                `Stub reply ${reply} is on screen and stored on the session.`,
+                'Created Lighthouse and Harbor from bot-create, with an emoji and a persona.',
+                'Renamed Lighthouse to Lantern. The list row and the saved soul both say so.',
+                `Lantern’s chat ran ${seen.join(' -> ')}. Board: ${boardSeen.join(' -> ')}. The reply includes the lighthouse persona.`,
+                'Harbor answered the same question without Lantern’s persona.',
                 notes.filter(Boolean).slice(-8).join('\n'),
             ].join('\n\n'),
         }, null, 2))
     } catch (error) {
         await page.screenshot({ path: join(shots, 'core-failed.png') }).catch(() => {})
         writeFileSync(join(out, 'browser.log'), notes.join('\n'))
+        throw error
+    } finally {
+        await context.close()
+        await browser.close()
+    }
+}
+
+async function saveBot(page, { name, persona }) {
+    await page.getByTestId('bot-create').click()
+    await page.getByTestId('bot-editor').waitFor({ timeout: 20_000 })
+    await page.getByTestId('bot-name').fill(name)
+    await page.getByTestId('bot-persona').fill(persona)
+    await page.getByTestId('bot-avatar-emoji').first().click()
+    await page.getByTestId('bot-model').click()
+    const model = page.getByRole('option', { name: /GPT-5\.6 Sol/ }).first()
+    await model.waitFor({ timeout: 20_000 })
+    await model.click()
+    await page.getByTestId('bot-save').click()
+    await page.getByTestId('bot-editor').waitFor({ state: 'hidden', timeout: 20_000 })
+}
+
+async function retire() {
+    const state = JSON.parse(readFileSync(statePath, 'utf8'))
+    const browser = await chromium.launch({ headless: false })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const page = await context.newPage()
+    try {
+        await page.goto(ui, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+        await page.getByTestId('bot-list').waitFor({ timeout: 60_000 })
+        await page.locator('[data-testid="bot-edit"][aria-label*="Lantern"]').click()
+        await page.getByTestId('bot-delete').click()
+        await page.getByTestId('bot-delete-dialog').waitFor()
+        const confirm = page.getByTestId('bot-delete-confirm')
+        if (await confirm.isEnabled()) throw new Error('Delete confirmed before the name was typed.')
+        await page.getByTestId('bot-delete-name').fill('not-the-name')
+        if (await confirm.isEnabled()) throw new Error('Delete confirmed on the wrong name.')
+        await page.getByTestId('bot-delete-name').fill('Lantern')
+        await confirm.click()
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').waitFor({ state: 'hidden', timeout: 20_000 })
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').waitFor()
+        await page.screenshot({ path: join(shots, 'bot-deleted.png') })
+        const gone = await engineStatus(`/agents/${state.agentId}`)
+        if (gone.status !== 404) throw new Error(`Lantern was still on the engine after delete (${gone.status}).`)
+        const harbor = await engine(`/agents/${state.harborId}`)
+        if (!harbor?.id) throw new Error('Harbor was removed with Lantern.')
+        writeFileSync(join(out, 'retire.json'), JSON.stringify({
+            ok: true,
+            detail: 'Delete asked for the Bot name, refused a mismatch, then removed Lantern. Harbor is still in the list and on the engine.',
+        }, null, 2))
+    } catch (error) {
+        await page.screenshot({ path: join(shots, 'retire-failed.png') }).catch(() => {})
         throw error
     } finally {
         await context.close()

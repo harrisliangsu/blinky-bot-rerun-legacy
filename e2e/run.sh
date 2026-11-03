@@ -559,7 +559,7 @@ APPLESCRIPT
     fi
     printf '%s\n' "$menu_titles" >"$OUT/menu-titles.txt"
     capture_window "$OUT/screenshots/menu-bar.png"
-    for needle in "Open BlinkyBot" "Restart Services" "Quit"; do
+    for needle in "Open BlinkyBot" "New Bot" "Restart Services" "Quit"; do
         if ! printf '%s' "$menu_titles" | grep -q "$needle"; then
             write_json "$OUT/menubar.json" false "The status menu did not include ${needle}. Titles: ${menu_titles}"
             exit 1
@@ -603,6 +603,7 @@ fi
 BLINKY_API_KEY="$(tr -d '[:space:]' < "$SUPPORT/engine-api-key")"
 export BLINKY_API_KEY
 node "$ROOT/e2e/drive.mjs" persist
+node "$ROOT/e2e/drive.mjs" retire
 stop_app
 
 if [[ "$(feature_enabled crashDiagnostics)" == yes ]]; then
