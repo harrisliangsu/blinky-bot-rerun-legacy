@@ -34,7 +34,7 @@ export const PROVIDER_GUIDE: Record<KeyProvider, { title: string; steps: string 
         title: 'How to get your Anthropic key',
         steps: [
             '1. Open the [Anthropic Console](https://console.anthropic.com/settings/keys) and sign in.',
-            '2. Click **Create Key** and name it, for example "Rerun".',
+            '2. Click **Create Key** and name it, for example "BlinkyBot".',
             '3. Copy the key (it starts with `sk-ant-`) and paste it above. It is shown only once.',
         ].join('\n'),
     },
@@ -42,7 +42,7 @@ export const PROVIDER_GUIDE: Record<KeyProvider, { title: string; steps: string 
         title: 'How to get your OpenAI key',
         steps: [
             '1. Open [OpenAI API keys](https://platform.openai.com/api-keys) and sign in.',
-            '2. Click **Create new secret key** and name it, for example "Rerun".',
+            '2. Click **Create new secret key** and name it, for example "BlinkyBot".',
             '3. Copy the key (it starts with `sk-`) and paste it above. It is shown only once.',
         ].join('\n'),
     },

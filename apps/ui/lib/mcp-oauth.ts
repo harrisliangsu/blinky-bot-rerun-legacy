@@ -177,7 +177,7 @@ export function clientMetadataDocumentUrl(req: Request): string {
 export function clientMetadataDocument(req: Request): Record<string, unknown> {
     return {
         client_id: clientMetadataDocumentUrl(req),
-        client_name: 'Rerun',
+        client_name: 'BlinkyBot',
         client_uri: appOrigin(req),
         redirect_uris: [callbackUrl(req)],
         grant_types: ['authorization_code', 'refresh_token'],
@@ -192,7 +192,7 @@ export async function registerClient(registrationEndpoint: string, redirectUri: 
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({
-            client_name: 'Rerun',
+            client_name: 'BlinkyBot',
             redirect_uris: [redirectUri],
             grant_types: ['authorization_code', 'refresh_token'],
             response_types: ['code'],

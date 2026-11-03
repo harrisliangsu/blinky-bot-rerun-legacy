@@ -1,6 +1,6 @@
 {
     "name": "rerun-monorepo",
-    "description": "Rerun: AI coworkers that run your work",
+    "description": "BlinkyBot: a local-first Mac agent hub, forked from Rerun",
     "private": true,
     "type": "module",
     "packageManager": "pnpm@8.15.4",

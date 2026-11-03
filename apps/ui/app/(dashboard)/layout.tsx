@@ -13,7 +13,7 @@ import { SessionProvider } from '@/supabase/session/SessionProvider'
 
 export const metadata: Metadata = {
     title: 'Dashboard',
-    description: 'Your Boxes and coworkers on Rerun.',
+    description: 'Your Boxes and coworkers on BlinkyBot.',
 }
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

@@ -3,7 +3,7 @@ import { AuthIsoBackground } from '@/components/auth/AuthIsoBackground'
 
 export const metadata: Metadata = {
     title: 'Workspace invitation',
-    description: 'Accept your invitation to collaborate on Rerun.',
+    description: 'Accept your invitation to collaborate on BlinkyBot.',
 }
 
 export default function InviteLayout({ children }: { children: React.ReactNode }) {
