@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { drivePackagedEgo } from './hooks.mjs'
+import { driveMissingEgo, drivePackagedClis, drivePackagedEgo } from './hooks.mjs'
 
 const mode = process.argv[2]
 const out = process.env.E2E_OUT
@@ -14,8 +14,12 @@ const suggestion = 'SEO Assistant'
 const kickoffMark = 'Audit my website'
 const reply = 'BLINKY_E2E_REPLY'
 
-if (!mode || !out || !ui || !engineUrl || !apiKey) {
-    console.error('drive.mjs needs core|persist plus E2E_OUT, BLINKY_UI_URL, BLINKY_ENGINE_URL, and BLINKY_API_KEY')
+if (!mode || !out) {
+    console.error('drive.mjs needs a mode and E2E_OUT')
+    process.exit(1)
+}
+if ((mode === 'core' || mode === 'persist') && (!ui || !engineUrl || !apiKey)) {
+    console.error('drive.mjs core and persist need BLINKY_UI_URL, BLINKY_ENGINE_URL, and BLINKY_API_KEY')
     process.exit(1)
 }
 
@@ -27,6 +31,11 @@ const statePath = join(out, 'state.json')
 try {
     if (mode === 'core') await core()
     else if (mode === 'persist') await persist()
+    else if (mode === 'ego') await ego()
+    else if (mode === 'ego-missing') await egoMissing()
+    else if (mode === 'clis') await clis()
+    else if (mode === 'workspace') await workspace()
+    else if (mode === 'rex') await rex()
     else throw new Error(`Unknown mode ${mode}`)
 } catch (error) {
     const detail = error instanceof Error ? error.stack || error.message : String(error)
@@ -45,11 +54,7 @@ async function core() {
     page.on('pageerror', error => notes.push(`pageerror: ${error.message}`))
     try {
         await page.goto(ui, { waitUntil: 'domcontentloaded', timeout: 60_000 })
-        if (features.onboarding.enabled) {
-            await dismissOnboarding(page)
-        } else {
-            notes.push(features.onboarding.reason)
-        }
+        notes.push(features.onboarding.enabled ? 'Native onboarding is dismissed in the BlinkyBot window before this page opens.' : features.onboarding.reason)
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         await page.screenshot({ path: join(shots, 'workspace.png') })
         const before = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
@@ -75,20 +80,13 @@ async function core() {
         if (!stored.includes(reply) || !stored.includes(kickoffMark)) throw new Error('The engine session does not store the kickoff and the reply.')
         const log = readFileSync(stubLog, 'utf8')
         if (!log.includes('"mode":"app-server"') || !log.includes(kickoffMark)) throw new Error('The stub codex CLI was not invoked for the task.')
-        let ego = features.ego.reason
-        if (features.ego.enabled) {
-            if (!app) throw new Error('BLINKY_APP is not set, so the packaged ego router cannot be loaded.')
-            const routed = await drivePackagedEgo({ app, stubPath: process.env.EGO_BROWSER_PATH, stubLog })
-            ego = `Routed ${routed.url} through ego-browser and read ${routed.text}.`
-        }
         writeFileSync(statePath, JSON.stringify({ agentId: agent.id, sessionId: run.sessionId, label: suggestion }))
         writeFileSync(join(out, 'core.json'), JSON.stringify({
             ok: true,
             detail: [
                 `Opened the local BlinkyBot workspace, created ${suggestion} from New coworker, and placed it on the board.`,
-                `The kickoff ran to completion. Statuses: ${seen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
+                `The kickoff ran to completion through stub Codex. Statuses: ${seen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
                 `Stub reply ${reply} is on screen and stored on the session.`,
-                ego,
                 notes.filter(Boolean).slice(-8).join('\n'),
             ].join('\n\n'),
         }, null, 2))
@@ -130,12 +128,39 @@ async function persist() {
     }
 }
 
-async function dismissOnboarding(page) {
-    const landmark = page.getByText(/get started|welcome to blinky|first run|set up blinky/i).first()
-    await landmark.waitFor({ timeout: 30_000 })
-    await page.screenshot({ path: join(shots, 'onboarding.png') })
-    const button = page.getByRole('button', { name: /continue|get started|next/i }).first()
-    await button.click({ timeout: 10_000 })
+async function ego() {
+    if (!app) throw new Error('BLINKY_APP is not set, so the packaged ego router cannot be loaded.')
+    const routed = await drivePackagedEgo({ app, stubPath: process.env.EGO_BROWSER_PATH, stubLog })
+    writeFileSync(join(out, 'ego.json'), JSON.stringify({
+        ok: true,
+        detail: `Routed ${routed.url} through ego-browser and read ${routed.text}. Dependency: ${process.env.BLINKY_EGO_KIND || 'stub'}.`,
+    }, null, 2))
+}
+
+async function egoMissing() {
+    if (!app) throw new Error('BLINKY_APP is not set, so the packaged ego router cannot be loaded.')
+    const text = await driveMissingEgo({ app })
+    writeFileSync(join(out, 'ego-missing.json'), JSON.stringify({
+        ok: true,
+        detail: `With ego-browser absent, the packaged router returns the setup message and does not open another browser.\n\n${text}`,
+    }, null, 2))
+}
+
+async function clis() {
+    if (!app) throw new Error('BLINKY_APP is not set, so the packaged CLI adapters cannot be loaded.')
+    const lines = await drivePackagedClis({ app, bin: join(out, 'bin'), stubLog, cwd: out })
+    writeFileSync(join(out, 'clis.json'), JSON.stringify({
+        ok: true,
+        detail: `Packaged adapters spawned stub Codex, Kimi, Grok, and Claude. Secrets stayed off argv.\n\n${lines.join('\n')}`,
+    }, null, 2))
+}
+
+async function workspace() {
+    throw new Error('Per-agent repo clone is on this tree, but the packaged screen for a local bare repo, a git URL, and a path without permission is not wired into this driver yet.')
+}
+
+async function rex() {
+    throw new Error('The Rex toggle is on this tree, but this driver does not yet click it with a stub rex on PATH and again with rex missing.')
 }
 
 async function installCodex() {

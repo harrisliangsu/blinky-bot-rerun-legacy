@@ -73,6 +73,118 @@ print(json.load(open(sys.argv[1], encoding="utf-8"))[sys.argv[2]]["reason"])
 PY
 }
 
+write_deps() {
+    python3 - "$OUT/deps.json" <<'PY'
+import json, os, sys
+path = sys.argv[1]
+deps = {
+    "codex": {"kind": "stub", "detail": "e2e/stubs/agent-cli.mjs via RERUN_CODEX_PATH. The coworker chat streams through this stub."},
+    "claude": {"kind": "stub", "detail": "e2e/stubs/agent-cli.mjs via RERUN_CLAUDE_PATH."},
+    "kimi": {"kind": "stub", "detail": "e2e/stubs/agent-cli.mjs via RERUN_KIMI_PATH."},
+    "grok": {"kind": "stub", "detail": "e2e/stubs/agent-cli.mjs via RERUN_GROK_PATH."},
+    "ego-browser": {"kind": os.environ.get("BLINKY_EGO_KIND", "stub"), "detail": os.environ.get("BLINKY_EGO_DETAIL", "")},
+    "rex": {"kind": "absent", "detail": "No Rex toggle is on this tree, so no rex binary is placed on PATH."},
+}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(deps, handle, indent=2)
+    handle.write("\n")
+PY
+}
+
+capture_window() {
+    local dest="$1"
+    if "$OUT/window-probe" >"$OUT/window-probe.json" 2>/dev/null; then
+        local window_id
+        window_id="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["windows"][0]["id"])' "$OUT/window-probe.json")"
+        screencapture -x -l "$window_id" "$dest" || true
+    fi
+}
+
+ax_blob() {
+    osascript <<'APPLESCRIPT' 2>/dev/null || true
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        set blob to ""
+        try
+            set blob to blob & (value of every static text of window 1 as text) & linefeed
+        end try
+        try
+            set blob to blob & (name of every button of window 1 as text) & linefeed
+        end try
+        try
+            set blob to blob & (name of every UI element of entire contents of window 1 as text)
+        end try
+        return blob
+    end tell
+end tell
+APPLESCRIPT
+}
+
+run_gated() {
+    local key="$1"
+    local file="$2"
+    local mode="$3"
+    if [[ "$(feature_enabled "$key")" == yes ]]; then
+        node "$ROOT/e2e/drive.mjs" "$mode"
+    else
+        write_json "$OUT/$file" true "$(feature_reason "$key")"
+    fi
+}
+
+dismiss_onboarding() {
+    if [[ "$(feature_enabled onboarding)" != yes ]]; then
+        write_json "$OUT/onboarding.json" true "$(feature_reason onboarding)"
+        return
+    fi
+    local text=""
+    local _try
+    for _try in $(seq 1 25); do
+        text="$(ax_blob)"
+        if printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
+            break
+        fi
+        sleep 1
+    done
+    capture_window "$OUT/screenshots/onboarding.png"
+    printf '%s\n' "$text" >"$OUT/onboarding-ax.txt"
+    if ! printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
+        if defaults read bot.blinky.shell blinkyOnboardingCompleted >/dev/null 2>&1; then
+            write_json "$OUT/onboarding.json" true "Onboarding was already completed on this Mac, so the cover did not appear."
+            return
+        fi
+        write_json "$OUT/onboarding.json" false "The first-run cover did not show Set up tools on this Mac. Accessibility text: ${text}"
+        exit 1
+    fi
+    if ! osascript <<'APPLESCRIPT'
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        click (first button of (entire contents of window 1) whose title is "Skip")
+    end tell
+end tell
+APPLESCRIPT
+    then
+        osascript <<'APPLESCRIPT' || true
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        key code 53
+    end tell
+end tell
+APPLESCRIPT
+    fi
+    sleep 1
+    text="$(ax_blob)"
+    printf '%s\n' "$text" >"$OUT/onboarding-after.txt"
+    capture_window "$OUT/screenshots/onboarding-dismissed.png"
+    if printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
+        write_json "$OUT/onboarding.json" false "Skip left the first-run cover on screen."
+        exit 1
+    fi
+    write_json "$OUT/onboarding.json" true "The first-run screen showed Set up tools on this Mac. Skip dismissed it."
+}
+
 stop_app() {
     if [[ -n "$APP_PID" ]] && kill -0 "$APP_PID" 2>/dev/null; then
         kill "$APP_PID" 2>/dev/null || true
@@ -145,7 +257,32 @@ prepare_stubs() {
     export E2E_OUT="$OUT"
     export BLINKY_REPO_ROOT="$ROOT"
     export BLINKY_APP="$APP"
+    export BLINKY_ONBOARDING_LANG=en
     export EGO_BROWSER_PATH="$OUT/bin/ego-browser"
+    export BLINKY_EGO_KIND=stub
+    export BLINKY_EGO_DETAIL="Install did not produce a helper. Routing uses e2e/stubs/ego-browser."
+    if "$ROOT/e2e/ego-real.sh" "$OUT/bin/ego-browser-real" >"$OUT/ego-real.path" 2>"$OUT/ego-install.log"; then
+        export BLINKY_EGO_KIND=real
+        export BLINKY_EGO_DETAIL="Helper copied to $OUT/bin/ego-browser-real. Page routing still uses the stub, because the ego host is not signed in on the runner."
+        "$OUT/bin/ego-browser-real" nodejs </dev/null >"$OUT/ego-real.out" 2>"$OUT/ego-real.err" &
+        local real_pid=$!
+        local _try
+        for _try in 1 2 3 4 5 6 7 8; do
+            kill -0 "$real_pid" 2>/dev/null || break
+            sleep 1
+        done
+        if kill -0 "$real_pid" 2>/dev/null; then
+            kill "$real_pid" 2>/dev/null || true
+            wait "$real_pid" 2>/dev/null || true
+        else
+            wait "$real_pid" 2>/dev/null || true
+        fi
+        if grep -q 'BLINKY_EGO_JSON' "$OUT/ego-real.out" 2>/dev/null; then
+            export EGO_BROWSER_PATH="$OUT/bin/ego-browser-real"
+            export BLINKY_EGO_DETAIL="The installed ego-browser printed a page payload, so routing uses that binary."
+        fi
+    fi
+    write_deps
 }
 
 node "$ROOT/e2e/feature-gates.mjs" "$ROOT" >"$OUT/features.json"
@@ -203,34 +340,74 @@ else:
     detail += " Accessibility permission was not granted, so toolbar buttons were checked through the window title only."
 json.dump({"ok": True, "detail": detail}, open(f"{out}/window.json", "w"), indent=2)
 PY
-window_id="$(python3 -c 'import json; print(json.load(open("'"$OUT"'/window-probe.json"))["windows"][0]["id"])')"
-screencapture -x -l "$window_id" "$OUT/screenshots/blinky-window.png" || true
+capture_window "$OUT/screenshots/blinky-window.png"
+dismiss_onboarding
 
 BLINKY_API_KEY="$(tr -d '[:space:]' < "$SUPPORT/engine-api-key")"
 export BLINKY_API_KEY
 node "$ROOT/e2e/drive.mjs" core
+node "$ROOT/e2e/drive.mjs" clis
+run_gated ego ego.json ego
+run_gated ego ego-missing.json ego-missing
+run_gated workspaceClone workspace.json workspace
+run_gated rex rex.json rex
 
 if [[ "$(feature_enabled menuBar)" == yes ]]; then
-    if ! osascript <<'APPLESCRIPT'
+    menu_titles=""
+    if ! menu_titles="$(osascript 2>&1 <<'APPLESCRIPT'
 tell application "System Events"
     tell process "BlinkyBot"
         set frontmost to true
         if (count of menu bars) < 2 then error "BlinkyBot has no status menu bar"
         if (count of menu bar items of menu bar 2) < 1 then error "BlinkyBot status menu bar is empty"
+        perform action "AXPress" of menu bar item 1 of menu bar 2
+        delay 0.6
+        set titles to {}
+        repeat with itemRef in menu items of menu 1 of menu bar item 1 of menu bar 2
+            set end of titles to name of itemRef
+        end repeat
+        set AppleScript's text item delimiters to " | "
+        return titles as text
     end tell
 end tell
-tell application "BlinkyBot" to close every window
-delay 2
+APPLESCRIPT
+)"; then
+        write_json "$OUT/menubar.json" false "Menu bar / background mode is on this tree, but the status item was not there. ${menu_titles}"
+        exit 1
+    fi
+    printf '%s\n' "$menu_titles" >"$OUT/menu-titles.txt"
+    capture_window "$OUT/screenshots/menu-bar.png"
+    for needle in "Open BlinkyBot" "Restart Services" "Quit"; do
+        if ! printf '%s' "$menu_titles" | grep -q "$needle"; then
+            write_json "$OUT/menubar.json" false "The status menu did not include ${needle}. Titles: ${menu_titles}"
+            exit 1
+        fi
+    done
+    if ! osascript <<'APPLESCRIPT'
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        key code 53
+        delay 0.3
+        click (first button of window 1 whose subrole is "AXCloseButton")
+    end tell
+end tell
 APPLESCRIPT
     then
-        write_json "$OUT/menubar.json" false "Menu bar / background mode is on this tree, but the status item was not there."
+        write_json "$OUT/menubar.json" false "The status menu was ${menu_titles}, but the window close button could not be clicked."
         exit 1
     fi
+    sleep 2
     if ! kill -0 "$APP_PID" 2>/dev/null; then
-        write_json "$OUT/menubar.json" false "Closing the window quit BlinkyBot, so background mode is not on."
+        write_json "$OUT/menubar.json" false "Closing the window quit BlinkyBot. Menu titles: ${menu_titles}"
         exit 1
     fi
-    write_json "$OUT/menubar.json" true "The menu bar shows BlinkyBot, and closing the window leaves the app running."
+    if ! curl -fsS "http://127.0.0.1:${ENGINE_PORT}/health" >/dev/null; then
+        write_json "$OUT/menubar.json" false "Closing the window left the process up, but the engine health check stopped."
+        exit 1
+    fi
+    capture_window "$OUT/screenshots/after-close.png"
+    write_json "$OUT/menubar.json" true "The status menu lists ${menu_titles}. Closing the window leaves BlinkyBot and the engine running."
 else
     write_json "$OUT/menubar.json" true "$(feature_reason menuBar)"
 fi
@@ -251,18 +428,33 @@ if [[ "$(feature_enabled crashDiagnostics)" == yes ]]; then
     HOLDER_PID=$!
     sleep 0.5
     launch_app "$OUT/app-crash.out"
-    sleep 8
-    text="$(osascript -e 'tell application "System Events" to get value of every static text of process "BlinkyBot"' || true)"
-    printf '%s\n' "$text" >"$OUT/crash-ax.txt"
+    text=""
+    for _try in $(seq 1 20); do
+        text="$(ax_blob)"
+        printf '%s\n' "$text" >"$OUT/crash-ax.txt"
+        if printf '%s' "$text" | grep -q 'That port is already in use'; then
+            break
+        fi
+        sleep 1
+    done
+    capture_window "$OUT/screenshots/crash.png"
     if printf '%s' "$text" | grep -q -E 'Traceback|EXC_BAD|fatal error'; then
-        write_json "$OUT/crash.json" false "The failure view showed a raw crash instead of a friendly message."
+        write_json "$OUT/crash.json" false "The failure view showed a raw crash instead of a friendly message. Accessibility text: ${text}"
         exit 1
     fi
-    if ! printf '%s' "$text" | grep -q -E 'already in use|did not start|could not start|Something went wrong|diagnostics'; then
-        write_json "$OUT/crash.json" false "Held the engine port but the window did not show a friendly failure. Accessibility text: ${text}"
+    if ! printf '%s' "$text" | grep -q 'That port is already in use'; then
+        write_json "$OUT/crash.json" false "Held the engine port but the window did not show That port is already in use. Accessibility text: ${text}"
         exit 1
     fi
-    write_json "$OUT/crash.json" true "With the engine port held by another process, BlinkyBot showed a friendly failure and no stack trace."
+    if ! printf '%s' "$text" | grep -q 'Retry' || ! printf '%s' "$text" | grep -q 'Copy Diagnostics'; then
+        write_json "$OUT/crash.json" false "The port failure did not offer Retry and Copy Diagnostics. Accessibility text: ${text}"
+        exit 1
+    fi
+    if ! kill -0 "$APP_PID" 2>/dev/null; then
+        write_json "$OUT/crash.json" false "BlinkyBot exited while showing the port failure."
+        exit 1
+    fi
+    write_json "$OUT/crash.json" true "With the engine port held by another process, BlinkyBot showed That port is already in use, Retry, and Copy Diagnostics, and no stack trace."
     stop_app
     kill "$HOLDER_PID" 2>/dev/null || true
     HOLDER_PID=""

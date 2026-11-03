@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { fileURLToPath } from 'node:url'
 import { probeFeatures } from './feature-gates.mjs'
 
 test('feature hooks stay skipped until their code is on the tree', () => {
@@ -37,6 +38,33 @@ test('a landed marker enables only that hook', () => {
     assert.match(features.crashDiagnostics.reason, /bc-0a7b6354/)
     assert.equal(features.ego.enabled, true)
     assert.match(features.ego.reason, /ego-browser/)
+    assert.equal(features.workspaceClone.enabled, false)
+    assert.equal(features.rex.enabled, false)
+})
+
+test('the service error view turns on crash diagnostics without turning on Rex', () => {
+    const root = tree({
+        'apps/mac-shell/Sources/BlinkyBot/BlinkyBotApp.swift': 'MenuBarExtra { MenuBarMenu() }',
+        'apps/mac-shell/Sources/BlinkyBot/ServiceErrorView.swift': 'struct ServiceErrorView: View {}',
+        'apps/mac-shell/Sources/BlinkyLocalRuntime/ServiceDiagnostics.swift': 'title: "That port is already in use"',
+    })
+    const features = probeFeatures(root)
+    assert.equal(features.menuBar.enabled, true)
+    assert.equal(features.crashDiagnostics.enabled, true)
+    assert.match(features.crashDiagnostics.reason, /That port is already in use|ServiceErrorView/)
+    assert.equal(features.rex.enabled, false)
+    assert.equal(features.workspaceClone.enabled, false)
+})
+
+test('this checkout runs the cases whose code is already on main', () => {
+    const root = fileURLToPath(new URL('..', import.meta.url))
+    const features = probeFeatures(root)
+    assert.equal(features.onboarding.enabled, true)
+    assert.equal(features.menuBar.enabled, true)
+    assert.equal(features.crashDiagnostics.enabled, true)
+    assert.equal(features.ego.enabled, true)
+    assert.equal(features.workspaceClone.enabled, false)
+    assert.equal(features.rex.enabled, false)
 })
 
 function tree(files) {

@@ -9,9 +9,11 @@ export function probeFeatures(root) {
     const appFiles = filesUnder(join(root, 'apps'), ['.swift', '.ts', '.tsx', '.plist', '.mjs'])
     return {
         onboarding: gate('bc-1f5db870', 'first-run onboarding', onboardingHit(macFiles)),
-        menuBar: gate('bc-0a7b6354', 'menu bar and background mode', textHit(macFiles, ['MenuBarExtra', 'NSStatusItem', 'LSUIElement'])),
-        crashDiagnostics: gate('bc-0a7b6354', 'crash diagnostics error view', textHit(macFiles, ['CrashDiagnostic', 'DiagnosticsErrorView', 'blinky-crash-diagnostics'])),
+        menuBar: gate('bc-0a7b6354', 'menu bar and background mode', textHit(macFiles, ['MenuBarExtra', 'MenuBarMenu'])),
+        crashDiagnostics: gate('bc-0a7b6354', 'crash diagnostics error view', textHit(macFiles, ['ServiceErrorView', 'That port is already in use'])),
         ego: gate('bc-6644260a', 'ego(lite) browser routing', textHit(appFiles, ['ego-browser'])),
+        workspaceClone: gate('workspace-clone', 'per-agent workspace and repo clone', textHit(appFiles, ['cloneRepository', 'RepoClone'])),
+        rex: gate('rex', 'Rex toggle', textHit(appFiles, ['RexToggle', 'struct Rex'])),
     }
 }
 

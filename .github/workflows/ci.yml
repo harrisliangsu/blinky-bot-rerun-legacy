@@ -28,11 +28,11 @@ jobs:
       - run: pnpm --filter rerun-engine test
       - run: pnpm bundle:check
       - run: python3 Scripts/appcast_test.py
-      - run: node --test e2e/feature-gates.test.mjs e2e/stub.test.mjs
+      - run: node --test e2e/feature-gates.test.mjs e2e/stub.test.mjs e2e/report.test.mjs
       - run: python3 e2e/sparkle_sign_test.py
 
   mac-shell:
-    name: Mac shell build, tests, and bundle
+    name: Mac shell tests
     # Swift tests only. The packaged app is installed and exercised by the E2E workflow.
     runs-on: macos-14
     steps:
