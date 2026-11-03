@@ -1,5 +1,13 @@
 # Install Rerun: a guide for AI assistants
 
+This file is the **upstream Rerun server install**. It uses Docker and Supabase. It is not the
+BlinkyBot Phase 1 install on a Mac.
+
+BlinkyBot Phase 1 on a Mac is install and open. The app starts a local engine and the local
+Compose UI on `127.0.0.1`. No Docker, no Supabase project. Follow
+[docs/no-docker-runtime.md](docs/no-docker-runtime.md) and [docs/phase1.md](docs/phase1.md).
+Use the steps below only when the person asked for the upstream server stack.
+
 You are helping someone install Rerun, an open source app where AI coworkers do work for a team.
 This file tells you how to get them from nothing to the Foreman, Rerun's guide, answering in their
 browser. The full human guide is https://docs.rerun.build/self-host/install: read it when a step

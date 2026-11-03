@@ -1,4 +1,9 @@
-# Rerun on one machine: the web app and the engine of your first workspace.
+# Upstream / developer only. This is the Rerun self-host stack (web app + first engine).
+# BlinkyBot Phase 1 on a Mac does not use this file. The install path is the Mac app,
+# which starts a local engine and the local UI with no Docker and no Supabase.
+# See docs/no-docker-runtime.md.
+#
+# Use this file to reproduce the upstream server:
 #
 #   cp .env.example .env && node scripts/self-host-check.mjs   # fills the secrets, checks the rest
 #   docker compose up -d --build

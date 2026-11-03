@@ -8,6 +8,10 @@ Rerun is an app of AI coworkers. You tell it what you need done, its guide (the 
 
 The open source build is the same product Rerun Cloud runs, licensed under AGPL-3.0, for you to host. No plan, no credit, no limit on coworkers or seats.
 
+<Note>
+  This section is the upstream Rerun server install. It uses Docker and Supabase. BlinkyBot Phase 1 on a Mac does not. Open the Mac app and it starts a local engine and the local UI on that machine. The contract in the BlinkyBot repo is `docs/no-docker-runtime.md`. `docker-compose.yml` stays here for this server path.
+</Note>
+
 <CardGroup cols={2}>
   <Card title="Install it" icon="rocket" href="/self-host/install">
     One `docker compose` command, about ten minutes.

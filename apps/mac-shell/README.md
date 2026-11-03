@@ -1,6 +1,10 @@
 # BlinkyBot Mac shell
 
-Phase 1 native shell for **BlinkyBot**. It is a SwiftUI window with a `WKWebView` that loads **Rerun Compose** — the web app in [`apps/ui`](../ui) — from this Mac. It does not embed the engine, and it does not add Rex, Ego Browser, or a separate cloud account.
+Phase 1 native shell for **BlinkyBot**. It is a SwiftUI window with a `WKWebView` that loads **Compose** — the web app in [`apps/ui`](../ui) — from this Mac. It does not add Rex, Ego Browser, or a separate cloud account.
+
+Phase 1 installs by opening this app. The app is the supervisor: it starts a local engine and the local UI on `127.0.0.1`, then the window loads the UI. Docker is not part of that path, and a Supabase project is not part of it. The commands, ports, Application Support layout, and local-auth contract are [docs/no-docker-runtime.md](../../docs/no-docker-runtime.md).
+
+The sources in this directory are the window. They load a URL. They do not yet spawn the engine or the UI. The PR that adds that supervision implements the contract. Until it lands, the developer loop below can start the two Node processes without Docker.
 
 This tree was written on Linux. **It has not been built or launched as a Mac app.** A green `swift test` on Linux only covers URL selection. Build the `.app` on a Mac before treating the window as done.
 
@@ -8,17 +12,18 @@ This tree was written on Linux. **It has not been built or launched as a Mac app
 
 Default: **`http://127.0.0.1:3000`**
 
-That is the self-hosted web app, not the engine.
+That is the local Compose UI, not the engine.
 
-| How Compose is started | Open this in BlinkyBot | Do not open this |
+| How the UI is started | Open this in BlinkyBot | Engine |
 | --- | --- | --- |
-| `docker compose up -d --build` from the repo root | `http://127.0.0.1:3000` | Engine on `http://127.0.0.1:3001` |
-| `pnpm dev:ui` (and `pnpm dev:engine` beside it) | `http://127.0.0.1:3050` | Engine on `http://127.0.0.1:3000` |
+| Phase 1 app (the install path; see [no-docker-runtime.md](../../docs/no-docker-runtime.md)) | `http://127.0.0.1:3000` | `http://127.0.0.1:3001` |
+| `pnpm dev:ui` (and `pnpm dev:engine` beside it) | `http://127.0.0.1:3050` | `http://127.0.0.1:3000` |
+| Upstream `docker compose` (server reproduction only) | `http://127.0.0.1:3000` | `http://127.0.0.1:3001` |
 
 Why those ports:
 
-- [`docker-compose.yml`](../../docker-compose.yml) publishes the `app` service as `${RERUN_APP_PORT:-3000}:3000`. [`.env.example`](../../.env.example) sets `RERUN_APP_PORT=3000`. Inside the image, [`apps/ui/Dockerfile`](../ui/Dockerfile) runs `next start` with `PORT=3000`.
-- The engine container is published as `${RERUN_ENGINE_PORT:-3001}:3000`. From the Mac that is port **3001**. The shell never loads it.
+- The Phase 1 supervisor binds the UI with `next start -H 127.0.0.1 -p 3000` and the engine with `RERUN_PORT=3001`. The shell loads the UI. It never loads the engine port.
+- [`docker-compose.yml`](../../docker-compose.yml) publishes the same pair for the upstream server (`${RERUN_APP_PORT:-3000}:3000` and `${RERUN_ENGINE_PORT:-3001}:3000`). That file is not the install path. Inside the image, [`apps/ui/Dockerfile`](../ui/Dockerfile) runs `next start` with `PORT=3000`.
 - From source, [`apps/ui/package.json`](../ui/package.json) runs `next dev -p 3050` (`pnpm dev:ui`). [`CONTRIBUTING.md`](../../CONTRIBUTING.md) sets `NEXT_PUBLIC_APP_URL=http://localhost:3050`. In that layout the engine takes port 3000, so the shell's default would show the engine API until you point it at **3050**.
 
 Check which process owns the port before the first launch:
@@ -29,35 +34,24 @@ curl -sS http://127.0.0.1:3000/api/version
 
 A small JSON body is the web app (Compose). If you instead get the engine (`curl -sS http://127.0.0.1:3000/health` → `{"status":"ok",...}`), you are on the dev engine. Set the shell to `http://127.0.0.1:3050`.
 
-`127.0.0.1` is intentional. `localhost` can resolve to IPv6 `::1` first, and Docker's published port is IPv4, so the web view would sit on a connection error. The page itself may still redirect to whatever `NEXT_PUBLIC_APP_URL` was when the app was built (`http://localhost:3000` in `.env.example`, baked in at image build). If the UI loads and sign-in then jumps to a host that does not connect, set `NEXT_PUBLIC_APP_URL` to the same origin the shell opens and rebuild the `app` image, or set the shell to `http://localhost:3000` in Settings.
+`127.0.0.1` is intentional. `localhost` can resolve to IPv6 `::1` first. The page itself may still redirect to whatever `NEXT_PUBLIC_APP_URL` was when the UI was built. The Phase 1 bundle bakes `http://127.0.0.1:3000`. The upstream image bakes the value from `.env.example` (`http://localhost:3000`). If a page loads and then jumps to a host that does not connect, rebuild the UI with `NEXT_PUBLIC_APP_URL` set to the origin the shell opens.
 
-## Run Compose, then open the shell
+## Open the app
 
-### Self-host (matches the default URL)
+The install path is the `.app`. Once supervision lands, a launch from Finder or the Dock starts the engine and the UI, then loads `http://127.0.0.1:3000`. It does not read a repo `.env`, and it does not need Docker. Build steps for the window are below. The processes it must start are in [docs/no-docker-runtime.md](../../docs/no-docker-runtime.md).
 
-From the repository root, follow [INSTALL.md](../../INSTALL.md) or the root [README](../../README.md): Docker, Node 22, a Supabase project, then:
+### Developer loop (no Docker)
 
-```bash
-cp .env.example .env
-node scripts/self-host-check.mjs
-npx supabase link --project-ref <your-project-ref> && npx supabase db push --include-seed
-docker compose up -d --build
-curl -sS http://127.0.0.1:3000/api/version
-```
-
-Leave that stack running. Build and run BlinkyBot (below). The window loads `http://127.0.0.1:3000`. A launch from Finder or the Dock does not inherit variables from your terminal; the default does not need one.
-
-### Dev servers (port 3050)
+From a checkout, with Node 22. This is how you work on the window before the app supervises it. It is not the install path. A signed-in board in this loop still follows [CONTRIBUTING.md](../../CONTRIBUTING.md), which uses local Supabase. The Phase 1 install sets `BLINKY_LOCAL_AUTH=1` and uses `local-auth.sqlite` instead of that database.
 
 ```bash
 pnpm install
-npx supabase start
 pnpm --filter @rerun/contracts build
 pnpm dev:engine    # http://127.0.0.1:3000  — engine, not the window
 pnpm dev:ui        # http://127.0.0.1:3050  — this is Compose
 ```
 
-Fill `apps/ui/.env` as in [CONTRIBUTING.md](../../CONTRIBUTING.md). Point the shell at port 3050 before expecting the UI. Either set `http://127.0.0.1:3050` in BlinkyBot → Settings and click **Save and reload**, or for one launch from Terminal (macOS 14 `open` forwards `--env` into the app):
+Point the shell at port 3050 before expecting the UI. Either set `http://127.0.0.1:3050` in BlinkyBot → Settings and click **Save and reload**, or for one launch from Terminal (macOS 14 `open` forwards `--env` into the app):
 
 ```bash
 open -n --env BLINKY_COMPOSE_URL=http://127.0.0.1:3050 /path/to/BlinkyBot.app
@@ -67,7 +61,18 @@ open -n --env BLINKY_COMPOSE_URL=http://127.0.0.1:3050 /path/to/BlinkyBot.app
 
 The Xcode product lives under DerivedData (Product → Show Build Folder in Finder), not in this directory. You can also set `BLINKY_COMPOSE_URL` on the BlinkyBot scheme (Run → Arguments → Environment Variables). `swift run` inherits the variable from the shell; the XcodeGen `.app` is still the launch path that carries `Info.plist`.
 
-Signing in still happens inside the web view (Compose's own Supabase session). Mailpit for local codes is `http://localhost:54424`.
+To exercise the Phase 1 ports from a checkout, build and start the two servers the way the app will, with the environment in [docs/no-docker-runtime.md](../../docs/no-docker-runtime.md): UI on `127.0.0.1:3000`, engine on `127.0.0.1:3001`. Then the shell default is already the right URL.
+
+```bash
+curl -sS http://127.0.0.1:3000/api/version
+curl -sS http://127.0.0.1:3001/health
+```
+
+### Upstream Docker stack
+
+`docker compose` reproduces the Rerun server. Leave it for that. The steps are [INSTALL.md](../../INSTALL.md) and the root [README](../../README.md). The shell does not require it. If that stack is what is listening, the default URL `http://127.0.0.1:3000` is the `app` container, and the engine is on port 3001.
+
+On the Phase 1 path, signing in is the local session in `~/Library/Application Support/BlinkyBot/local-auth.sqlite` (one user, cookie on `127.0.0.1`). The upstream contributor loop still uses Compose's Supabase session. Mailpit for those local codes is `http://localhost:54424`.
 
 ## Build on a Mac
 
@@ -134,24 +139,26 @@ Bundle id: `bot.blinky.shell`. Settings is also in the app menu (Command-,). **C
 - The web view is inspectable (Safari-style web inspector from the context menu, when WebKit inspection is allowed).
 - Compose menu: Back (Command-[), Forward (Command-]), Reload (Command-R), Open configured URL (Command-Shift-R) which loads the resolved base URL again.
 
-The coworker's screen viewer, when Compose shows one, is still the page talking to the engine (docker: `http://localhost:3001`, `RERUN_ENGINE_BROWSER_URL`). The shell does not proxy that port. Both the web app and the published engine port have to be reachable from this Mac.
+The coworker's screen viewer, when Compose shows one, is still the page talking to the engine (`RERUN_ENGINE_BROWSER_URL`, `http://127.0.0.1:3001` on the Phase 1 path). The shell does not proxy that port. The UI and the engine both have to be reachable on loopback. Phase 1 sets `RERUN_DESKTOP=off`, so that viewer stays off the install path. Ego Browser remains in the engine tree.
 
 ## Phase 1 constraints
 
-In this directory, and only this:
+This directory is the Mac window:
 
-- A Mac window that loads a configurable local Compose URL.
+- A window that loads a configurable local Compose URL. The install default is `http://127.0.0.1:3000`.
 - About with the BlinkyBot name and AGPL-3.0.
 - Notes for building that window on a Mac.
 
-Not in this change:
+The app is also the process supervisor described in [docs/no-docker-runtime.md](../../docs/no-docker-runtime.md). That supervision is not in these sources yet.
+
+Out of scope here:
 
 - Rex
 - Ego Browser
 - BlinkyBot cloud auth, billing, or a second login client
-- Changes to Compose (`apps/ui`), the engine, or Docker
+- Requiring Docker or Supabase to open the app
 
-Compose's own sign-in stays inside the web view. That is the existing app, unmodified.
+Local auth for the Phase 1 boot lives in the UI, behind `BLINKY_LOCAL_AUTH=1`. The window does not add its own login client.
 
 ## Layout
 

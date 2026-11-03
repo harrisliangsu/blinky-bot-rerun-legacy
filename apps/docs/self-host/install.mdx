@@ -6,6 +6,10 @@ description: "From an empty machine to your first coworker, with docker compose.
 
 This page takes about ten minutes, plus the time Docker needs to build the two images the first time.
 
+<Note>
+  This is the upstream Rerun server install (`docker compose` and Supabase). BlinkyBot Phase 1 on a Mac does not follow this page. The Mac app starts a local engine and the local UI without Docker. In the BlinkyBot repo that contract is `docs/no-docker-runtime.md`, and `docker-compose.yml` is the file this page drives.
+</Note>
+
 ## Before you start
 
 - **Docker** with Docker Compose. Give Docker at least 6 GB of memory: the app build needs it, and 60 GB of disk: the images and the build cache take about 40.

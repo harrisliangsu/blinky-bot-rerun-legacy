@@ -5,7 +5,7 @@ pull request gets in.
 
 ## Run it from source
 
-You need Node 22, pnpm 8 (`corepack enable`), Docker (for the local Supabase) and an OpenRouter key.
+You need Node 22, pnpm 8 (`corepack enable`), Docker (for the local Supabase) and an OpenRouter key. That is the upstream from-source loop. The BlinkyBot Phase 1 Mac install does not use it: the app starts a local engine and local UI with no Docker and no Supabase. See [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
 
 ```bash
 pnpm install
