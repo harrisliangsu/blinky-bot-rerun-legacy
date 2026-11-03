@@ -104,9 +104,9 @@ struct LocalStackSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             HStack {
-                Button("Save overrides", action: settings.save)
+                Button("Save overrides") { settings.save() }
                     .disabled(!settings.portsAreValid)
-                Button("Use defaults", action: settings.clear)
+                Button("Use defaults") { settings.clear() }
             }
         }
     }
