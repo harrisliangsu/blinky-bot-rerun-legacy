@@ -32,7 +32,6 @@ targets:
     dependencies:
       - package: Sparkle
         product: Sparkle
-        embed: true
     sources:
       - path: Sources/BlinkyBot
       - path: Sources/BlinkyComposeURL
