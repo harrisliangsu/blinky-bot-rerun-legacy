@@ -29,6 +29,7 @@ import {
     nodeMajorProblem,
     nonRelocatableLibraries,
     patchInfoPlist,
+    patchSparklePlist,
     readVersion,
     symlinkEscapesRoot,
     versionAlignmentProblems,
@@ -49,7 +50,7 @@ describe('VERSION', () => {
 
     it('matches the Mac shell marketing version and the server package versions', () => {
         const { version, problems } = alignmentProblems(repoRoot)
-        assert.equal(version, '0.1.1')
+        assert.equal(version, '0.1.2')
         assert.deepEqual(problems, [])
         const yml = readFileSync(join(repoRoot, 'apps/mac-shell/project.yml'), 'utf8')
         assert.equal(marketingVersion(yml), version)
@@ -283,6 +284,18 @@ describe('Info.plist version', () => {
         assert.throws(() => patchInfoPlist('<plist><dict></dict></plist>', '0.1.0'), /CFBundleShortVersionString/)
         assert.throws(() => patchInfoPlist(xml, 'nope'), /major\.minor\.patch/)
     })
+
+    it('writes the Sparkle feed and the public key', () => {
+        const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+\t<key>SUFeedURL</key><string>https://example.invalid/appcast.xml</string>
+</dict></plist>
+`
+        const patched = patchSparklePlist(xml, 'https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml', 'abc=')
+        assert.match(patched, /harrisliangsu\/blinky-bot\/main\/appcast\.xml/)
+        assert.match(patched, /<key>SUPublicEDKey<\/key>\s*<string>abc=<\/string>/)
+        assert.throws(() => patchSparklePlist(xml, 'http://insecure.example/appcast.xml', 'abc='), /https/)
+    })
 })
 
 describe('Scripts/bundle.sh', () => {
@@ -290,6 +303,8 @@ describe('Scripts/bundle.sh', () => {
 
     it('stages the runtime, stamps the plist, and does not call docker', () => {
         assert.match(source, /patch-plist/)
+        assert.match(source, /patch-sparkle/)
+        assert.match(source, /Sparkle\.framework/)
         assert.match(source, /verify-runtime/)
         assert.match(source, /audit-symlinks/)
         assert.match(source, /contain-links/)
@@ -307,7 +322,7 @@ describe('Scripts/bundle.sh', () => {
         const result = spawnSync('bash', [bundleSh, '--plan'], { cwd: repoRoot, encoding: 'utf8' })
         assert.equal(result.status, 0, result.stderr)
         assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
-        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.1/)
+        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.2/)
     })
 
     it('refuses to assemble an app when the host is not macOS', () => {

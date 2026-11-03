@@ -211,6 +211,28 @@ ditto "$stage/ui" "$app/Contents/Resources/runtime/ui"
 
 plutil -convert xml1 "$app/Contents/Info.plist"
 node Scripts/plan.mjs patch-plist "$app/Contents/Info.plist"
+repo="${GITHUB_REPOSITORY:-}"
+if [[ -z "$repo" ]]; then
+    origin="$(git remote get-url origin 2>/dev/null || true)"
+    repo="$(printf '%s' "$origin" | sed -E 's#(git@github.com:|https://github.com/|ssh://git@github.com/)##; s#\.git$##')"
+fi
+if [[ "$repo" != */* ]]; then
+    echo "Could not tell which GitHub repository this is. Set GITHUB_REPOSITORY." >&2
+    exit 1
+fi
+feed="https://raw.githubusercontent.com/${repo}/main/appcast.xml"
+public_key="$(tr -d '[:space:]' < Scripts/sparkle-public-key.txt)"
+node Scripts/plan.mjs patch-sparkle "$app/Contents/Info.plist" "$feed" "$public_key"
+if [[ ! -d "$app/Contents/Frameworks/Sparkle.framework" ]]; then
+    framework="$(find "$derived" "$PWD/apps/mac-shell/.build" -type d -name 'Sparkle.framework' 2>/dev/null | head -1 || true)"
+    if [[ -z "$framework" ]]; then
+        echo "Sparkle.framework is missing from the app and from the build products." >&2
+        exit 1
+    fi
+    mkdir -p "$app/Contents/Frameworks"
+    ditto "$framework" "$app/Contents/Frameworks/Sparkle.framework"
+fi
+install_name_tool -add_rpath "@executable_path/../Frameworks" "$app/Contents/MacOS/BlinkyBot" 2>/dev/null || true
 if ! node Scripts/plan.mjs assert-plist-version "$app/Contents/Info.plist" \
     || ! node Scripts/plan.mjs verify-runtime "$app/Contents/Resources/runtime" \
     || ! node Scripts/plan.mjs audit-symlinks "$app/Contents/Resources/runtime"; then
@@ -221,6 +243,11 @@ fi
 # Node is signed without the hardened runtime so V8 can JIT. The Swift
 # executable keeps the hardened runtime. --deep would put that flag on Node.
 identity="${CODESIGN_IDENTITY:--}"
+# Sparkle ships XPC services. Sign that framework before the app seal.
+# Do not use --deep on the app: that flag would put the hardened runtime on Node.
+if [[ -d "$app/Contents/Frameworks/Sparkle.framework" ]]; then
+    codesign --force --deep --sign "$identity" "$app/Contents/Frameworks/Sparkle.framework"
+fi
 find "$app/Contents/Resources/runtime" -type f \( -name '*.node' -o -perm -111 \) > "$stage/sign-list"
 while IFS= read -r bin; do
     if file "$bin" | grep -q 'Mach-O'; then

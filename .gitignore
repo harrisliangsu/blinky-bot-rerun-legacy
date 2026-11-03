@@ -12,6 +12,10 @@ __pycache__/
 !.env.example
 .DS_Store
 *.log
+# Sparkle's private half. The public half is Scripts/sparkle-public-key.txt.
+# The private half is the SPARKLE_PRIVATE_KEY Actions secret, never a file in git.
+Scripts/sparkle-private-key.txt
+private-key-file
 
 /AGENTS.md
 .temp

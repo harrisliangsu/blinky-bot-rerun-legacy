@@ -18,7 +18,13 @@ This build is not notarized. If macOS blocks the first launch, open BlinkyBot, d
 
 BlinkyBot then starts the local engine on `127.0.0.1:3001` and the Compose UI on `127.0.0.1:3000`, and shows the board. You do not install Docker, Node, or pnpm, and you do not create a Supabase project.
 
-A zip of the same app is attached to the release for people who do not want a disk image. Unzip it and drag BlinkyBot to Applications.
+A zip of the same app is attached to the release for people who do not want a disk image. Unzip it and drag BlinkyBot to Applications. Sparkle installs that zip, not the disk image.
+
+## Updates
+
+BlinkyBot 0.1.2 and later check for a new version about every 12 hours, and BlinkyBot → Check for Updates… asks now. Settings → Updates turns the automatic check off. There is no beta channel. An update is the full app. BlinkyBot stops the local engine and Compose, then installs and relaunches.
+
+0.1.1 does not contain the updater. Install 0.1.2 from the disk image once. After that, newer versions can update in place. Details: [docs/releasing.md](docs/releasing.md).
 
 ## What you get
 
@@ -66,4 +72,4 @@ BlinkyBot 是跑在 Mac 上的本地智能体中枢。安装方式是下载磁�
 
 本仓库是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0-only）。Rerun 的名称与标识仍属于上游，BlinkyBot 不声称获得 Rerun 背书。见 [TRADEMARK.md](TRADEMARK.md)。
 
-发布说明见 [docs/releasing.md](docs/releasing.md)。上游 Rerun 服务器安装（不是第一阶段）见 [docs/upstream-server.md](docs/upstream-server.md)。
+从 0.1.2 起，应用大约每 12 小时检查一次更新，菜单里的「Check for Updates…」可以马上检查。0.1.1 没有更新器，需要先手动安装 0.1.2。发布说明见 [docs/releasing.md](docs/releasing.md)。上游 Rerun 服务器安装（不是第一阶段）见 [docs/upstream-server.md](docs/upstream-server.md)。

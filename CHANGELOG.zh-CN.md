@@ -8,6 +8,12 @@ GitHub Release 由 [Scripts/release-notes.py](Scripts/release-notes.py) 生成�
 
 应用版本就是这个标题，与 `VERSION` 文件以及 tag `v` 加该版本一致。
 
+## 0.1.2
+
+- **BlinkyBot 可以自己更新。** BlinkyBot 菜单里有「Check for Updates…」。已安装的应用大约每 12 小时也会找一次新版本。设置里的 Updates 可以关掉自动检查。没有测试通道。
+- **一次更新就是完整的应用。** Sparkle 安装的是发布页上的 zip，不是差分包，也不是磁盘映像。替换应用之前，BlinkyBot 会先停掉本地 Engine 和 Compose，然后再重新打开。
+- **0.1.1 里没有更新器。** 需要先从磁盘映像手动安装 0.1.2。之后的版本可以在应用里更新。
+
 ## 0.1.1
 
 - **Mac 应用在没有 Supabase 项目时也能打开。** 本地模式不再在第一屏创建 Supabase 客户端，缺少项目 URL 或 API key 不会让看板崩溃。

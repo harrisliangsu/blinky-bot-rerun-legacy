@@ -28,6 +28,12 @@ struct BlinkyBotApp: App {
                     AboutBlinkyBot.show()
                 }
             }
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") {
+                    AppUpdate.shared.check()
+                }
+                .disabled(!AppUpdate.shared.canCheck)
+            }
         }
 
         Settings {

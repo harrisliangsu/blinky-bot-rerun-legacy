@@ -10,6 +10,12 @@ bullets, `**bold**`, `` `code` `` and `[links](https://example.com)`.
 
 The app version is this heading. It matches the `VERSION` file and the tag `v` + that version.
 
+## 0.1.2
+
+- **BlinkyBot can update itself.** Check for Updates… is in the BlinkyBot menu. Installed copies also look for a new version about every 12 hours. Settings → Updates turns that check off. There is no beta channel.
+- **An update is the full app.** Sparkle installs the release zip, not a delta, and not the disk image. BlinkyBot stops the local engine and Compose before the new app replaces this one, then relaunches.
+- **0.1.1 does not contain the updater.** Install 0.1.2 from the disk image once. Later versions can update in place.
+
 ## 0.1.1
 
 - **The Mac app opens without a Supabase project.** Local mode no longer builds a Supabase client during the first screen, so a missing project URL or API key does not crash the board.

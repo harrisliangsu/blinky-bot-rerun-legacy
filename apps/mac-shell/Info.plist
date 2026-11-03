@@ -37,5 +37,15 @@
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>M/xUmNfKp+sEloy822L8X4lVdOLM1pv9srD7fw/bgb8=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUScheduledCheckInterval</key>
+	<integer>43200</integer>
+	<key>SUAutomaticallyUpdate</key>
+	<false/>
 </dict>
 </plist>

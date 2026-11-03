@@ -36,7 +36,7 @@ export BLINKY_NODE=/path/to/node-v22/bin/node
 
 ## What the script does
 
-1. Read `VERSION` at the repository root (`0.1.1` today).
+1. Read `VERSION` at the repository root (`0.1.2` today).
 2. `pnpm install --frozen-lockfile`.
 3. `node scripts/blinky-local/blinky-local.mjs build`, which builds `@rerun/contracts`, `rerun-engine`, and Compose with `BLINKY_LOCAL_AUTH=1` and `NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000`.
 4. `pnpm --filter rerun-engine --prod deploy`, then copy `apps/engine/dist` and `apps/engine/assets` on top. `dist/` is gitignored, so deploy alone would drop it.
@@ -122,4 +122,4 @@ A tag `v$(cat VERSION)` publishes the app. The workflow on `macos-14` runs:
 
 `--zip` writes `build.noindex/BlinkyBot-<version>.zip`. `dmg.sh --reuse` writes `build.noindex/BlinkyBot-<version>.dmg` from that same app (Applications alias and a bilingual Read Me) and does not build again. The hosted job sets `BLINKY_NODE` to the official Node 22 macOS tarball before `bundle.sh`, because the Actions Node is not the binary that ships.
 
-Notes, the `VERSION` / changelog gate, and Sparkle as a follow-up are in [docs/releasing.md](../docs/releasing.md). `0.1.0` is the first version.
+Notes, the `VERSION` / changelog gate, and the Sparkle feed are in [docs/releasing.md](../docs/releasing.md). `0.1.0` is the first version. `0.1.2` is the first build that checks for updates.

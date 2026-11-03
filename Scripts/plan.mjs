@@ -202,6 +202,34 @@ export function patchInfoPlist(xml, version) {
     return next
 }
 
+export function infoPlistString(xml, key) {
+    const match = String(xml).match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`))
+    return match ? match[1] : null
+}
+
+export function patchSparklePlist(xml, feedURL, publicKey) {
+    const feed = String(feedURL).trim()
+    const key = String(publicKey).trim()
+    if (!feed.startsWith('https://')) throw new Error('SUFeedURL must be an https URL')
+    if (!key) throw new Error('SUPublicEDKey is empty')
+    let next = String(xml)
+    const pairs = [
+        ['SUFeedURL', feed],
+        ['SUPublicEDKey', key],
+    ]
+    for (const [name, value] of pairs) {
+        const pattern = new RegExp(`(<key>${name}</key>\\s*<string>)[\\s\\S]*?(</string>)`)
+        if (pattern.test(next)) {
+            next = next.replace(pattern, `$1${value}$2`)
+        } else if (!next.includes('</dict>')) {
+            throw new Error('Info.plist has no dict to hold Sparkle keys')
+        } else {
+            next = next.replace('</dict>', `\t<key>${name}</key>\n\t<string>${value}</string>\n</dict>`)
+        }
+    }
+    return next
+}
+
 export function infoPlistVersion(xml, key) {
     const match = String(xml).match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`))
     return match ? match[1] : null
@@ -628,6 +656,15 @@ function main(argv) {
         const { version, problems } = alignmentProblems()
         if (problems.length) fail(problems.join('\n'))
         const patched = patchInfoPlist(readFileSync(file, 'utf8'), version)
+        writeFileSync(file, patched)
+        return
+    }
+    if (command === 'patch-sparkle') {
+        const file = argv[1]
+        const feed = argv[2]
+        const key = argv[3]
+        if (!file || !feed || !key) fail('patch-sparkle needs the Info.plist path, feed URL, and public key')
+        const patched = patchSparklePlist(readFileSync(file, 'utf8'), feed, key)
         writeFileSync(file, patched)
         return
     }

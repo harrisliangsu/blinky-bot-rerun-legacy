@@ -27,6 +27,7 @@ jobs:
       - run: pnpm --filter rerun test
       - run: pnpm --filter rerun-engine test
       - run: pnpm bundle:check
+      - run: python3 Scripts/appcast_test.py
 
   mac-shell:
     name: Mac shell build, tests, and bundle
@@ -78,3 +79,6 @@ jobs:
           test -x build.noindex/BlinkyBot.app/Contents/MacOS/BlinkyBot
           test -f build.noindex/BlinkyBot-*.zip
           test -f build.noindex/BlinkyBot-*.dmg
+          test -d build.noindex/BlinkyBot.app/Contents/Frameworks/Sparkle.framework
+          test "$(plutil -extract SUPublicEDKey raw build.noindex/BlinkyBot.app/Contents/Info.plist)" = "$(tr -d '[:space:]' < Scripts/sparkle-public-key.txt)"
+          plutil -extract SUFeedURL raw build.noindex/BlinkyBot.app/Contents/Info.plist | grep -q '/main/appcast.xml'

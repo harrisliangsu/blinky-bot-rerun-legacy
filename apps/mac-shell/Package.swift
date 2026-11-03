@@ -18,6 +18,9 @@ let package = Package(
         .library(name: "BlinkyLocalRuntime", targets: ["BlinkyLocalRuntime"]),
         .executable(name: "BlinkyBot", targets: ["BlinkyBot"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
+    ],
     targets: [
         .target(
             name: "BlinkyComposeURL",
@@ -29,7 +32,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "BlinkyBot",
-            dependencies: ["BlinkyComposeURL", "BlinkyLocalRuntime"],
+            dependencies: [
+                "BlinkyComposeURL",
+                "BlinkyLocalRuntime",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             path: "Sources/BlinkyBot",
             linkerSettings: [
                 .linkedFramework("WebKit", .when(platforms: [.macOS])),

@@ -4,8 +4,8 @@ name: Release
 #
 #   git tag v0.1.0 && git push origin v0.1.0
 #
-# mac-app, on macos-14, publishes the GitHub Release (DMG and zip).
-# Sparkle is not part of this workflow. Docker is not part of it either.
+# mac-app, on macos-14, publishes the GitHub Release (DMG and zip),
+# signs the zip, and commits the Sparkle feed. Docker is not part of it.
 on:
   push:
     tags: ['v*']
@@ -155,3 +155,71 @@ jobs:
               --notes-file notes.md \
               $PRERELEASE
           fi
+
+      # After the zip exists on the release. The feed points at that asset.
+      # SPARKLE_PRIVATE_KEY is the base64 Ed25519 seed whose public half is
+      # Scripts/sparkle-public-key.txt. It is an Actions secret, not a file.
+      - name: Offer it to Sparkle
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: |
+          case "$VERSION" in
+            *-*)
+              echo "Pre-release $VERSION is not written into the feed."
+              exit 0
+              ;;
+          esac
+          if [ -z "${SPARKLE_PRIVATE_KEY:-}" ]; then
+            echo "::error::SPARKLE_PRIVATE_KEY is not set. Add that Actions secret (the base64 Ed25519 seed for Scripts/sparkle-public-key.txt). Installed copies would never see this release."
+            exit 1
+          fi
+          curl -fsSL -o /tmp/Sparkle-spm.zip "https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-for-Swift-Package-Manager.zip"
+          echo "8d5fb41d960b43f4a68aa14126bf62b098544ec8d191cdcc73eb14e63a8e7606  /tmp/Sparkle-spm.zip" | shasum -a 256 -c -
+          mkdir -p build.noindex
+          unzip -p /tmp/Sparkle-spm.zip bin/sign_update > build.noindex/sign_update
+          chmod +x build.noindex/sign_update
+          URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION/BlinkyBot-$VERSION.zip"
+          SPARKLE_SIGN_UPDATE="$PWD/build.noindex/sign_update" \
+            python3 Scripts/appcast.py "$VERSION" "build.noindex/BlinkyBot-$VERSION.zip" "$URL"
+          mkdir -p /tmp/blinky-feed
+          cp appcast.xml appcast-zh.xml appcast-en.xml /tmp/blinky-feed/
+          gh release upload "v$VERSION" appcast.xml appcast-zh.xml appcast-en.xml --clobber
+          rm -f appcast.xml appcast-zh.xml appcast-en.xml
+          git fetch origin main
+          git checkout -B main origin/main
+          cp /tmp/blinky-feed/appcast.xml /tmp/blinky-feed/appcast-zh.xml /tmp/blinky-feed/appcast-en.xml .
+          git add appcast.xml appcast-zh.xml appcast-en.xml
+          if git diff --cached --quiet -- appcast.xml appcast-zh.xml appcast-en.xml; then
+            echo "Feed already offers $VERSION."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Offer $VERSION to Sparkle"
+            pushed=0
+            for attempt in 1 2 3 4 5; do
+              git fetch origin main
+              if ! git rebase origin/main; then
+                echo "::error::Could not rebase the Sparkle feed onto origin/main."
+                git rebase --abort || true
+                exit 1
+              fi
+              if git push origin main; then
+                pushed=1
+                break
+              fi
+              echo "Push to main was rejected (attempt ${attempt} of 5)."
+              if [ "$attempt" -lt 5 ]; then
+                sleep $((attempt * 2))
+              fi
+            done
+            if [ "$pushed" -ne 1 ]; then
+              echo "::error::Could not push the Sparkle feed to main."
+              exit 1
+            fi
+          fi
+          git fetch origin main
+          if ! git show origin/main:appcast.xml | grep -q "<sparkle:shortVersionString>$VERSION<"; then
+            echo "::error::appcast.xml on main does not offer $VERSION."
+            exit 1
+          fi
+          echo "Feed on main offers $VERSION."
