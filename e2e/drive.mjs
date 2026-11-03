@@ -396,7 +396,7 @@ async function openThread(page, state) {
 }
 
 async function sendChat(page, text) {
-    const box = page.getByTestId('composer').last()
+    const box = page.locator('[data-testid="composer"]:visible').first()
     await box.click()
     await box.fill(text)
     await box.press('Enter')
