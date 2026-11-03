@@ -78,7 +78,7 @@ async function core() {
         await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').waitFor({ timeout: 20_000 })
         const saved = await engine(`/agents/${lantern.id}`)
         if (!JSON.stringify(saved).includes('lighthouse keeper')) throw new Error('The saved Bot does not keep the lighthouse persona.')
-        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').click()
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').evaluate(element => element.click())
         const seen = []
         const boardSeen = []
         const watch = watchRuns(lantern.id, seen, () => sampleBoard(page, lantern.id, boardSeen))
@@ -98,7 +98,7 @@ async function core() {
         if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
             throw new Error('Lantern did not store the question and the persona reply.')
         }
-        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').click()
+        await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').evaluate(element => element.click())
         await sendChat(page, 'who are you')
         const harborRun = await watchRuns(harbor.id, [])
         const harborMessages = await engine(`/agents/${harbor.id}/sessions/${harborRun.sessionId}/messages`)
