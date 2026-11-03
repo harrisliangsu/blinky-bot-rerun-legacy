@@ -39,7 +39,28 @@ func listedWindows() -> [ListedWindow] {
     return windows
 }
 
-func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, lastMatch: inout AXUIElement?, visits: inout Int) {
+func press(_ element: AXUIElement) -> Bool {
+    AXUIElementPerformAction(element, kAXPressAction as CFString) == .success
+}
+
+func pressSwitch(element: AXUIElement, parent: AXUIElement?) -> Bool {
+    if press(element) { return true }
+    guard let parent else { return false }
+    if press(parent) { return true }
+    var childrenRef: CFTypeRef?
+    guard AXUIElementCopyAttributeValue(parent, kAXChildrenAttribute as CFString, &childrenRef) == .success,
+          let children = childrenRef as? [AXUIElement] else { return false }
+    for child in children {
+        var roleRef: CFTypeRef?
+        let role = (AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &roleRef) == .success) ? (roleRef as? String ?? "") : ""
+        if role == "AXCheckBox" || role == "AXSwitch" || role == "AXToggle" || role == "AXButton" {
+            if press(child) { return true }
+        }
+    }
+    return false
+}
+
+func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, lastMatch: inout AXUIElement?, parent: AXUIElement?, visits: inout Int) {
     if depth > 18 || visits > 4000 || notes.count > 500 { return }
     visits += 1
     var titleRef: CFTypeRef?
@@ -67,17 +88,15 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
             }
         }
     }
-    if let click, label == click {
-        lastMatch = element
+    if let click, label == click || (role == "AXStaticText" && valueRef as? String == click) {
+        lastMatch = parent ?? element
         if !clicked {
-            if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
-                clicked = true
-            }
+            clicked = press(element) || (parent != nil && press(parent!))
         }
     }
     if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success, let children = childrenRef as? [AXUIElement] {
         for child in children.prefix(50) {
-            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, visits: &visits)
+            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, parent: element, visits: &visits)
         }
     }
 }
@@ -98,7 +117,7 @@ func accessibility(of windows: [ListedWindow], click: String?, clickLast: Bool) 
     var ref: CFTypeRef?
     if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref) == .success, let axWindows = ref as? [AXUIElement] {
         for window in axWindows {
-            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, visits: &visits)
+            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, parent: nil, visits: &visits)
         }
     }
     if clickLast, let lastMatch {
