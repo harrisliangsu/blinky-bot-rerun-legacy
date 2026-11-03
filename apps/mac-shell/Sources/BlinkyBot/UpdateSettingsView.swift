@@ -6,8 +6,9 @@ import Foundation
 #if os(macOS)
 import SwiftUI
 
+@MainActor
 struct UpdateSettingsView: View {
-    @State private var checksAutomatically = AppUpdate.shared.checksAutomatically
+    @State private var checksAutomatically = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -34,6 +35,9 @@ struct UpdateSettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+        .onAppear {
+            checksAutomatically = AppUpdate.shared.checksAutomatically
         }
         .onReceive(NotificationCenter.default.publisher(for: .blinkyUpdatesDidChange)) { _ in
             checksAutomatically = AppUpdate.shared.checksAutomatically
