@@ -1,0 +1,47 @@
+# One application target compiles the source folders into the BlinkyBot module.
+# `swift build` compiles BlinkyComposeURL and BlinkyLocalRuntime as libraries; the app imports them only then.
+name: BlinkyBot
+options:
+  minimumXcodeGenVersion: 2.38.0
+  deploymentTarget:
+    macOS: "14.0"
+  groupSortPosition: top
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    # Keep in step with the VERSION file at the repository root.
+    # Scripts/bundle.sh writes that version into the built Info.plist.
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+targets:
+  BlinkyBot:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/BlinkyBot
+      - path: Sources/BlinkyComposeURL
+      - path: Sources/BlinkyLocalRuntime
+      # File reference, not a copied folder, so actool compiles AppIcon into BlinkyBot.app.
+      - path: Resources/Assets.xcassets
+        type: file
+    settings:
+      base:
+        PRODUCT_NAME: BlinkyBot
+        PRODUCT_BUNDLE_IDENTIFIER: bot.blinky.shell
+        PRODUCT_MODULE_NAME: BlinkyBot
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Info.plist
+        COMBINE_HIDPI_IMAGES: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+schemes:
+  BlinkyBot:
+    build:
+      targets:
+        BlinkyBot: all
+    run:
+      config: Debug

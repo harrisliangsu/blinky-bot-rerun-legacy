@@ -1,5 +1,7 @@
 {
     "name": "rerun-engine",
+    "version": "0.1.0",
+    "description": "BlinkyBot engine (Foreman, memory, HITL), forked from Rerun",
     "type": "module",
     "bin": {
         "rerun": "./dist/cli/bin.js"

@@ -36,6 +36,7 @@ import { useTemplateFlowStore } from '@/stores/template-flow.store'
 import { selectForemanVisible, useForemanStore } from '@/stores/foreman.store'
 import { useResumePendingStart } from '@/lib/onboarding/useResumePendingStart'
 import { openConversationFromNotification } from '@/lib/notifications/open-conversation'
+import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { createClient } from '@/supabase/client'
 import { selectMaybeSingle } from '@/supabase/supabase-helpers'
 import { AGENT_FOCUS_TABS, type AgentFocusTab, type SpacePublic } from '@/lib/board/types'
@@ -66,6 +67,7 @@ function clearTemplateParam() {
 }
 
 export function HomeContent({ initialSpaces = [], initialWorkspaceId = null }: { initialSpaces?: SpacePublic[]; initialWorkspaceId?: number | null }) {
+    const localAuth = useLocalAuthMode()
     const { user, workspace, loading, isAnonymous, phoneStep } = useSession()
     const foremanVisible = useForemanStore(selectForemanVisible)
     const foremanFunnel = useForemanStore(state => state.funnel)
@@ -122,8 +124,14 @@ export function HomeContent({ initialSpaces = [], initialWorkspaceId = null }: {
         if (hydratedWorkspaceId.current === workspace.id) return
         hydratedWorkspaceId.current = workspace.id
         useBoardStore.getState().reset()
-        hydrate(workspace.id)
-    }, [workspace, hydrate])
+        hydrate(workspace.id, { local: localAuth })
+    }, [workspace, hydrate, localAuth])
+
+    useEffect(() => {
+        if (!localAuth || !workspace) return
+        const id = window.setInterval(() => void hydrate(workspace.id, { local: true }), 5000)
+        return () => window.clearInterval(id)
+    }, [localAuth, workspace, hydrate])
 
     // Retour de Stripe : si on revient avec ?billing=success et qu'un brouillon d'agent attend
     // (onboarding), on propose de démarrer l'agent. On nettoie le param pour ne pas re-déclencher.
@@ -309,14 +317,14 @@ export function HomeContent({ initialSpaces = [], initialWorkspaceId = null }: {
     const notificationLinkOpened = useRef(false)
     useEffect(() => {
         const notificationId = searchParams.get('notification')
-        if (!notificationId || notificationLinkOpened.current || !hydrated || isAnonymous) return
+        if (localAuth || !notificationId || notificationLinkOpened.current || !hydrated || isAnonymous) return
         notificationLinkOpened.current = true
         clearSearchParams('notification')
         void selectMaybeSingle(createClient(), 'notifications', ['agent_id', 'engine_session_id', 'engine_run_id'] as const, { id: notificationId }).then(({ data }) => {
             if (!data) return
             void openConversationFromNotification({ agentId: data.agent_id, engineSessionId: data.engine_session_id, engineRunId: data.engine_run_id })
         })
-    }, [searchParams, hydrated, isAnonymous])
+    }, [searchParams, hydrated, isAnonymous, localAuth])
 
     // Le lien est consommé : le param ne doit plus rien porter, sinon un refresh (après un import
     // réussi comme après une annulation) redemande l'import. Un seul nettoyage ne suffit pas, le

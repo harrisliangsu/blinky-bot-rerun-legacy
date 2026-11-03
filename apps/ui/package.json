@@ -2,6 +2,7 @@
     "name": "rerun",
     "version": "0.1.0",
     "private": true,
+    "description": "BlinkyBot Compose UI, forked from Rerun",
     "scripts": {
         "dev": "next dev -p 3050",
         "build": "next build",

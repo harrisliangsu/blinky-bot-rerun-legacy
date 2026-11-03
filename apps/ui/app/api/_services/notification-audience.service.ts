@@ -3,6 +3,7 @@ import 'server-only'
 import type { Database } from '@/app/api/database.types'
 import type { EngineCreatedEvent } from '@/lib/engine/types'
 import { coworkerRuleOf, normalizeNotificationPrefs, type NotificationPrefs } from '@/lib/notifications/prefs'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMaybeSingle } from '@/supabase/supabase-helpers'
 
@@ -13,7 +14,7 @@ type SessionReadInsert = Database['public']['Tables']['session_reads']['Insert']
 // Who wrote in a conversation is who its notifications reach. Best-effort: a message that went out
 // must never fail because this bookkeeping did.
 export async function recordSessionParticipant(sessionId: string | null | undefined, userId: string | null | undefined): Promise<void> {
-    if (!sessionId || !userId) return
+    if (!sessionId || !userId || isBlinkyLocalAuth()) return
     try {
         const { error } = await createServiceRoleClient()
             .from('session_participants')
@@ -26,7 +27,7 @@ export async function recordSessionParticipant(sessionId: string | null | undefi
 
 // Answering a conversation means its earlier results were read, even from a tab that never opened it.
 export async function recordSessionRead(sessionId: string | null | undefined, userId: string | null | undefined): Promise<void> {
-    if (!sessionId || !userId) return
+    if (!sessionId || !userId || isBlinkyLocalAuth()) return
     try {
         const { error } = await createServiceRoleClient()
             .from('session_reads')

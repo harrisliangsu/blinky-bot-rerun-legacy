@@ -1,6 +1,8 @@
+import { safeNextPath } from '@/lib/local-auth/cookie'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
+import { SESSION_COOKIE } from '@/lib/local-auth/constants'
 import { extractPublishedSlug, PUBLISHED_SITE_ROUTE } from '@/lib/published/host'
 import { STAGING_GATE_CHALLENGE, stagingGateVerdict } from '@/lib/staging-gate'
-import { updateSession } from '@/supabase/middleware'
 import {
     APP_GATED_PATHS,
     BRAND_GATE_COOKIE,
@@ -66,7 +68,29 @@ export async function proxy(request: NextRequest) {
         })
     }
 
+    if (isBlinkyLocalAuth()) return localAuthResponse(request)
+    const { updateSession } = await import('@/supabase/middleware')
     return updateSession(request)
+}
+
+function localAuthResponse(request: NextRequest): NextResponse {
+    if (request.nextUrl.pathname.startsWith('/api/local-auth/')) return NextResponse.next()
+    const token = request.cookies.get(SESSION_COOKIE)?.value
+    if (!token) {
+        const url = request.nextUrl.clone()
+        const next = `${request.nextUrl.pathname}${request.nextUrl.search}`
+        url.pathname = '/api/local-auth/enter'
+        url.search = ''
+        url.searchParams.set('next', safeNextPath(next))
+        return NextResponse.redirect(url)
+    }
+    if (request.nextUrl.pathname.startsWith('/auth') && request.nextUrl.pathname !== '/auth/callback') {
+        const url = request.nextUrl.clone()
+        url.pathname = '/'
+        url.search = ''
+        return NextResponse.redirect(url)
+    }
+    return NextResponse.next()
 }
 
 export const config = {

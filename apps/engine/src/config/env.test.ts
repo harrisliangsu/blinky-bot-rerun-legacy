@@ -2,7 +2,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-const KEYS = ['RERUN_DATA_DIR', 'RERUN_PORT', 'RERUN_HOST', 'RERUN_API_KEY', 'RERUN_HUB_BASE_URL', 'RERUN_LOG_LEVEL', 'RERUN_CODEX_PATH']
+const KEYS = ['RERUN_DATA_DIR', 'RERUN_PORT', 'RERUN_HOST', 'RERUN_API_KEY', 'RERUN_HUB_BASE_URL', 'RERUN_LOG_LEVEL', 'RERUN_CODEX_PATH', 'RERUN_CLAUDE_PATH', 'RERUN_KIMI_PATH', 'RERUN_GROK_PATH', 'RERUN_CLI_ADAPTERS']
 
 async function freshEnv(values: Record<string, string | undefined> = {}) {
     vi.resetModules()
@@ -30,6 +30,10 @@ describe('env', () => {
             RERUN_HUB_BASE_URL: 'https://hub.example.com',
             RERUN_LOG_LEVEL: 'debug',
             RERUN_CODEX_PATH: '/usr/local/bin/codex',
+            RERUN_CLAUDE_PATH: '/usr/local/bin/claude',
+            RERUN_KIMI_PATH: '/usr/local/bin/kimi',
+            RERUN_GROK_PATH: '/usr/local/bin/grok',
+            RERUN_CLI_ADAPTERS: 'codex,kimi,grok,claude',
         })
         expect(env()).toEqual({
             RERUN_DATA_DIR: '/data',
@@ -39,6 +43,10 @@ describe('env', () => {
             RERUN_HUB_BASE_URL: 'https://hub.example.com',
             RERUN_LOG_LEVEL: 'debug',
             RERUN_CODEX_PATH: '/usr/local/bin/codex',
+            RERUN_CLAUDE_PATH: '/usr/local/bin/claude',
+            RERUN_KIMI_PATH: '/usr/local/bin/kimi',
+            RERUN_GROK_PATH: '/usr/local/bin/grok',
+            RERUN_CLI_ADAPTERS: 'codex,kimi,grok,claude',
         })
     })
 

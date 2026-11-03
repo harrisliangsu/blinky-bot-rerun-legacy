@@ -8,6 +8,9 @@ import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { selectMany, selectManyWithJoins, selectMaybeSingle, selectMaybeSingleWithJoins } from '@/supabase/supabase-helpers'
 import { isTemplateContentLocked } from '@/lib/templates/content-lock'
 import { isPlanLimited } from './capacity.service'
+import { LOCAL_WORKSPACE_ID } from '@/lib/local-auth/constants'
+import { findLocalEngineSession } from '@/lib/local-auth/engine-board'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { findWorkspaceEngine, NoEngineError, type WorkspaceEngine } from './workspace-engine.service'
 
 export type AgentChatTarget = {
@@ -24,6 +27,12 @@ export type AgentChatTarget = {
 // workspace to the caller's. `workspaceId` is passed in when the caller proved its identity
 // with an API key rather than a browser session; omitted, it comes from the session.
 export async function resolveAgentTarget(agentId: string, workspaceId?: number): Promise<AgentChatTarget> {
+    if (isBlinkyLocalAuth()) {
+        const resolvedWorkspaceId = workspaceId !== undefined ? workspaceId : await requireWorkspaceId()
+        const engine = await findWorkspaceEngine(resolvedWorkspaceId)
+        if (!engine) throw new NoEngineError()
+        return { engineAgentId: agentId, conn: engine.conn, contentLocked: false }
+    }
     // The agent row doesn't depend on the caller, and the caller's machine only on its workspace, so
     // all three are read at once. The machine read before the ownership check is the caller's own.
     const callerWorkspaceId = workspaceId !== undefined ? Promise.resolve(workspaceId) : requireWorkspaceId()
@@ -84,6 +93,7 @@ function buildTarget(row: Awaited<ReturnType<typeof fetchAgentRow>>, workspaceId
 // comparison on purpose, and answers null rather than throwing, because every failure on that
 // route has to come back as the same opaque 404.
 export async function resolveAgentTargetForTrigger(agentId: string): Promise<AgentChatTarget | null> {
+    if (isBlinkyLocalAuth()) return resolveAgentTarget(agentId, LOCAL_WORKSPACE_ID).catch(() => null)
     const row = await fetchAgentRow(agentId)
     if (!row || row.disabled_at || !row.engine_agent_id) return null
     const engine = await findWorkspaceEngine(row.workspace_id)
@@ -104,6 +114,7 @@ export async function getExistingSession(sessionId: string): Promise<{ sessionId
 
 // Persist a Supabase session row pointing at the engine-created session.
 export async function createSessionRow(agentId: string, engineSessionId: string, title: string, originAgentId?: string | null, source?: SessionSource): Promise<string> {
+    if (isBlinkyLocalAuth()) return engineSessionId
     const supabase = createServiceRoleClient()
 
     const { data: session } = await supabase
@@ -135,6 +146,7 @@ export async function createSessionRow(agentId: string, engineSessionId: string,
 // moment the run reports anything: conflicting is the expected outcome, not a failure, and the row
 // already there keeps the status it earned rather than being pushed back to `working`.
 export async function ensureSessionRow(agentId: string, engineSessionId: string, title: string, options?: { source?: SessionSource; originAgentId?: string | null; status?: SessionStatus }): Promise<string | null> {
+    if (isBlinkyLocalAuth()) return engineSessionId
     const supabase = createServiceRoleClient()
 
     const { error } = await supabase.from('sessions').upsert<Database['public']['Tables']['sessions']['Insert']>(
@@ -166,6 +178,7 @@ export async function sessionRowOf(agentId: string, engineSessionId: string): Pr
 }
 
 export async function updateSessionStatus(sessionId: string, status: SessionStatus) {
+    if (isBlinkyLocalAuth()) return
     const supabase = createServiceRoleClient()
     await supabase.from('sessions').update<Database['public']['Tables']['sessions']['Update']>({ status }).eq('id', sessionId)
 }
@@ -192,6 +205,14 @@ export type SessionEngineContext = { agentId: string; conn: EngineConnection; en
 
 // Full engine context for a Supabase session (used to replay history).
 export async function getSessionEngineContext(sessionId: string): Promise<SessionEngineContext | null> {
+    if (isBlinkyLocalAuth()) {
+        const workspaceId = await requireWorkspaceId()
+        const engine = await findWorkspaceEngine(workspaceId)
+        if (!engine) throw new NoEngineError()
+        const found = await findLocalEngineSession(sessionId)
+        if (!found) return null
+        return { agentId: found.agentId, conn: engine.conn, engineAgentId: found.agentId, engineSessionId: sessionId }
+    }
     const workspaceId = requireWorkspaceId()
     const [session, engine] = await Promise.all([assertSessionInWorkspace(sessionId, workspaceId), workspaceId.then(findWorkspaceEngine)])
     if (!session.engine_agent_id) return null

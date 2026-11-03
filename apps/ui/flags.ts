@@ -1,11 +1,13 @@
 import { isAdminEmail } from '@/lib/auth/admin-emails'
 import { COMPUTER_RELEASED, REWIND_RELEASED } from '@/lib/features'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createClient } from '@/supabase/server'
 import { dedupe, flag } from 'flags/next'
 
 type Entities = { user?: { email: string } }
 
 export const identify = dedupe(async (): Promise<Entities> => {
+    if (isBlinkyLocalAuth()) return {}
     const supabase = await createClient()
     const { data } = await supabase.auth.getUser()
     const email = data.user?.email

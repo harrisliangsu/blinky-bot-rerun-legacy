@@ -1,253 +1,71 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-night.jpg">
-    <img alt="Rerun: the Foreman presenting a team of coworkers on the board" src=".github/assets/banner-cream.jpg" width="100%">
-  </picture>
-</p>
+# BlinkyBot
 
-<h1 align="center">Rerun</h1>
+**BlinkyBot** is a local-first agent hub for Mac. It is a public fork of [Rerun](https://github.com/rerun-build/rerun) (AGPL-3.0). Phase 1 keeps Rerun's Compose board and the Foreman, memory, and human-in-the-loop layer, and points the first runtimes at CLIs on your machine.
 
-<p align="center">
-  <strong>Hire AI coworkers for your team.</strong><br />
-  They use your tools, work on a schedule, and check with you before anything that matters.
-</p>
+This repository is the open source build of Rerun, republished here as BlinkyBot. The Rerun name, logo, and coworker characters remain trademarks of Rerun. BlinkyBot is not endorsed by Rerun. See [TRADEMARK.md](TRADEMARK.md).
 
-<p align="center">
-  <a href="LICENSE"><img alt="License: AGPL-3.0" src="https://img.shields.io/badge/license-AGPL--3.0-6d5bf5"></a>
-  <a href="https://github.com/rerun-build/rerun/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/rerun-build/rerun/actions/workflows/ci.yml/badge.svg"></a>
-  <a href="https://github.com/rerun-build/rerun/releases"><img alt="Release" src="https://img.shields.io/github/v/release/rerun-build/rerun?color=6d5bf5"></a>
-  <a href="https://github.com/rerun-build/rerun/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/rerun-build/rerun?color=6d5bf5"></a>
-  <a href="https://discord.gg/cJUUgdTg5p"><img alt="Discord" src="https://img.shields.io/badge/discord-join-6d5bf5?logo=discord&logoColor=white"></a>
-</p>
+## Phase 1
 
-<p align="center">
-  <a href="https://docs.rerun.build/self-host"><strong>Host it yourself »</strong></a>
-  <br />
-  <br />
-  <a href="https://docs.rerun.build">Docs</a>
-  ·
-  <a href="https://rerun.build">Rerun Cloud</a>
-  ·
-  <a href="https://discord.gg/cJUUgdTg5p">Discord</a>
-  ·
-  <a href="CONTRIBUTING.md">Contributing</a>
-</p>
+Locked scope lives in [docs/phase1.md](docs/phase1.md). The shape of the stack lives in [docs/architecture-phase1.md](docs/architecture-phase1.md).
 
-<br />
+Phase 1 installs like a Mac app: open BlinkyBot and it runs. The app starts a local engine and the local Compose UI on this machine, with Foreman, memory, and approvals kept, and Codex CLI, Kimi CLI, and Grok CLI as the first runtimes. Docker and Supabase are not required. The runtime contract is [docs/no-docker-runtime.md](docs/no-docker-runtime.md).
 
-<p align="center"><strong>Your coworkers work in:</strong></p>
-<p align="center">
-  <img alt="Gmail" title="Gmail" src=".github/assets/logos/gmail.svg" width="40">
-  <img alt="Google Calendar" title="Google Calendar" src=".github/assets/logos/google-calendar.svg" width="40">
-  <img alt="Google Drive" title="Google Drive" src=".github/assets/logos/google-drive.svg" width="40">
-  <img alt="Google Sheets" title="Google Sheets" src=".github/assets/logos/google-sheets.svg" width="40">
-  <img alt="Slack" title="Slack" src=".github/assets/logos/slack.svg" width="40">
-  <img alt="Notion" title="Notion" src=".github/assets/logos/notion.svg" width="40">
-  <br />
-  <img alt="HubSpot" title="HubSpot" src=".github/assets/logos/hubspot.svg" width="40">
-  <img alt="Airtable" title="Airtable" src=".github/assets/logos/airtable.svg" width="40">
-  <img alt="Stripe" title="Stripe" src=".github/assets/logos/stripe.svg" width="40">
-  <img alt="Shopify" title="Shopify" src=".github/assets/logos/shopify.svg" width="40">
-  <img alt="GitHub" title="GitHub" src=".github/assets/logos/github.svg" width="40">
-  <img alt="Linear" title="Linear" src=".github/assets/logos/linear.svg" width="40">
-  <br />
-  <img alt="Jira" title="Jira" src=".github/assets/logos/jira.svg" width="40">
-  <img alt="Figma" title="Figma" src=".github/assets/logos/figma.svg" width="40">
-  <img alt="Webflow" title="Webflow" src=".github/assets/logos/webflow.svg" width="40">
-  <img alt="X" title="X" src=".github/assets/logos/x.svg" width="40">
-  <img alt="YouTube" title="YouTube" src=".github/assets/logos/youtube.svg" width="40">
-  <img alt="Instagram" title="Instagram" src=".github/assets/logos/instagram.svg" width="40">
-</p>
-<p align="center"><sub>and 200+ more in the catalog, any MCP server, 2,000+ apps through Composio</sub></p>
+Rex, Ego Browser, a cloud Engine or Supabase-primary deploy, and iOS, Windows, and Linux shells are later. The engine, the coworker desktop, `docker-compose.yml`, and the cloud modules stay in the tree for the upstream server install. Phase 1 does not delete them, and the Mac install does not start them. Rex is not in this repository.
 
-<p align="center"><strong>On the models you pick:</strong></p>
-<p align="center">
-  <img alt="Anthropic" title="Anthropic, or your Claude subscription" src=".github/assets/logos/anthropic.svg" width="40">
-  <img alt="OpenAI" title="OpenAI, or your ChatGPT subscription" src=".github/assets/logos/openai.svg" width="40">
-  <img alt="Gemini" title="Gemini" src=".github/assets/logos/gemini.svg" width="40">
-  <img alt="OpenRouter" title="OpenRouter" src=".github/assets/logos/openrouter.svg" width="40">
-</p>
-<p align="center"><sub>an API key, or the Claude or ChatGPT subscription you already pay for</sub></p>
+Parallel work merges into `phase1/verify` for acceptance. See [CONTRIBUTING-BLINKY.md](CONTRIBUTING-BLINKY.md). Upstream contribution rules remain in [CONTRIBUTING.md](CONTRIBUTING.md).
 
-<br />
+## License
 
-## 👋 Meet your new team
+[GNU Affero General Public License v3.0](LICENSE). You can run, modify, and host this code. If you host a modified version for other people, you publish those changes under the same license.
 
-You tell Rerun what you need done, in plain words. The **Foreman** interviews you, plans a team and
-builds it. Each coworker gets a job, its own memory, its own skills and its own computer. You see
-them all on one board, you talk to any of them like to a colleague, and they ask before they send,
-pay or delete anything.
+Upstream: [rerun-build/rerun](https://github.com/rerun-build/rerun). BlinkyBot attributes that project and keeps its license. Package names such as `@rerun/*` and `rerun-engine` are still the upstream identifiers so the monorepo builds unchanged.
 
-<p align="center">
-  <img alt="Eight coworkers in three Boxes on the board, the Sales Rep reporting the companies it found" src=".github/assets/screen-team.jpg" width="100%">
-</p>
+## Run BlinkyBot on a Mac
 
-A few coworkers people hire on day one, each a ready-made template:
+Install the app and open it. BlinkyBot starts the local engine (`127.0.0.1:3001`) and the Compose UI (`127.0.0.1:3000`), then shows the UI. Data lives in `~/Library/Application Support/BlinkyBot/`. You do not install Docker, and you do not create a Supabase project.
 
-<table>
-  <tr>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/executive-assistant?utm_source=github&amp;utm_medium=readme"><img alt="Executive Assistant" src=".github/assets/coworkers/executive-assistant.jpg"></a><br />
-      <a href="https://rerun.build/templates/executive-assistant?utm_source=github&amp;utm_medium=readme"><strong>Executive Assistant</strong></a><br />
-      <sub>Sorts your inbox, clears your calendar, briefs you every morning</sub>
-    </td>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/data-analyst?utm_source=github&amp;utm_medium=readme"><img alt="Data Analyst" src=".github/assets/coworkers/data-analyst.jpg"></a><br />
-      <a href="https://rerun.build/templates/data-analyst?utm_source=github&amp;utm_medium=readme"><strong>Data Analyst</strong></a><br />
-      <sub>Answers your questions from your data, with charts and a weekly KPI report</sub>
-    </td>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/online-reputation-manager?utm_source=github&amp;utm_medium=readme"><img alt="Reputation Manager" src=".github/assets/coworkers/online-reputation-manager.jpg"></a><br />
-      <a href="https://rerun.build/templates/online-reputation-manager?utm_source=github&amp;utm_medium=readme"><strong>Reputation Manager</strong></a><br />
-      <sub>Watches your reviews and your competitors, drafts every reply</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/sales-development-rep?utm_source=github&amp;utm_medium=readme"><img alt="Sales Development Rep" src=".github/assets/coworkers/sales-development-rep.jpg"></a><br />
-      <a href="https://rerun.build/templates/sales-development-rep?utm_source=github&amp;utm_medium=readme"><strong>Sales Development Rep</strong></a><br />
-      <sub>Finds prospects who fit and writes each one a first email</sub>
-    </td>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/social-media-manager?utm_source=github&amp;utm_medium=readme"><img alt="Social Media Manager" src=".github/assets/coworkers/social-media-manager.jpg"></a><br />
-      <a href="https://rerun.build/templates/social-media-manager?utm_source=github&amp;utm_medium=readme"><strong>Social Media Manager</strong></a><br />
-      <sub>Writes a week of posts for each network, publishes when you say go</sub>
-    </td>
-    <td width="33%" valign="top">
-      <a href="https://rerun.build/templates/collections-officer?utm_source=github&amp;utm_medium=readme"><img alt="Collections Specialist" src=".github/assets/coworkers/collections-officer.jpg"></a><br />
-      <a href="https://rerun.build/templates/collections-officer?utm_source=github&amp;utm_medium=readme"><strong>Collections Specialist</strong></a><br />
-      <sub>Chases every late invoice, without the awkward emails</sub>
-    </td>
-  </tr>
-</table>
-
-## ✨ Features
-
-<p align="center">
-  <img alt="The Foreman, taking requests by voice, hiring a coworker and running the team on autopilot" src=".github/assets/features/foreman.gif" width="100%">
-</p>
-
-**🧑‍✈️ The Foreman runs your team.** Say what you need, out loud if you like. It spots what needs doing,
-hires the coworker for it, and answers your coworkers by your rules while you are away.
-
-<table>
-  <tr>
-    <td width="50%" valign="top">
-      <img alt="A coworker sending an email from its own browser" src=".github/assets/features/computer.gif"><br />
-      <strong>🖥️ Their own computer</strong><br />
-      <sub>A browser and a screen you can watch, and take over at any time</sub>
-    </td>
-    <td width="50%" valign="top">
-      <img alt="A coworker waiting for a teammate to approve a payment" src=".github/assets/features/approvals.gif"><br />
-      <strong>✋ You stay in charge</strong><br />
-      <sub>They stop and ask before they send, pay or delete anything</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top">
-      <img alt="Coworkers running at night while the team is away" src=".github/assets/features/night.gif"><br />
-      <strong>⏰ Work while you sleep</strong><br />
-      <sub>Schedules and webhook triggers: the 7am run happens without you</sub>
-    </td>
-    <td width="50%" valign="top">
-      <img alt="Three coworkers handing a job down the line" src=".github/assets/features/together.gif"><br />
-      <strong>🤝 They work together</strong><br />
-      <sub>One finds the leads, the next writes to them, a third files the result</sub>
-    </td>
-  </tr>
-</table>
-
-And everything else a colleague needs:
-
-- 🧠 **Coworkers that remember**: a soul, skills, a memory that grows with every task
-- 🗺️ **One board**: every coworker, every Box and every running task in sight
-- 💬 **Chat like with a colleague**: files, voice notes, tables and approvals inline
-- 🔌 **Plugs into everything**: 200+ ready integrations, any MCP server, Composio
-- 🏠 **Your own servers**: attach the machine your coworkers run on in one command
-- ♾️ **No limits**: as many coworkers and seats as you want, nothing to pay
-
-## 🚀 Quick start
-
-Let an AI install it for you:
-
-<p align="center">
-  <a href="https://claude.ai/new?q=Install%20Rerun%2C%20the%20open%20source%20AI%20coworkers%20app%2C%20for%20me.%20Follow%20the%20guide%20written%20for%20AI%20assistants%3A%20https%3A%2F%2Fraw.githubusercontent.com%2Frerun-build%2Frerun%2Fmain%2FINSTALL.md"><img alt="Install with Claude" src=".github/assets/install-with-claude.svg" height="56"></a>
-  <a href="https://chatgpt.com/?q=Install%20Rerun%2C%20the%20open%20source%20AI%20coworkers%20app%2C%20for%20me.%20Follow%20the%20guide%20written%20for%20AI%20assistants%3A%20https%3A%2F%2Fraw.githubusercontent.com%2Frerun-build%2Frerun%2Fmain%2FINSTALL.md"><img alt="Install with ChatGPT" src=".github/assets/install-with-chatgpt.svg" height="56"></a>
-</p>
-
-Or paste this into Claude Code, Codex or Cursor, which run the commands for you:
-
-```text
-Install Rerun, the open source AI coworkers app, for me. Follow the guide written for AI assistants: https://raw.githubusercontent.com/rerun-build/rerun/main/INSTALL.md
-```
-
-By hand, you need Docker, Node.js 22, and a Supabase project (a free one on [supabase.com](https://supabase.com) works).
+The Mac app in `apps/mac-shell` starts that pair and then loads the UI. From a checkout, without the window:
 
 ```bash
-git clone https://github.com/rerun-build/rerun.git && cd rerun
-cp .env.example .env          # fill the Supabase URL and keys, and an OpenRouter key
+pnpm install
+node scripts/blinky-local/blinky-local.mjs build
+node scripts/blinky-local/blinky-local.mjs start
+```
+
+The UI listens on `http://127.0.0.1:3000` and the engine on `http://127.0.0.1:3001`, with `BLINKY_LOCAL_AUTH=1`. Data is `~/Library/Application Support/BlinkyBot` on macOS and `~/.blinkybot` elsewhere. Details: [scripts/blinky-local/README.md](scripts/blinky-local/README.md).
+
+A Mac with Xcode builds the distributable app:
+
+```bash
+./Scripts/bundle.sh
+```
+
+That writes `build.noindex/BlinkyBot.app`. The `Contents/Resources/runtime` layout, the `VERSION` file, and the Linux `--plan` check are in [Scripts/README.md](Scripts/README.md).
+
+The process model and the local-auth contract are [docs/no-docker-runtime.md](docs/no-docker-runtime.md). The Mac window sources are [apps/mac-shell/README.md](apps/mac-shell/README.md).
+
+A published Mac build is a GitHub Release. The version is the `VERSION` file. Tagging `v0.1.0` and pushing that tag runs [docs/releasing.md](docs/releasing.md) and attaches `BlinkyBot-0.1.0.dmg` (and a zip of the same app). The tag also pushes the upstream engine container image. That image is not the Phase 1 Mac install.
+
+## Upstream server install (Docker)
+
+[docker-compose.yml](docker-compose.yml) is the upstream Rerun self-host: the Next.js app (`apps/ui`) and the engine (`apps/engine`) in containers, with Supabase outside the file. It is how you reproduce a Rerun server. It is not the Phase 1 Mac install.
+
+The walkthrough is the upstream guide: [docs.rerun.build/self-host](https://docs.rerun.build/self-host) (source in `apps/docs/self-host/install.mdx`). An assistant following that server install uses [INSTALL.md](INSTALL.md).
+
+You need Docker, Node.js 22, and a Supabase project (a free project on [supabase.com](https://supabase.com) works).
+
+```bash
+git clone https://github.com/harrisliangsu/blinky-bot.git && cd blinky-bot
+cp .env.example .env
 node scripts/self-host-check.mjs
 npx supabase link --project-ref <your-project-ref> && npx supabase db push --include-seed
-docker compose up -d --build  # then open http://localhost:3000
+docker compose up -d --build
 ```
 
-That's it, say hi to the Foreman. 🎉
+Then open http://localhost:3000.
 
-The [self-hosting guide](https://docs.rerun.build/self-host) walks through every step, including
-Supabase on your own machine, adding servers, HTTPS and updates.
+To work on the UI from source, follow [CONTRIBUTING.md](CONTRIBUTING.md): `pnpm dev:engine` and `pnpm dev:ui`. That contributor loop is separate from both the Mac app and this Compose file.
 
-## ☁️ Open source or Rerun Cloud?
+## 中文说明
 
-Same product, same code. Rerun Cloud is this Rerun, hosted, plus what only a hosted service can offer.
-
-| | 🛠️ Open source | ☁️ Rerun Cloud |
-|---|---|---|
-| Coworkers, chat, memory, skills, schedules | ✅ | ✅ |
-| Services catalog, MCP, Composio | ✅ | ✅ |
-| Template library | Your own templates | ✅ |
-| A computer for each workspace | You host it, one command attaches it | Ready in 30 seconds |
-| AI models | Your keys or subscriptions | Included credit, or your keys |
-| Premium features (LinkedIn, WhatsApp, paid data, emails) | | ✅ |
-| Updates | Each release | Continuous |
-| Support | Community | ✅ |
-| Price | Free forever | [See plans](https://rerun.build/pricing) |
-
-## 🧩 How it fits together
-
-```mermaid
-flowchart LR
-    you(["🧑 You"]) --> app["<b>App</b><br/>Next.js · apps/ui"]
-    app <--> db[("<b>Supabase</b><br/>Postgres, auth,<br/>storage, realtime")]
-    app <--> engine["<b>Engine</b> · apps/engine<br/>one per workspace"]
-    engine --> coworkers["🤖 Coworkers<br/>files, browser, screen"]
-    engine <--> tools["🔌 Your tools<br/>MCP, APIs"]
-    engine <--> models["🧠 Your models"]
-```
-
-**Built with** Next.js, React, Tailwind, Supabase, the Vercel AI SDK, Hono, libSQL, Patchright and Docker,
-in a pnpm monorepo.
-
-## 🤝 Contributing
-
-Bug reports, fixes and docs are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first: it explains
-how to run Rerun from source and how pull requests flow back into Rerun Cloud.
-
-Self-hosting is documented, not supported: an issue without logs or steps to reproduce is closed
-with a link to the guide. Questions and show-and-tell go to [Discord](https://discord.gg/cJUUgdTg5p).
-
-If Rerun saves you a few hours, a ⭐ helps a lot.
-
-<p align="center">
-  <a href="https://star-history.com/#rerun-build/rerun&Date">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=rerun-build/rerun&type=Date&theme=dark">
-      <img alt="Star history" src="https://api.star-history.com/svg?repos=rerun-build/rerun&type=Date" width="600">
-    </picture>
-  </a>
-</p>
-
-## 📜 License
-
-[AGPL-3.0](LICENSE). You can run, modify and host Rerun freely; if you host it for others, you
-publish your changes under the same license. The name and logo are not covered: see
-[TRADEMARK.md](TRADEMARK.md).
+BlinkyBot 是 [Rerun](https://github.com/rerun-build/rerun) 的公开分支（AGPL-3.0），目标是跑在 Mac 上的本地智能体中枢。第一阶段的安装方式是打开 Mac 应用：应用自己拉起本地 Engine 和本地 Compose 界面，不需要 Docker，也不需要 Supabase 项目。界面、Foreman、记忆和人工确认（HITL）保留，Codex CLI、Kimi CLI、Grok CLI 作为首批运行时。运行契约见 `docs/no-docker-runtime.md`。Rex、Ego Browser、以云端 Engine 或 Supabase 为主的部署，以及 iOS、Windows、Linux 外壳不在第一阶段范围内。`docker-compose.yml` 仍是上游 Rerun 的服务器安装方式，留在仓库里，Mac 安装路径不会启动它。Rex 目前不在这个仓库里。并行分支合并进 `phase1/verify` 做验收。打上 `v*` tag 并推送后，GitHub Release 会附上 Mac 安装盘（见 `docs/releasing.md`）。Rerun 的名称与标识仍属于上游，本项目不声称获得 Rerun 背书。

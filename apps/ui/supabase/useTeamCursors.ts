@@ -1,6 +1,7 @@
 'use client'
 
 import { displayNameOf, readProfile } from '@/lib/auth/user-profile'
+import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { createClient } from '@/supabase/client'
 import { useSession } from '@/supabase/session/SessionProvider'
 import { REALTIME_CHANNEL_STATES, type RealtimeChannel } from '@supabase/supabase-js'
@@ -48,9 +49,10 @@ export function useTeamCursors(channelKey: string | undefined) {
 
     const flush = useCallback(() => setCursors(Array.from(cursorsRef.current.values())), [])
 
+    const localAuth = useLocalAuthMode()
     const userId = identity.userId
     useEffect(() => {
-        if (!channelKey || !userId) return
+        if (localAuth || !channelKey || !userId) return
 
         const supabase = createClient()
         const cursorsMap = cursorsRef.current
@@ -130,7 +132,7 @@ export function useTeamCursors(channelKey: string | undefined) {
             channelRef.current = null
             if (channel) supabase.removeChannel(channel)
         }
-    }, [channelKey, userId, flush])
+    }, [channelKey, userId, flush, localAuth])
 
     const onPointerWorldMove = useCallback((world: { x: number; y: number } | null) => {
         const channel = channelRef.current

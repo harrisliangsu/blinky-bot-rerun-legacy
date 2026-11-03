@@ -6,6 +6,7 @@ import { dismissGettingStartedAction, restoreGettingStartedAction } from '@/app/
 import { GETTING_STARTED_STEPS, isComplete, progressOf, rewardOf, type GettingStartedState, type GettingStartedStepId } from '@/lib/onboarding/getting-started'
 import { isPhoneStepDone } from '@/cloud/phone'
 import { useForemanStore } from '@/stores/foreman.store'
+import { useLocalAuthMode } from '@/lib/local-auth/mode-context'
 import { createClient } from '@/supabase/client'
 import { useSession } from '@/supabase/session/SessionProvider'
 import { selectMany } from '@/supabase/supabase-helpers'
@@ -34,6 +35,7 @@ async function syncGettingStarted(): Promise<SyncResult> {
  * the pill can celebrate it; the rows loaded on mount are not news.
  */
 export function useGettingStarted({ enabled, onLiveStep }: { enabled: boolean; onLiveStep?: (live: LiveStep) => void }) {
+    const localAuth = useLocalAuthMode()
     const { workspace, phoneStatus } = useSession()
     const workspaceId = workspace?.id
     const [items, setItems] = useState<ReadonlySet<string> | null>(null)
@@ -51,7 +53,7 @@ export function useGettingStarted({ enabled, onLiveStep }: { enabled: boolean; o
     }, [workspaceId])
 
     useEffect(() => {
-        if (!enabled || !workspaceId) return
+        if (localAuth || !enabled || !workspaceId) return
         let cancelled = false
         void syncGettingStarted().then(result => {
             if (cancelled) return
@@ -62,7 +64,7 @@ export function useGettingStarted({ enabled, onLiveStep }: { enabled: boolean; o
         return () => {
             cancelled = true
         }
-    }, [enabled, workspaceId, load])
+    }, [enabled, workspaceId, load, localAuth])
 
     const available = enabled && (visible || dismissed)
     useEffect(() => {
@@ -77,7 +79,7 @@ export function useGettingStarted({ enabled, onLiveStep }: { enabled: boolean; o
     useRealtimeSubscription('workspace_getting_started', {
         channelId: `getting-started-ws-${workspaceId}`,
         filter: workspaceId ? { column: 'workspace_id', value: workspaceId } : undefined,
-        enabled: enabled && visible && !!workspaceId,
+        enabled: enabled && visible && !!workspaceId && !localAuth,
         onInsert: row => {
             if (itemsRef.current.has(row.item)) return
             const next = new Set(itemsRef.current).add(row.item)

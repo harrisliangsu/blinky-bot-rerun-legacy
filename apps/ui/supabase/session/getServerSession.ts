@@ -1,11 +1,19 @@
+import { emptySupabase } from '@/lib/local-auth/empty-client'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
+import { readRequestSnapshot } from '@/lib/local-auth/snapshot'
 import { createClient, getRequestAccessToken, getRequestWorkspaceId } from '@/supabase/server'
 import { cache } from 'react'
+import type { User } from '@supabase/supabase-js'
 import { selectMaybeSingle, selectSingle } from '../supabase-helpers'
 
 // The caller's user row and the workspace it acts in, nothing more: one RLS read, which only
 // returns a row when PostgREST accepted the JWT. The guards that only need a workspace id stop
 // here instead of paying for the workspace row and a round-trip to the auth server.
 export const getSessionWorkspace = cache(async () => {
+    if (isBlinkyLocalAuth()) {
+        const snapshot = await readRequestSnapshot()
+        return { supabase: emptySupabase(), user: snapshot?.user ?? null, workspaceRefused: false }
+    }
     const supabase = await createClient()
     const { data: storedUser } = await selectSingle(supabase, 'users', ['id', 'workspace_id', 'email_notification_prefs'] as const, {})
     const requestedWorkspaceId = await getRequestWorkspaceId()
@@ -29,6 +37,16 @@ export const getSessionWorkspace = cache(async () => {
 })
 
 export const getServerSession = cache(async () => {
+    if (isBlinkyLocalAuth()) {
+        const snapshot = await readRequestSnapshot()
+        return {
+            user: snapshot?.user ?? null,
+            workspace: snapshot?.workspace ?? null,
+            workspaceRefused: false,
+            session: (snapshot?.authUser ?? null) as User | null,
+            isAnonymous: false,
+        }
+    }
     const { supabase, user, workspaceRefused } = await getSessionWorkspace()
 
     const [{ data: workspace }, { data: authUser }] = await Promise.all([

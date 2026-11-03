@@ -3,7 +3,7 @@ import { AuthShell } from '@/components/auth/AuthShell'
 
 export const metadata: Metadata = {
     title: 'Sign in',
-    description: 'Sign in or create your Rerun account and get your first AI coworker running in minutes.',
+    description: 'Sign in or create your BlinkyBot account and get your first AI coworker running in minutes.',
 }
 
 export default function AuthFlowLayout({ children }: { children: React.ReactNode }) {

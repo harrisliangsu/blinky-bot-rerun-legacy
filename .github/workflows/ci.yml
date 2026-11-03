@@ -26,6 +26,7 @@ jobs:
       - run: pnpm --filter rerun lint
       - run: pnpm --filter rerun test
       - run: pnpm --filter rerun-engine test
+      - run: pnpm bundle:check
 
   migrations:
     name: Migrations and seed on a fresh database

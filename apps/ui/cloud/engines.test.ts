@@ -46,6 +46,14 @@ describe('claimPoolEngine', () => {
         vi.stubEnv('RERUN_ENGINE_URL', '')
         await expect(claimPoolEngine(4)).resolves.toMatchObject({ ok: false, raced: false })
     })
+
+    it('returns the supervised engine in local auth and does not write engine_pool', async () => {
+        vi.stubEnv('BLINKY_LOCAL_AUTH', '1')
+        vi.mocked(createServiceRoleClient).mockClear()
+        await expect(claimPoolEngine(1)).resolves.toEqual({ ok: true, instance: { id: 'local', engineHost: 'http://engine:3000', engineApiKey: 'compose-key' } })
+        expect(createServiceRoleClient).not.toHaveBeenCalled()
+        expect(db.writes('engine_pool')).toHaveLength(0)
+    })
 })
 
 describe('desktopRelayBase', () => {

@@ -10,6 +10,7 @@ import { stripAttachmentsRef } from '@/lib/chat/attachments-marker'
 import { installSessionTitle, parseInstallMessage } from '@/lib/chat/install-marker'
 import { preferredLanguage } from '@/lib/foreman/language'
 import { stripVoiceMarker } from '@/lib/voice/marker'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import type { MessageAuthor, SessionSource } from '@rerun/contracts'
 
@@ -139,7 +140,7 @@ export async function POST(request: Request) {
         } catch {
             return Response.json({ error: 'Failed to persist session' }, { status: 500 })
         }
-        if (!install) {
+        if (!install && !isBlinkyLocalAuth()) {
             generateSessionTitle(sessionTitleSeed)
                 .then(async title => {
                     const supabase = createServiceRoleClient()
@@ -147,7 +148,7 @@ export async function POST(request: Request) {
                 })
                 .catch(() => {})
         }
-    } else if (resolvedEngineSessionId && resolvedEngineSessionId !== engineSessionId) {
+    } else if (!isBlinkyLocalAuth() && resolvedEngineSessionId && resolvedEngineSessionId !== engineSessionId) {
         // Backfill the engine session id if we didn't have it yet.
         const supabase = createServiceRoleClient()
         await supabase.from('sessions').update<Database['public']['Tables']['sessions']['Update']>({ engine_session_id: resolvedEngineSessionId }).eq('id', supabaseSessionId).then()

@@ -1,5 +1,8 @@
 import { realEmail } from '@/lib/auth/placeholder-email'
 import type { Database } from '@/app/api/database.types'
+import { emptySupabase } from '@/lib/local-auth/empty-client'
+import { LOCAL_SPACE_ID } from '@/lib/local-auth/constants'
+import { isBlinkyLocalAuth } from '@/lib/local-auth/mode'
 import { createServiceRoleClient } from '@/supabase/serviceRole'
 import { getServerSession, getSessionWorkspace } from '@/supabase/session/getServerSession'
 import { selectMany, selectMaybeSingle, selectMaybeSingleWithJoins, selectSingle } from '@/supabase/supabase-helpers'
@@ -56,6 +59,12 @@ export type WorkspaceContext = {
 // stay on users.workspace_id after the membership is gone, so the membership is re-read rather
 // than inferred from the session.
 export async function requireWorkspaceContext(): Promise<WorkspaceContext> {
+    if (isBlinkyLocalAuth()) {
+        const { user, workspace, session, workspaceRefused } = await getServerSession()
+        if (workspaceRefused) throw new AuthorizationError(NOT_A_MEMBER)
+        if (!user?.id || !user.workspace_id || !workspace || !session) throw new UnauthenticatedError()
+        return { userId: user.id, userEmail: realEmail(session.email), authUser: session, workspace, supabase: emptySupabase() }
+    }
     const { user, workspace, session, workspaceRefused } = await getServerSession()
     if (workspaceRefused) throw new AuthorizationError(NOT_A_MEMBER)
     if (!user?.id || !user.workspace_id || !workspace || !session) throw new UnauthenticatedError()
@@ -72,6 +81,10 @@ type OwnedAgent = { workspace_id: number; space_id: string; engine_agent_id: str
 // Loads an agent (service-role) and asserts it belongs to the caller's
 // workspace. Returns the row so callers don't fetch it twice.
 export async function assertAgentInWorkspace(agentId: string): Promise<OwnedAgent> {
+    if (isBlinkyLocalAuth()) {
+        const workspaceId = await requireWorkspaceId()
+        return { workspace_id: workspaceId, space_id: LOCAL_SPACE_ID, engine_agent_id: agentId }
+    }
     const [workspaceId, { data: agent }] = await Promise.all([requireWorkspaceId(), selectSingle(createServiceRoleClient(), 'agents', ['workspace_id', 'space_id', 'engine_agent_id'] as const, { id: agentId })])
     if (!agent || agent.workspace_id !== workspaceId) throw new AuthorizationError('Coworker not found')
     return agent
@@ -121,6 +134,10 @@ type OwnedSession = { id: string; agent_id: string; engine_session_id: string | 
 // read, alongside the caller's workspace rather than after it. `workspaceId` is passed in by a
 // caller that already started resolving it.
 export async function assertSessionInWorkspace(sessionId: string, workspaceId?: Promise<number>): Promise<OwnedSession> {
+    if (isBlinkyLocalAuth()) {
+        await (workspaceId ?? requireWorkspaceId())
+        return { id: sessionId, agent_id: '', engine_session_id: sessionId, engine_agent_id: null }
+    }
     const [callerWorkspaceId, session] = await Promise.all([workspaceId ?? requireWorkspaceId(), readSessionWithAgent(sessionId)])
     if (!session || session.agent?.workspace_id !== callerWorkspaceId) throw new AuthorizationError('Session not found')
     return { id: session.id, agent_id: session.agent_id, engine_session_id: session.engine_session_id, engine_agent_id: session.agent.engine_agent_id }
