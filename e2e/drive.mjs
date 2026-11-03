@@ -396,12 +396,10 @@ async function openThread(page, state) {
 }
 
 async function sendChat(page, text) {
-    const box = page.getByRole('textbox').last()
+    const box = page.getByTestId('composer').last()
     await box.click()
     await box.fill(text)
-    const send = page.getByRole('button', { name: 'Submit' })
-    if (await send.isEnabled().catch(() => false)) await send.click()
-    else await box.press('Enter')
+    await box.press('Enter')
 }
 
 function writeControl(value) {

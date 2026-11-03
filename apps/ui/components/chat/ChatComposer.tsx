@@ -421,6 +421,7 @@ export function ChatComposer({
                         <div className="relative w-full">
                             <PromptInputTextarea
                                 ref={inputRef}
+                                data-testid="composer"
                                 placeholder={placeholder}
                                 className={cn(expandable && 'pr-9', links.hasTokens && 'text-transparent caret-foreground [scrollbar-gutter:stable]')}
                                 {...textareaProps}
