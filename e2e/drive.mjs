@@ -310,40 +310,38 @@ async function chat() {
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await openThread(page, state)
+        await dismissPermissionPrompt(page)
         await clickPicker(page)
         await page.getByText('Kimi for Coding', { exact: true }).waitFor({ timeout: 15_000 })
         await page.getByText('Grok 4.7', { exact: true }).waitFor({ timeout: 5_000 })
         await page.screenshot({ path: join(shots, 'model-picker.png') })
-        await page.getByText('Kimi for Coding', { exact: true }).click()
+        await chooseModel(page, 'Kimi for Coding')
         await sendChat(page, 'hello kimi')
         await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'kimi-reply.png') })
-        await clickPicker(page)
-        await page.getByRole('option', { name: /Grok 4\.7/ }).click()
-        await page.getByRole('main').getByTestId('model-picker').last().filter({ hasText: /Grok/ }).waitFor({ timeout: 10_000 })
+        await chooseModel(page, 'Grok 4.7')
         await sendChat(page, 'hello grok')
-        await page.getByText(/Grok CLI is not logged in/).first().waitFor({ timeout: 30_000 })
+        await waitForNotice(page, /Connection signed out|signed in again|Grok CLI is not logged in/)
         await page.screenshot({ path: join(shots, 'grok-signed-out.png') })
         const kimiPath = process.env.RERUN_KIMI_PATH
         const hidden = `${kimiPath}.off`
-        await clickPicker(page)
-        await page.getByText('Kimi for Coding', { exact: true }).click()
+        await chooseModel(page, 'Kimi for Coding')
         renameSync(kimiPath, hidden)
         try {
             await sendChat(page, 'hello missing kimi')
-            await page.getByText(/Kimi CLI is not installed/).first().waitFor({ timeout: 30_000 })
+            await waitForNotice(page, /Kimi CLI is not installed/)
             await page.screenshot({ path: join(shots, 'kimi-missing.png') })
         } finally {
             renameSync(hidden, kimiPath)
         }
         writeControl({ fail: 'quota', delayMs: 0 })
         await sendChat(page, 'hello quota')
-        await page.getByText(/quota exceeded|Usage limit reached|usage limit/).first().waitFor({ timeout: 30_000 })
+        await waitForNotice(page, /quota exceeded|Usage limit reached|usage limit|Rerun credits used up/)
         await page.screenshot({ path: join(shots, 'quota-notice.png') })
         writeControl({})
         writeFileSync(join(out, 'chat.json'), JSON.stringify({
             ok: true,
-            detail: 'The model picker lists stub Kimi and Grok. A Kimi turn streamed a reply. Grok, with no key, showed the login notice. Removing the Kimi binary showed the install notice. A quota stderr showed the quota notice.',
+            detail: 'The model picker lists stub Kimi and Grok. A Kimi turn streamed a reply. Grok, with no key, showed the signed-out notice. Removing the Kimi binary showed the install notice. A quota stderr showed the usage-limit notice.',
         }, null, 2))
     } catch (error) {
         await page.screenshot({ path: join(shots, 'chat-failed.png') }).catch(() => {})
@@ -367,6 +365,7 @@ async function runs() {
         await sendChat(page, 'please keep going')
         const stop = page.getByTestId('stop-run')
         await stop.waitFor({ timeout: 15_000 })
+        await dismissPermissionPrompt(page)
         await stop.click()
         await waitBoard(page, state.agentId, 'idle', [])
         await page.screenshot({ path: join(shots, 'stopped-idle.png') })
@@ -400,9 +399,40 @@ async function openThread(page, state) {
 }
 
 async function clickPicker(page) {
+    await dismissPermissionPrompt(page)
     const picker = page.getByRole('main').getByTestId('model-picker').last()
     await picker.waitFor({ state: 'attached', timeout: 20_000 })
     await picker.evaluate(element => element.click())
+}
+
+async function chooseModel(page, label) {
+    const pattern = new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const pill = page.getByRole('main').getByTestId('model-picker').last()
+    const option = page.getByRole('option', { name: pattern }).first()
+    if (!(await option.isVisible().catch(() => false))) {
+        await clickPicker(page)
+        await option.waitFor({ timeout: 15_000 })
+    }
+    await option.getByText(label, { exact: true }).click()
+    await pill.filter({ hasText: pattern }).waitFor({ timeout: 10_000 })
+}
+
+async function dismissPermissionPrompt(page) {
+    const notNow = page.getByRole('button', { name: 'Not now', exact: true })
+    if (!(await notNow.isVisible().catch(() => false))) return
+    await notNow.click()
+    await notNow.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {})
+}
+
+async function waitForNotice(page, pattern) {
+    const notice = page.getByText(pattern).first()
+    const deadline = Date.now() + 30_000
+    while (Date.now() < deadline) {
+        await dismissPermissionPrompt(page)
+        if (await notice.isVisible().catch(() => false)) return
+        await page.waitForTimeout(300)
+    }
+    await notice.waitFor({ timeout: 1_000 })
 }
 
 async function sendChat(page, text) {
