@@ -400,8 +400,8 @@ async function openThread(page, state) {
 
 async function clickPicker(page) {
     const picker = page.getByRole('main').getByTestId('model-picker').last()
-    await picker.scrollIntoViewIfNeeded()
-    await picker.click()
+    await picker.waitFor({ state: 'attached', timeout: 20_000 })
+    await picker.evaluate(element => element.click())
 }
 
 async function sendChat(page, text) {
