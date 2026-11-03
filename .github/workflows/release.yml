@@ -29,6 +29,7 @@ jobs:
     runs-on: macos-14
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -161,7 +162,7 @@ jobs:
               "build.noindex/BlinkyBot-$VERSION.dmg" \
               "build.noindex/BlinkyBot-$VERSION.zip" \
               --clobber
-            gh release edit "v$VERSION" --notes-file notes.md $PRERELEASE
+            gh release edit "v$VERSION" --notes-file notes.md --draft=false $PRERELEASE
           else
             gh release create "v$VERSION" \
               "build.noindex/BlinkyBot-$VERSION.dmg" \
@@ -211,26 +212,18 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git commit -m "Offer $VERSION to Sparkle"
-            pushed=0
-            for attempt in 1 2 3 4 5; do
-              git fetch origin main
-              if ! git rebase origin/main; then
-                echo "::error::Could not rebase the Sparkle feed onto origin/main."
-                git rebase --abort || true
+            if ! git push origin HEAD:main; then
+              echo "Direct push to main was rejected. Opening a pull request for the signed feed."
+              git push --force origin "HEAD:appcast-v$VERSION"
+              if ! gh pr list --head "appcast-v$VERSION" --json number --jq '.[0].number' | grep -q .; then
+                gh pr create --base main --head "appcast-v$VERSION" \
+                  --title "Offer $VERSION to Sparkle" \
+                  --body "Signed appcast from the v$VERSION release. main requires a pull request."
+              fi
+              if ! gh pr merge "appcast-v$VERSION" --squash --admin --delete-branch; then
+                echo "::error::Could not merge the Sparkle feed into main. Merge the appcast-v$VERSION pull request, then re-run if the feed is still missing."
                 exit 1
               fi
-              if git push origin main; then
-                pushed=1
-                break
-              fi
-              echo "Push to main was rejected (attempt ${attempt} of 5)."
-              if [ "$attempt" -lt 5 ]; then
-                sleep $((attempt * 2))
-              fi
-            done
-            if [ "$pushed" -ne 1 ]; then
-              echo "::error::Could not push the Sparkle feed to main."
-              exit 1
             fi
           fi
           git fetch origin main
