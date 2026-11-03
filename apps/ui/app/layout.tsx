@@ -31,7 +31,7 @@ export const metadata: Metadata = {
   },
   description: site.description,
   applicationName: site.name,
-  keywords: ["Rerun", "AI agents", "autonomous agents", "agent orchestration", "AI workforce", "no-code agents"],
+  keywords: ["BlinkyBot", "AI agents", "autonomous agents", "agent orchestration", "AI workforce", "no-code agents"],
   authors: [{ name: site.name }],
   metadataBase: new URL(site.url),
   // Next resolves the OpenGraph and Twitter titles against their own template, never against

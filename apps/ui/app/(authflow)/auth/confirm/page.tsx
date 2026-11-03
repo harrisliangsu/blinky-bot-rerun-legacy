@@ -26,7 +26,7 @@ export default async function ConfirmPage({ searchParams }: { searchParams: Prom
     return (
         <Card className="space-y-6 p-8">
             <div className="space-y-2">
-                <h1 className="text-xl font-semibold tracking-tight">Sign in to Rerun</h1>
+                <h1 className="text-xl font-semibold tracking-tight">Sign in to BlinkyBot</h1>
                 <p className="text-sm text-muted-foreground">Continue to open the session linked to this email.</p>
             </div>
 
