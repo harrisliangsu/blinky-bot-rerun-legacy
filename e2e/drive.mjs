@@ -1,5 +1,5 @@
 import { chromium } from 'playwright'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { driveMissingEgo, drivePackagedClis, drivePackagedEgo } from './hooks.mjs'
 import { assertRexLaunch } from './rex-hook.mjs'
@@ -19,7 +19,7 @@ if (!mode || !out) {
     console.error('drive.mjs needs a mode and E2E_OUT')
     process.exit(1)
 }
-if ((mode === 'core' || mode === 'persist' || mode === 'chat' || mode === 'runs') && (!ui || !engineUrl || !apiKey)) {
+if ((mode === 'core' || mode === 'persist' || mode === 'chat' || mode === 'runs' || mode === 'workspace') && (!ui || !engineUrl || !apiKey)) {
     console.error('drive.mjs core and persist need BLINKY_UI_URL, BLINKY_ENGINE_URL, and BLINKY_API_KEY')
     process.exit(1)
 }
@@ -61,12 +61,12 @@ async function core() {
         await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
         await page.screenshot({ path: join(shots, 'workspace.png') })
         const before = new Set(((await engine('/agents')).agents ?? []).map(agent => agent.id))
-        await page.getByRole('button', { name: 'New coworker', exact: true }).click()
-        await page.getByRole('heading', { name: 'What should your new coworker do?' }).waitFor({ timeout: 20_000 })
-        await page.getByRole('button', { name: suggestion }).click()
-        await page.getByRole('button', { name: `Create ${suggestion}` }).click()
+        await page.getByTestId('new-coworker').click()
+        await page.getByTestId('new-coworker-heading').waitFor({ timeout: 20_000 })
+        await page.locator('[data-testid$="-seo"]').first().click()
+        await page.getByTestId('create-coworker').click()
         await page.screenshot({ path: join(shots, 'new-coworker.png') })
-        await page.getByText(`Tap a tile to place ${suggestion}`).waitFor({ timeout: 20_000 })
+        await page.getByTestId('placement-prompt').waitFor({ timeout: 20_000 })
         const agent = await placeOnBoard(page, before)
         const seen = []
         const boardSeen = []
@@ -119,7 +119,7 @@ async function persist() {
         const visible = page.getByText(reply).first()
         if (!(await visible.waitFor({ timeout: 8_000 }).then(() => true).catch(() => false))) {
             const session = await engine(`/agents/${state.agentId}/sessions/${state.sessionId}`)
-            await page.getByRole('button', { name: 'Chats', exact: true }).click()
+            await page.getByTestId('chats').click()
             await page.getByRole('button', { name: session.title || 'Untitled' }).last().click()
         }
         await page.getByText(reply).first().waitFor({ timeout: 30_000 })
@@ -164,7 +164,49 @@ async function clis() {
 }
 
 async function workspace() {
-    throw new Error('Per-agent repo clone is on this tree, but the packaged screen for a local bare repo, a git URL, and a path without permission is not wired into this driver yet.')
+    const url = process.env.BLINKY_FIXTURE_URL
+    const lockedUrl = process.env.BLINKY_LOCKED_URL
+    const lockedPath = process.env.BLINKY_LOCKED_PATH
+    if (!url || !lockedUrl || !lockedPath) throw new Error('The git fixtures were not prepared.')
+    const ada = await engine('/agents', { method: 'POST', body: { config: { name: 'Fixture Ada' } } })
+    const grace = await engine('/agents', { method: 'POST', body: { config: { name: 'Fixture Grace' } } })
+    const github = await engine(`/agents/${ada.id}/repos`, { method: 'POST', body: { source: 'github', nameWithOwner: 'fixture/widget' } })
+    const readme = readFileSync(join(github.path, 'README'), 'utf8')
+    if (!readme.includes('from-origin')) throw new Error('The GitHub attach did not check out the fixture commit.')
+    const adaSpace = await engine(`/agents/${ada.id}/workspace`)
+    if (adaSpace.activeRepo?.path !== github.path || !String(adaSpace.reposDir).includes(`${ada.id}`)) {
+        throw new Error(`GET /workspace did not name the GitHub checkout: ${JSON.stringify(adaSpace)}`)
+    }
+    const plain = await engine(`/agents/${grace.id}/repos`, { method: 'POST', body: { source: 'url', url } })
+    if (plain.path === github.path) throw new Error('Two agents share one checkout.')
+    writeFileSync(join(plain.path, 'only-grace.txt'), 'grace')
+    if (existsSync(join(github.path, 'only-grace.txt'))) throw new Error("Grace's file showed up in Ada's checkout.")
+    chmodSync(lockedPath, 0o000)
+    try {
+        const denied = await engineStatus(`/agents/${ada.id}/repos/test`, { method: 'POST', body: { url: lockedUrl } })
+        const message = String(denied.body?.error || '')
+        if (denied.status !== 403 || !message.includes('does not store')) {
+            throw new Error(`A private URL did not return the credential-helper 403: ${denied.status} ${message}`)
+        }
+        const listed = await engine(`/agents/${ada.id}/repos`)
+        if (listed.repos.some(repo => String(repo.remote).includes('locked'))) throw new Error('The refused URL was recorded as a checkout.')
+        if (existsSync(join(adaSpace.reposDir, 'locked'))) throw new Error('The refused URL left a checkout directory.')
+    } finally {
+        chmodSync(lockedPath, 0o700)
+    }
+    const graceSpace = await engine(`/agents/${grace.id}/workspace`)
+    await engine(`/agents/${grace.id}`, { method: 'DELETE' })
+    if (existsSync(graceSpace.workspacePath)) throw new Error('Deleting the agent left its workspace on disk.')
+    if (!existsSync(github.path)) throw new Error("Deleting Grace removed Ada's checkout.")
+    writeFileSync(join(out, 'workspace.json'), JSON.stringify({
+        ok: true,
+        detail: [
+            `Stub gh attached fixture/widget for ${ada.id} at ${github.path}.`,
+            `The same https URL cloned into a separate tree for ${grace.id}. A file written there is absent from the other tree.`,
+            'POST /repos/test on a repository without permission returned 403 and left no checkout.',
+            `DELETE /agents/${grace.id} removed ${graceSpace.workspacePath}.`,
+        ].join('\n'),
+    }, null, 2))
 }
 
 async function rex() {
@@ -194,7 +236,7 @@ async function chat() {
     try {
         await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
         await openThread(page, state)
-        await page.getByRole('button', { name: /GPT-5\.6 Sol|Kimi|Grok/ }).first().click()
+        await page.getByTestId('model-picker').click()
         await page.getByText('Kimi for Coding', { exact: true }).waitFor({ timeout: 15_000 })
         await page.getByText('Grok 4.7', { exact: true }).waitFor({ timeout: 5_000 })
         await page.screenshot({ path: join(shots, 'model-picker.png') })
@@ -202,14 +244,14 @@ async function chat() {
         await sendChat(page, 'hello kimi')
         await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'kimi-reply.png') })
-        await page.getByRole('button', { name: /Kimi for Coding/ }).first().click()
+        await page.getByTestId('model-picker').click()
         await page.getByText('Grok 4.7', { exact: true }).click()
         await sendChat(page, 'hello grok')
         await page.getByText(/Grok CLI is not logged in/).first().waitFor({ timeout: 30_000 })
         await page.screenshot({ path: join(shots, 'grok-signed-out.png') })
         const kimiPath = process.env.RERUN_KIMI_PATH
         const hidden = `${kimiPath}.off`
-        await page.getByRole('button', { name: /Grok 4\.7/ }).first().click()
+        await page.getByTestId('model-picker').click()
         await page.getByText('Kimi for Coding', { exact: true }).click()
         renameSync(kimiPath, hidden)
         try {
@@ -248,7 +290,7 @@ async function runs() {
         await openThread(page, state)
         writeControl({ delayMs: 8000 })
         await sendChat(page, 'please keep going')
-        const stop = page.getByRole('button', { name: /Stop the current run|^Stop$/ }).first()
+        const stop = page.getByTestId('stop-run')
         await stop.waitFor({ timeout: 15_000 })
         await stop.click()
         await waitBoard(page, state.agentId, 'idle', [])
@@ -276,7 +318,7 @@ async function openThread(page, state) {
     await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
     if (!(await page.getByText(reply).first().waitFor({ timeout: 8_000 }).then(() => true).catch(() => false))) {
         const session = await engine(`/agents/${state.agentId}/sessions/${state.sessionId}`)
-        await page.getByRole('button', { name: 'Chats', exact: true }).click()
+        await page.getByTestId('chats').click()
         await page.getByRole('button', { name: session.title || 'Untitled' }).last().click()
         await page.getByText(reply).first().waitFor({ timeout: 30_000 })
     }
@@ -311,7 +353,7 @@ async function installCodex() {
 }
 
 async function placeOnBoard(page, before) {
-    const board = page.getByRole('group', { name: 'Coworker board' })
+    const board = page.getByTestId('coworker-board')
     await board.waitFor({ timeout: 20_000 })
     const box = await board.boundingBox()
     if (!box) throw new Error('The coworker board has no box to click.')
@@ -386,14 +428,29 @@ async function boardStatus(page, agentId) {
 }
 
 async function engine(path, options = {}) {
+    const result = await engineStatus(path, options)
+    if (result.status < 200 || result.status >= 300) {
+        throw new Error(`${options.method || 'GET'} ${path} -> ${result.status} ${JSON.stringify(result.body).slice(0, 500)}`)
+    }
+    return result.body
+}
+
+async function engineStatus(path, options = {}) {
     const response = await fetch(`${engineUrl}${path}`, {
         method: options.method || 'GET',
         headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
         body: options.body ? JSON.stringify(options.body) : undefined,
     })
     const text = await response.text()
-    if (!response.ok) throw new Error(`${options.method || 'GET'} ${path} -> ${response.status} ${text.slice(0, 500)}`)
-    return text ? JSON.parse(text) : null
+    let body = null
+    if (text) {
+        try {
+            body = JSON.parse(text)
+        } catch {
+            body = { error: text }
+        }
+    }
+    return { status: response.status, body }
 }
 
 function sleep(ms) {

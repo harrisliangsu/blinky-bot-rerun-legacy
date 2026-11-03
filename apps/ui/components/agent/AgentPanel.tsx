@@ -214,7 +214,7 @@ export function AgentPanel() {
                     <TopVeil tall={!locked} />
                     {!locked && (
                         <div className="absolute left-3 top-3 z-50">
-                            <FloatingPill label="Chats" onClick={() => toggleSurface({ kind: 'chats', filter: 'all' })} active={shownSurface?.kind === 'chats'} className="w-10 justify-center px-0">
+                            <FloatingPill label="Chats" testId="chats" onClick={() => toggleSurface({ kind: 'chats', filter: 'all' })} active={shownSurface?.kind === 'chats'} className="w-10 justify-center px-0">
                                 <span className="relative flex">
                                     <MessageCircle className="size-4 text-muted-foreground" />
                                     {attentionCount > 0 && <span className="absolute -right-1 -top-1 size-2 rounded-full bg-red-500 ring-2 ring-background" />}

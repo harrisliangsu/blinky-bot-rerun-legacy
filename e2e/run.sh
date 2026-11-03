@@ -84,6 +84,8 @@ deps = {
     "grok": {"kind": "stub", "detail": "e2e/stubs/agent-cli.mjs via RERUN_GROK_PATH."},
     "ego-browser": {"kind": os.environ.get("BLINKY_EGO_KIND", "stub"), "detail": os.environ.get("BLINKY_EGO_DETAIL", "")},
     "rex": {"kind": "absent", "detail": "No Rex toggle is on this tree, so no rex binary is placed on PATH."},
+    "gh": {"kind": "stub", "detail": "e2e/stubs/gh answers auth status and repo view for fixture/widget."},
+    "git": {"kind": "real", "detail": "The runner git clones a local bare repo through insteadOf."},
 }
 with open(path, "w", encoding="utf-8") as handle:
     json.dump(deps, handle, indent=2)
@@ -341,13 +343,52 @@ wait_ready() {
     return 1
 }
 
+prepare_git_fixtures() {
+    local bare="$OUT/origin.git"
+    local locked="$OUT/locked.git"
+    local seed="$OUT/git-seed"
+    local locked_seed="$OUT/git-locked-seed"
+    rm -rf "$bare" "$locked" "$seed" "$locked_seed"
+    git init --bare -b main "$bare"
+    git init --bare -b main "$locked"
+    git init -b main "$seed"
+    git -C "$seed" config user.email e2e@example.com
+    git -C "$seed" config user.name E2E
+    printf 'from-origin\n' >"$seed/README"
+    git -C "$seed" add README
+    git -C "$seed" commit -m init
+    git -C "$seed" remote add origin "$bare"
+    git -C "$seed" push origin main
+    git init -b main "$locked_seed"
+    git -C "$locked_seed" config user.email e2e@example.com
+    git -C "$locked_seed" config user.name E2E
+    printf 'locked\n' >"$locked_seed/README"
+    git -C "$locked_seed" add README
+    git -C "$locked_seed" commit -m init
+    git -C "$locked_seed" remote add origin "$locked"
+    git -C "$locked_seed" push origin main
+    cat >"$OUT/gitconfig" <<EOF
+[url "file://${bare}"]
+	insteadOf = https://git.fixture.invalid/widget.git
+[url "file://${locked}"]
+	insteadOf = https://git.fixture.invalid/locked.git
+EOF
+    export GIT_CONFIG_GLOBAL="$OUT/gitconfig"
+    export GIT_CONFIG_NOSYSTEM=1
+    export BLINKY_FIXTURE_URL="https://git.fixture.invalid/widget.git"
+    export BLINKY_LOCKED_URL="https://git.fixture.invalid/locked.git"
+    export BLINKY_LOCKED_PATH="$locked"
+}
+
 prepare_stubs() {
     local name
     for name in codex kimi grok claude; do
         ln -sfn "$ROOT/e2e/stubs/agent-cli.mjs" "$OUT/bin/$name.mjs"
     done
     cp "$ROOT/e2e/stubs/ego-browser" "$OUT/bin/ego-browser"
-    chmod +x "$OUT/bin/ego-browser"
+    cp "$ROOT/e2e/stubs/gh" "$OUT/bin/gh"
+    chmod +x "$OUT/bin/ego-browser" "$OUT/bin/gh"
+    prepare_git_fixtures
     : >"$OUT/stub.log"
     export PATH="$OUT/bin:${PATH}"
     export RERUN_CODEX_PATH="$OUT/bin/codex.mjs"

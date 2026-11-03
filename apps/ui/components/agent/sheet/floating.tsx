@@ -56,11 +56,12 @@ export function FloatingSurface({ receded = false, className, children }: { rece
     )
 }
 
-export function FloatingPill({ label, onClick, active = false, className, children }: { label: string; onClick: () => void; active?: boolean; className?: string; children: ReactNode }) {
+export function FloatingPill({ label, onClick, active = false, className, children, testId }: { label: string; onClick: () => void; active?: boolean; className?: string; children: ReactNode; testId?: string }) {
     return (
         <button
             type="button"
             aria-label={label}
+            data-testid={testId}
             aria-expanded={active}
             onClick={onClick}
             className={cn(

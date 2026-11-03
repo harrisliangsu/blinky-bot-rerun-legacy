@@ -494,7 +494,7 @@ export function ChatComposer({
                             />
                         )}
                         {showStop && (
-                            <PromptInputButton tooltip="Stop the current run" aria-label="Stop the current run" onClick={onStop}>
+                            <PromptInputButton tooltip="Stop the current run" aria-label="Stop the current run" data-testid="stop-run" onClick={onStop}>
                                 <SquareIcon className="size-4" />
                             </PromptInputButton>
                         )}

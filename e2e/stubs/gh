@@ -1,0 +1,21 @@
+#!/usr/bin/env node
+const args = process.argv.slice(2)
+if (args[0] === 'auth' && args[1] === 'status') process.exit(0)
+if (args[0] === 'config' && args[1] === 'get' && args[2] === 'git_protocol') {
+    process.stdout.write('https\n')
+    process.exit(0)
+}
+if (args[0] === 'repo' && args[1] === 'view') {
+    const name = args[2]
+    process.stdout.write(`${JSON.stringify({
+        nameWithOwner: name,
+        description: 'e2e fixture',
+        isPrivate: false,
+        url: 'https://git.fixture.invalid/widget.git',
+        sshUrl: 'git@git.fixture.invalid:widget.git',
+        defaultBranchRef: { name: 'main' },
+    })}\n`)
+    process.exit(0)
+}
+process.stderr.write(`unexpected gh ${args.join(' ')}\n`)
+process.exit(2)

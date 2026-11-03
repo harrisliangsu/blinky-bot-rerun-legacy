@@ -13,7 +13,7 @@ export function probeFeatures(root) {
         menuBar: gate('bc-0a7b6354', 'menu bar and background mode', textHit(macFiles, ['MenuBarExtra', 'MenuBarMenu'])),
         crashDiagnostics: gate('bc-0a7b6354', 'crash diagnostics error view', textHit(macFiles, ['ServiceErrorView', 'That port is already in use'])),
         ego: gate('bc-6644260a', 'ego(lite) browser routing', textHit(appFiles, ['ego-browser'])),
-        workspaceClone: gate('workspace-clone', 'per-agent workspace and repo clone', textHit(appFiles, ['cloneRepository', 'RepoClone'])),
+        workspaceClone: gate('workspace-clone', 'per-agent workspace and repo clone', textHit(appFiles, ['attachRepo', 'repos.json'])),
         rex: rexGate(entriesWithText(macFiles)),
     }
 }

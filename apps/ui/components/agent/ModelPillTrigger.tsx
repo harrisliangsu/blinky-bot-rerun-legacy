@@ -17,6 +17,7 @@ export function ModelPillTrigger({ provider, label, className, ...props }: Model
     return (
         <button
             type="button"
+            data-testid="model-picker"
             className={cn(
                 'inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground disabled:pointer-events-none',
                 className
