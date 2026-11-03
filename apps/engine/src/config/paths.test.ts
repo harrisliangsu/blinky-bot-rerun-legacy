@@ -47,7 +47,7 @@ describe('layout', () => {
 
     it('nests every per-agent path under the agent folder', () => {
         const dir = paths.agentDir('a1')
-        for (const path of [paths.soulPath('a1'), paths.configPath('a1'), paths.installPath('a1'), paths.agentEnvPath('a1'), paths.workspaceDir('a1'), paths.systemDbPath('a1'), paths.skillsDir('a1'), paths.schedulesDir('a1'), paths.triggersDir('a1'), paths.mcpDir('a1')]) {
+        for (const path of [paths.soulPath('a1'), paths.configPath('a1'), paths.installPath('a1'), paths.agentEnvPath('a1'), paths.workspaceDir('a1'), paths.reposDir('a1'), paths.reposRegistryPath('a1'), paths.systemDbPath('a1'), paths.skillsDir('a1'), paths.schedulesDir('a1'), paths.triggersDir('a1'), paths.mcpDir('a1')]) {
             expect(path.startsWith(`${dir}/`)).toBe(true)
         }
     })

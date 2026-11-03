@@ -35,6 +35,7 @@ import { openrouterStreamRetryMiddleware } from './openrouter-stream-retry.js'
 import { openCliChatModel } from './cli-language-model.js'
 import { agentProcessEnv } from './process-env.js'
 import { providerRex } from './rex/launch.js'
+import { foreignAgentEnvOverlay } from '../workspace/env.js'
 import { BRIDGE_SERVER_NAME, CLI_PROVIDERS, type LoadedAgent } from './types.js'
 import { hubCallerHeaders } from '../runtime/hub.js'
 import type { StoredScreenshot } from '../runtime/screenshots.js'
@@ -286,6 +287,7 @@ function claudeProvider(agent: LoadedAgent, tools?: ToolSet, mcpServers: RunMcpS
             // agent is working through. `adaptive` leaves the model to decide when it is worth it.
             thinking: { type: 'adaptive', display: 'summarized' },
             env: {
+                ...foreignAgentEnvOverlay(agent.id),
                 ...agentEnv,
                 ...CLAUDE_HARNESS_ENV,
                 ...claudeAuthEnv(connectionEnv(agent)),
@@ -316,7 +318,7 @@ function codexShared(agent: LoadedAgent): CodexExecSettings & CodexAppServerSett
     const { cwd, env: agentEnv } = agentProcessEnv(agent)
     return {
         cwd,
-        env: { ...agentEnv, CODEX_HOME: codexHomeDir(agent.resolved.connection?.id ?? RERUN_CONNECTION_ID), ...codexBin.extraEnv },
+        env: { ...foreignAgentEnvOverlay(agent.id), ...agentEnv, CODEX_HOME: codexHomeDir(agent.resolved.connection?.id ?? RERUN_CONNECTION_ID), ...codexBin.extraEnv },
         ...(codexBin.executable ? { codexPath: codexBin.executable } : {}),
     }
 }
@@ -431,7 +433,7 @@ const noClose = async (): Promise<void> => {}
 
 function cliChatInput(agent: LoadedAgent, runtime: 'kimi' | 'grok', modelId: string, tools?: ToolSet, system?: string) {
     const { cwd, env } = agentProcessEnv(agent)
-    return { runtime, modelId, cwd, system, tools, env: { ...env, ...connectionEnv(agent) } }
+    return { runtime, modelId, cwd, system, tools, agentId: agent.id, env: { ...foreignAgentEnvOverlay(agent.id), ...env, ...connectionEnv(agent) } }
 }
 
 export function resolveModel(agent: LoadedAgent, override?: ModelOverride, tools?: ToolSet, mcpServers?: RunMcpServer[], system?: string, screenshots?: ScreenshotLookup): ResolvedModel {

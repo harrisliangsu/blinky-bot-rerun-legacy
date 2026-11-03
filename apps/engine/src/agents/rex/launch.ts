@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger } from '../../lib/logger.js'
+import { trackCliProcess } from '../../workspace/runs.js'
 import { agentWorkspace } from './workspace.js'
 import {
     REX_WARNING_LAUNCH_FAILED,
@@ -122,6 +123,7 @@ function launchDirect(options: AgentProcessOptions, live: Live, mirror: Mirror |
             stdio: proxy ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
         })
         live.child = child
+        const tracked = options.agentId ? trackCliProcess(options.agentId, options.label ?? options.command, options.command, child.pid ?? null) : null
         if (proxy && child.stdin) {
             for (const chunk of stdinBuffer) child.stdin.write(chunk)
             if (stdinEnded) child.stdin.end()
@@ -132,6 +134,7 @@ function launchDirect(options: AgentProcessOptions, live: Live, mirror: Mirror |
         const finish = (fn: () => void) => {
             if (settled) return
             settled = true
+            tracked?.end()
             fn()
         }
         const take = (chunk: Buffer, into: 'stdout' | 'stderr') => {

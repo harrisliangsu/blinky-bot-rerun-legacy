@@ -76,6 +76,17 @@ export const agentEnvPath = (id: string) => resolve(agentDir(id), '.env')
 
 export const workspaceDir = (id: string) => resolve(agentDir(id), 'workspace')
 
+// Checkouts stay inside the workspace the tools already sandbox, so there is one tree per agent.
+export const workspaceMetaDir = (id: string) => resolve(workspaceDir(id), '.blinky')
+
+export const reposRegistryPath = (id: string) => resolve(workspaceMetaDir(id), 'repos.json')
+
+export const reposDir = (id: string) => resolve(workspaceDir(id), 'repos')
+
+export const repoLockDir = (id: string) => resolve(workspaceMetaDir(id), 'locks')
+
+export const repoCheckoutDir = (id: string, dirname: string) => resolve(reposDir(id), pathSegment(dirname, 'repo checkout'))
+
 export const agentDataDir = (id: string) => resolve(agentDir(id), 'data')
 
 // Cookies, consents and cleared challenges outlive a single call. Not an ARCHIVE_ROOTS entry, so an

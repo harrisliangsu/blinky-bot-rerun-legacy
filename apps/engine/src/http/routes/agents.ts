@@ -25,10 +25,14 @@ import { closeAgentDb } from '../../db/agentDb.js'
 import { stopDesktop } from '../../desktop/session.js'
 import { finishTakeover } from '../../desktop/takeover.js'
 import { agentDir, configPath, installPath, soulPath } from '../../config/paths.js'
+import { releaseAgentWorkspace } from '../../workspace/runs.js'
+import { mountRepoRoutes } from './repos.js'
 import { agentToolCatalog } from '../../tools/catalog.js'
 import type { RunModel } from '../../agents/availability.js'
 
 export const agentRoutes = new Hono()
+
+mountRepoRoutes(agentRoutes)
 
 function publicView(id: string, config: unknown, soul: string, install: string, resolved: RunModel) {
     return { id, config, soul, install, resolvedConnectionId: resolved.connection?.id ?? null, resolvedProvider: resolved.provider, resolvedModel: resolved.model }
@@ -224,6 +228,7 @@ agentRoutes.delete('/:id', async c => {
     await finishTakeover(id)
     await stopDesktop(id)
     unloadAgent(id)
+    releaseAgentWorkspace(id)
     closeSystemDb(id)
     closeAgentDb(id)
     await deleteAgentIndex(id)

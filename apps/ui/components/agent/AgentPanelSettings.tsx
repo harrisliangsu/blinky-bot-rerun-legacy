@@ -2,6 +2,7 @@
 
 import { getAgentDetailAction, updateAgentConfigAction } from '@/app/api/_actions/agent.actions'
 import { PanelDeleteButton, PanelEditorBody, PanelEditorFooter, PanelEditorShell } from '@/components/ui/panel-editor'
+import { AgentRepoSettings } from '@/components/agent/AgentRepoSettings'
 import { SharedLinksSection } from '@/components/agent/share/SharedLinksSection'
 import { TemplateContentLock } from '@/components/agent/TemplateContentLock'
 import { useTemplateContentLock } from '@/hooks/useTemplateContentLock'
@@ -161,6 +162,8 @@ export function AgentPanelSettings({ agent }: AgentPanelSettingsProps) {
                 </Form>
 
                 <SharedLinksSection agentId={agent.id} />
+
+                {agent.disabledAt ? null : <AgentRepoSettings agentId={agent.id} />}
 
                 <Field label="Notifications">
                     <Button type="button" variant="outline" size="sm" className="w-full justify-start" onClick={() => openNotifications(agent.id)}>
