@@ -207,8 +207,35 @@ rex_settings() {
         write_json "$OUT/rex-ui.json" false "The stub Rex.app did not become ready. Applications: $(ls -1 "$HOME/Applications" 2>/dev/null | tr '\n' ' ')"
         exit 1
     fi
-    if ! "$OUT/window-probe" --click "Show bot activity in Rex" >"$OUT/rex-toggle-click.json"; then
-        write_json "$OUT/rex-ui.json" false "The Rex toggle was not clickable after the stub Rex.app was installed. See rex-toggle.png."
+    if ! osascript >"$OUT/rex-toggle-click.txt" 2>&1 <<'APPLESCRIPT'
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        set boxes to every checkbox of entire contents of window "BlinkyBot Settings"
+        repeat with box in boxes
+            set title to ""
+            try
+                set title to (name of box as text) & " " & (description of box as text)
+            end try
+            if title contains "Rex" then
+                click box
+                return "clicked " & title
+            end if
+        end repeat
+        set notes to ""
+        set elems to entire contents of window "BlinkyBot Settings"
+        repeat with elem in elems
+            try
+                set blob to (role of elem as text) & " " & (name of elem as text)
+                if blob contains "Rex" then set notes to notes & blob & linefeed
+            end try
+        end repeat
+        error "No Rex checkbox. " & notes
+    end tell
+end tell
+APPLESCRIPT
+    then
+        write_json "$OUT/rex-ui.json" false "The Rex switch did not click. $(cat "$OUT/rex-toggle-click.txt")"
         exit 1
     fi
     sleep 0.5
