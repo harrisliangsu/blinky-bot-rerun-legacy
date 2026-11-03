@@ -8,6 +8,11 @@ GitHub Release 由 [Scripts/release-notes.py](Scripts/release-notes.py) 生成�
 
 应用版本就是这个标题，与 `VERSION` 文件以及 tag `v` 加该版本一致。
 
+## 0.1.3
+
+- **Compose 能打开了。** 打包后的应用在 Next 启动时找不到 `@swc/helpers`，窗口停在「Compose is not open yet.」。现在独立服务器会把 Next 启动时要加载的包链到它能找到的位置。
+- **Mac 打开检查挡住坏包。** CI 会启动打好的 BlinkyBot.app，并要求 `http://127.0.0.1:3000/api/version` 有响应。缺模块会让任务失败，发布不会继续。
+
 ## 0.1.2
 
 - **BlinkyBot 可以自己更新。** BlinkyBot 菜单里有「Check for Updates…」。已安装的应用大约每 12 小时也会找一次新版本。设置里的 Updates 可以关掉自动检查。没有测试通道。

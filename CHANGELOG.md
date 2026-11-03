@@ -10,6 +10,11 @@ bullets, `**bold**`, `` `code` `` and `[links](https://example.com)`.
 
 The app version is this heading. It matches the `VERSION` file and the tag `v` + that version.
 
+## 0.1.3
+
+- **Compose starts.** The packaged app was missing `@swc/helpers` on the path Next uses, so the window stayed on "Compose is not open yet." The standalone server now links the packages Next loads at startup.
+- **A Mac open check gates the build.** CI starts the built BlinkyBot.app and requires `http://127.0.0.1:3000/api/version` to answer. A missing module fails the job before a release is published.
+
 ## 0.1.2
 
 - **BlinkyBot can update itself.** Check for Updates… is in the BlinkyBot menu. Installed copies also look for a new version about every 12 hours. Settings → Updates turns that check off. There is no beta channel.

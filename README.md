@@ -16,7 +16,7 @@ The disk image is a drag-to-Applications install, the usual Mac app window: Blin
 
 This build is not notarized. If macOS blocks the first launch, open BlinkyBot, dismiss the warning, then go to System Settings → Privacy & Security → Open Anyway. You only do this once.
 
-BlinkyBot then starts the local engine on `127.0.0.1:3001` and the Compose UI on `127.0.0.1:3000`, and shows the board. You do not install Docker, Node, or pnpm, and you do not create a Supabase project.
+BlinkyBot then starts the local engine on `127.0.0.1:3001` and the Compose UI on `127.0.0.1:3000`, and shows the board. You do not install Docker, Node, or pnpm, and you do not create a Supabase project. 0.1.3 is the first build where that Compose server reliably starts from the installed app.
 
 A zip of the same app is attached to the release for people who do not want a disk image. Unzip it and drag BlinkyBot to Applications. Sparkle installs that zip, not the disk image.
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { describe, it } from 'node:test'
 import {
     APP_OUTPUT,
@@ -13,6 +13,7 @@ import {
     escapedSymlinks,
     foreignNativePackage,
     isBundledBrowserDir,
+    hoistPnpmPackages,
     pruneProductionTree,
     stageStandaloneUi,
     formatMissingCheckout,
@@ -50,7 +51,7 @@ describe('VERSION', () => {
 
     it('matches the Mac shell marketing version and the server package versions', () => {
         const { version, problems } = alignmentProblems(repoRoot)
-        assert.equal(version, '0.1.2')
+        assert.equal(version, '0.1.3')
         assert.deepEqual(problems, [])
         const yml = readFileSync(join(repoRoot, 'apps/mac-shell/project.yml'), 'utf8')
         assert.equal(marketingVersion(yml), version)
@@ -262,6 +263,29 @@ describe('staging checks', () => {
             rmSync(dest, { recursive: true, force: true })
         }
     })
+
+    it('links @swc/helpers out of the pnpm store so Next can require it', () => {
+        const root = mkdtempSync(join(tmpdir(), 'blinky-hoist-'))
+        try {
+            const helpers = join(root, 'node_modules/.pnpm/@swc+helpers@0.5.15/node_modules/@swc/helpers/_')
+            mkdirSync(helpers, { recursive: true })
+            writeFileSync(join(helpers, '..', 'package.json'), '{"name":"@swc/helpers"}\n')
+            writeFileSync(join(helpers, '_interop_require_default.js'), 'module.exports = (value) => value\n')
+            const probe = join(root, 'apps/ui/node_modules/next/dist/probe.js')
+            mkdirSync(dirname(probe), { recursive: true })
+            writeFileSync(probe, "require('@swc/helpers/_/_interop_require_default'); console.log('ok')\n")
+            const before = spawnSync(process.execPath, [probe], { encoding: 'utf8' })
+            assert.notEqual(before.status, 0)
+            assert.match(`${before.stderr}`, /Cannot find module '@swc\/helpers/)
+            const linked = hoistPnpmPackages(root)
+            assert.equal(linked.length, 1)
+            const after = spawnSync(process.execPath, [probe], { encoding: 'utf8' })
+            assert.equal(after.status, 0, after.stderr)
+            assert.match(after.stdout, /ok/)
+        } finally {
+            rmSync(root, { recursive: true, force: true })
+        }
+    })
 })
 
 describe('Info.plist version', () => {
@@ -309,6 +333,8 @@ describe('Scripts/bundle.sh', () => {
         assert.match(source, /audit-symlinks/)
         assert.match(source, /contain-links/)
         assert.match(source, /stage-ui/)
+        assert.match(source, /hoist-pnpm/)
+        assert.match(source, /smoke-ui\.mjs/)
         assert.match(source, /prune-runtime/)
         assert.match(source, /blinky-local\.mjs build/)
         assert.match(source, /xcodebuild/)
@@ -322,7 +348,7 @@ describe('Scripts/bundle.sh', () => {
         const result = spawnSync('bash', [bundleSh, '--plan'], { cwd: repoRoot, encoding: 'utf8' })
         assert.equal(result.status, 0, result.stderr)
         assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
-        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.2/)
+        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.3/)
     })
 
     it('refuses to assemble an app when the host is not macOS', () => {
