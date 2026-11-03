@@ -33,6 +33,7 @@ let package = Package(
         ),
         .target(
             name: "BlinkyOnboarding",
+            dependencies: ["BlinkyLocalRuntime"],
             path: "Sources/BlinkyOnboarding"
         ),
         .executableTarget(

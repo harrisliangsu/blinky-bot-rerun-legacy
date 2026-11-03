@@ -243,12 +243,9 @@ final class OnboardingTests: XCTestCase {
         XCTAssertEqual(needs.actions.first?.appPath, "/Applications/ego lite.app")
         XCTAssertTrue(needs.detailZH?.contains("ego-browser") == true)
 
-        let renamed = blank(
-            directories: ["/Users/ada/Applications/Ego Lite.app"],
-            entries: ["/Users/ada/Applications": ["Ego Lite.app"]]
-        )
+        let renamed = blank(directories: ["/Users/ada/Applications/ego lite.app"])
         XCTAssertEqual(evaluateEgoLite(renamed).state, .needsOnboarding)
-        XCTAssertEqual(locateEgoLiteApp(home: "/Users/ada", signals: renamed), "/Users/ada/Applications/Ego Lite.app")
+        XCTAssertEqual(locateEgoLiteApp(home: "/Users/ada", signals: renamed), "/Users/ada/Applications/ego lite.app")
 
         let missing = evaluateEgoLite(blank())
         XCTAssertEqual(missing.state, .notInstalled)

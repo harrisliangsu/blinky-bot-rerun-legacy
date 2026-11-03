@@ -2,6 +2,9 @@
 // Copyright (C) 2026 BlinkyBot contributors.
 
 import Foundation
+#if canImport(BlinkyLocalRuntime)
+import BlinkyLocalRuntime
+#endif
 
 /// Built-in probes, in the order the window shows them. `makeSteps` is the
 /// plug-in: replace a step by id (`OnboardingStepID.egoLite` is the browser)
@@ -79,8 +82,8 @@ public func showcaseOnboardingSteps() -> [OnboardingStep] {
             nameEN: "ego(lite) browser",
             nameZH: "ego(lite) 浏览器",
             state: .needsOnboarding,
-            detailEN: onboardingEgoOnboardingDetailEN,
-            detailZH: onboardingEgoOnboardingDetailZH,
+            detailEN: "The app is on this Mac, and the ego-browser command is not available yet. Finish setup inside ego(lite). It usually adds ~/.local/bin/ego-browser.",
+            detailZH: "这台 Mac 上已有应用，但还找不到 ego-browser。请在 ego(lite) 里完成它自己的引导，它通常会加入 ~/.local/bin/ego-browser。",
             actions: [onboardingOpenAppAction(path: "/Applications/ego lite.app")]
         ),
     ]
@@ -186,67 +189,66 @@ public func evaluateGrok(_ signals: OnboardingSignals) -> OnboardingStep {
     return onboardingLoginCLI(id: OnboardingStepID.grok, nameEN: "Grok", nameZH: "Grok", binary: binary, standard: "grok")
 }
 
-/// ego(lite): `ego-browser` on the expanded PATH is ready. The `ego lite` app
-/// without that command still needs ego(lite)'s own onboarding. Neither means
-/// not installed, with the download page https://lite.ego.app/download.
+/// ego(lite) readiness comes from `EgoLiteDetection`. The expanded PATH is passed
+/// in so a GUI launch still finds Homebrew and npm copies; the detector also
+/// checks `~/.local/bin`. Not installed links to https://lite.ego.app/download.
 public func evaluateEgoLite(_ signals: OnboardingSignals) -> OnboardingStep {
-    if resolveOnboardingExecutable(name: "ego-browser", override: nil, signals: signals) != nil {
+    let status = onboardingEgoStatus(signals)
+    switch status.readiness {
+    case .ready:
         return OnboardingStep(
             id: OnboardingStepID.egoLite,
             nameEN: "ego(lite) browser",
             nameZH: "ego(lite) 浏览器",
             state: .ready
         )
-    }
-    if let app = locateEgoLiteApp(home: signals.home, signals: signals) {
+    case .needsOnboarding:
         return OnboardingStep(
             id: OnboardingStepID.egoLite,
             nameEN: "ego(lite) browser",
             nameZH: "ego(lite) 浏览器",
             state: .needsOnboarding,
-            detailEN: onboardingEgoOnboardingDetailEN,
-            detailZH: onboardingEgoOnboardingDetailZH,
-            actions: [onboardingOpenAppAction(path: app)]
+            detailEN: EgoLiteCopy.string(.needsOnboarding, preferredLanguages: ["en"]),
+            detailZH: EgoLiteCopy.string(.needsOnboarding, preferredLanguages: ["zh-Hans"]),
+            actions: status.appPath.map { onboardingOpenAppAction(path: $0) }.map { [$0] } ?? []
+        )
+    case .notInstalled:
+        return OnboardingStep(
+            id: OnboardingStepID.egoLite,
+            nameEN: "ego(lite) browser",
+            nameZH: "ego(lite) 浏览器",
+            state: .notInstalled,
+            detailEN: EgoLiteCopy.string(.notInstalled, preferredLanguages: ["en"]),
+            detailZH: EgoLiteCopy.string(.notInstalled, preferredLanguages: ["zh-Hans"]),
+            actions: [
+                onboardingLinkAction(
+                    url: OnboardingLink.egoLiteDownload,
+                    titleEN: OnboardingButtonTitle.downloadEN,
+                    titleZH: OnboardingButtonTitle.downloadZH
+                ),
+            ]
         )
     }
-    return OnboardingStep(
-        id: OnboardingStepID.egoLite,
-        nameEN: "ego(lite) browser",
-        nameZH: "ego(lite) 浏览器",
-        state: .notInstalled,
-        detailEN: onboardingEgoMissingDetailEN,
-        detailZH: onboardingEgoMissingDetailZH,
-        actions: [
-            onboardingLinkAction(
-                url: OnboardingLink.egoLiteDownload,
-                titleEN: OnboardingButtonTitle.downloadEN,
-                titleZH: OnboardingButtonTitle.downloadZH
-            ),
-        ]
-    )
 }
 
 public func locateEgoLiteApp(home: String, signals: OnboardingSignals) -> String? {
-    let root = onboardingNormalizedHome(home)
-    for folder in ["/Applications", onboardingChildPath(root, "Applications")] {
-        let exact = onboardingChildPath(folder, "ego lite.app")
-        if signals.isDirectory(exact) {
-            return exact
-        }
-        for name in signals.entries(folder) where name.lowercased() == "ego lite.app" {
-            let candidate = onboardingChildPath(folder, name)
-            if signals.isDirectory(candidate) {
-                return candidate
-            }
-        }
-    }
-    return nil
+    onboardingEgoStatus(signals, home: home).appPath
 }
 
-private let onboardingEgoOnboardingDetailEN = "The app is on this Mac, and the ego-browser command is not available yet. Finish setup inside ego(lite). It usually adds ~/.local/bin/ego-browser."
-private let onboardingEgoOnboardingDetailZH = "这台 Mac 上已有应用，但还找不到 ego-browser。请在 ego(lite) 里完成它自己的引导，它通常会加入 ~/.local/bin/ego-browser。"
-private let onboardingEgoMissingDetailEN = "BlinkyBot uses ego(lite) for browser automation."
-private let onboardingEgoMissingDetailZH = "BlinkyBot 用 ego(lite) 做浏览器自动化。"
+private func onboardingEgoStatus(_ signals: OnboardingSignals, home: String? = nil) -> EgoLiteStatus {
+    let root = onboardingNormalizedHome(home ?? signals.home)
+    let path = onboardingAugmentedPath(
+        home: root,
+        path: signals.environment["PATH"],
+        entries: signals.entries
+    )
+    return EgoLiteDetection.detect(
+        home: root,
+        path: path,
+        fileExists: signals.isDirectory,
+        isExecutable: signals.isExecutable
+    )
+}
 
 private func onboardingKimiIsUsable(_ signals: OnboardingSignals) -> Bool {
     let root = onboardingTrimmed(signals.environment["KIMI_CODE_HOME"]) ?? onboardingChildPath(signals.home, ".kimi-code")
