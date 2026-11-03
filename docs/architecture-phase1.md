@@ -27,7 +27,7 @@ A desktop app for Mac only (`apps/mac-shell`). It is the supervisor and the wind
 
 iOS, Windows, and Linux shells are later work. The app does not shell out to Docker.
 
-The sources in `apps/mac-shell` are the SwiftUI window today. Supervision is the contract in [no-docker-runtime.md](no-docker-runtime.md). A checkout can still run the two Node processes by hand for development. That loop is not the install path.
+The sources in `apps/mac-shell` are the SwiftUI window and the supervisor. They follow [no-docker-runtime.md](no-docker-runtime.md). Local auth is `apps/ui/lib/local-auth`. A checkout can still run the two Node processes by hand for development. That loop is not the install path.
 
 ## Compose UI
 

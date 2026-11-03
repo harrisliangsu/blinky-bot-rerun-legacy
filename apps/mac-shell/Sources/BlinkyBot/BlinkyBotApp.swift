@@ -8,14 +8,17 @@ import SwiftUI
 
 @main
 struct BlinkyBotApp: App {
+    @NSApplicationDelegateAdaptor(BlinkyAppDelegate.self) private var appDelegate
     @StateObject private var model = ShellModel()
     @StateObject private var browser = ComposeBrowser()
+    @StateObject private var supervisor = ProcessSupervisor.shared
 
     var body: some Scene {
         WindowGroup("BlinkyBot") {
             ContentView()
                 .environmentObject(model)
                 .environmentObject(browser)
+                .environmentObject(supervisor)
                 .frame(minWidth: 720, minHeight: 480)
         }
         .defaultSize(width: 1200, height: 800)
@@ -33,18 +36,22 @@ struct BlinkyBotApp: App {
                 Button("Forward") { browser.goForward() }
                     .keyboardShortcut("]", modifiers: .command)
                     .disabled(!browser.canGoForward)
-                Button("Reload") { browser.reloadPage(fallback: model.address) }
+                Button("Reload") { browser.reloadPage(fallback: pageAddress) }
                     .keyboardShortcut("r")
                 Divider()
-                Button("Open configured URL") { browser.load(model.address) }
+                Button("Open configured URL") { browser.load(pageAddress) }
                     .keyboardShortcut("r", modifiers: [.command, .shift])
             }
         }
 
         Settings {
-            ComposeSettingsView()
+            BlinkySettingsView()
                 .environmentObject(model)
         }
+    }
+
+    private var pageAddress: URL {
+        supervisor.phase == .external ? model.address : supervisor.pageURL
     }
 }
 #else

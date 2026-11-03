@@ -29,23 +29,22 @@ struct ComposeSettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            Text("This window opens \(model.address.absoluteString).")
+            Text("Saved page: \(model.address.absoluteString). While BlinkyBot is supervising, the window loads the Compose process it started.")
                 .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Button("Save and reload", action: saveIfValid)
                     .disabled(ComposeURL.parse(model.draft) == nil)
                 Button("Clear saved URL", action: model.clearSavedURL)
             }
         }
-        .padding(20)
-        .frame(width: 460)
     }
 
     private var hint: String {
         if ComposeURL.parse(model.draft) == nil {
             return "Use an http or https URL with a host, such as http://127.0.0.1:3000."
         }
-        return "Docker Compose publishes the web app on port 3000. The dev server (pnpm dev:ui) uses port 3050. The engine is a different process; do not put its port here."
+        return "With supervision on, BlinkyBot opens the Compose process it started (port 3000). This field is the page when BLINKY_SUPERVISE=0. The hot-reload UI (pnpm dev:ui) uses port 3050."
     }
 
     private func saveIfValid() {

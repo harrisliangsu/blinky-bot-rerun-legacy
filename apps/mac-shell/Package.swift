@@ -11,6 +11,7 @@ let package = Package(
     name: "BlinkyBot",
     products: [
         .library(name: "BlinkyComposeURL", targets: ["BlinkyComposeURL"]),
+        .library(name: "BlinkyLocalRuntime", targets: ["BlinkyLocalRuntime"]),
         .executable(name: "BlinkyBot", targets: ["BlinkyBot"]),
     ],
     targets: [
@@ -18,9 +19,13 @@ let package = Package(
             name: "BlinkyComposeURL",
             path: "Sources/BlinkyComposeURL"
         ),
+        .target(
+            name: "BlinkyLocalRuntime",
+            path: "Sources/BlinkyLocalRuntime"
+        ),
         .executableTarget(
             name: "BlinkyBot",
-            dependencies: ["BlinkyComposeURL"],
+            dependencies: ["BlinkyComposeURL", "BlinkyLocalRuntime"],
             path: "Sources/BlinkyBot",
             linkerSettings: [
                 .linkedFramework("WebKit", .when(platforms: [.macOS])),
@@ -30,6 +35,11 @@ let package = Package(
             name: "BlinkyComposeURLTests",
             dependencies: ["BlinkyComposeURL"],
             path: "Tests/BlinkyComposeURLTests"
+        ),
+        .testTarget(
+            name: "BlinkyLocalRuntimeTests",
+            dependencies: ["BlinkyLocalRuntime"],
+            path: "Tests/BlinkyLocalRuntimeTests"
         ),
     ]
 )

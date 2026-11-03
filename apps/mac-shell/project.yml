@@ -1,5 +1,5 @@
-# One application target compiles both source folders into the BlinkyBot module.
-# `swift build` compiles BlinkyComposeURL as its own library; the app imports it only then.
+# One application target compiles the source folders into the BlinkyBot module.
+# `swift build` compiles BlinkyComposeURL and BlinkyLocalRuntime as libraries; the app imports them only then.
 name: BlinkyBot
 options:
   minimumXcodeGenVersion: 2.38.0
@@ -23,6 +23,7 @@ targets:
     sources:
       - path: Sources/BlinkyBot
       - path: Sources/BlinkyComposeURL
+      - path: Sources/BlinkyLocalRuntime
     settings:
       base:
         PRODUCT_NAME: BlinkyBot
