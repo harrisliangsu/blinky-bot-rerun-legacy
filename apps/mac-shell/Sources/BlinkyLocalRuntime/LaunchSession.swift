@@ -88,22 +88,9 @@ public final class LaunchSession {
         guard posix_spawn_file_actions_adddup2(&actions, 1, 2) == 0 else {
             throw LaunchError.openLog(request.logPath, errno)
         }
-        // SwiftPM's default macOS deployment is older than 10.15, so the
-        // imported chdir helper is availability-gated. The app itself is macOS 14.
-        let changed: Int32
-#if canImport(Darwin)
-        if #available(macOS 10.15, *) {
-            changed = request.currentDirectory.withCString { cwd in
-                posix_spawn_file_actions_addchdir_np(&actions, cwd)
-            }
-        } else {
-            changed = ENOSYS
-        }
-#else
-        changed = request.currentDirectory.withCString { cwd in
+        let changed = request.currentDirectory.withCString { cwd in
             posix_spawn_file_actions_addchdir_np(&actions, cwd)
         }
-#endif
         guard changed == 0 else {
             throw LaunchError.spawn(request.executable, "could not set the working directory \(request.currentDirectory)")
         }

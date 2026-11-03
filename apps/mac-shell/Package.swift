@@ -4,11 +4,15 @@
 
 import PackageDescription
 
-// The windowed app is the Xcode target in project.yml (macOS 14 or newer).
-// This manifest does not set `platforms`, so Linux can still run the URL tests.
+// macOS 14 matches project.yml. SwiftPM otherwise defaults below 10.15, and
+// `swift test` then rejects SwiftUI. Linux is not listed, so it keeps the
+// tools-version default and the URL tests still run there.
 // SwiftUI and WebKit stay behind `os(macOS)`.
 let package = Package(
     name: "BlinkyBot",
+    platforms: [
+        .macOS(.v14),
+    ],
     products: [
         .library(name: "BlinkyComposeURL", targets: ["BlinkyComposeURL"]),
         .library(name: "BlinkyLocalRuntime", targets: ["BlinkyLocalRuntime"]),
