@@ -151,8 +151,17 @@ APPLESCRIPT
 }
 
 close_settings() {
-    press_escape
-    sleep 0.4
+    osascript <<'APPLESCRIPT' || true
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        if exists window "BlinkyBot Settings" then
+            click (first button of window "BlinkyBot Settings" whose subrole is "AXCloseButton")
+        end if
+    end tell
+end tell
+APPLESCRIPT
+    sleep 0.5
 }
 
 install_rex_fixture() {
@@ -184,9 +193,20 @@ rex_settings() {
     close_settings
     install_rex_fixture
     open_settings
-    "$OUT/window-probe" --click "Check again" >"$OUT/rex-refresh.json" 2>/dev/null || true
-    sleep 1
+    local _try ready=0
+    for _try in $(seq 1 8); do
+        if "$OUT/window-probe" --contains "The next agent run opens in Rex" >"$OUT/rex-ready.json" 2>/dev/null; then
+            ready=1
+            break
+        fi
+        "$OUT/window-probe" --click "Check again" --click-last >"$OUT/rex-refresh.json" 2>/dev/null || true
+        sleep 1
+    done
     capture_window "$OUT/screenshots/rex-toggle.png"
+    if [[ "$ready" != 1 ]]; then
+        write_json "$OUT/rex-ui.json" false "The stub Rex.app did not become ready. Applications: $(ls -1 "$HOME/Applications" 2>/dev/null | tr '\n' ' ')"
+        exit 1
+    fi
     if ! "$OUT/window-probe" --click "Show bot activity in Rex" >"$OUT/rex-toggle-click.json"; then
         write_json "$OUT/rex-ui.json" false "The Rex toggle was not clickable after the stub Rex.app was installed. See rex-toggle.png."
         exit 1
@@ -220,7 +240,7 @@ rex_disappear() {
     bin="$(dirname "$BLINKY_REX_LOG")"
     : >"$bin/fail"
     open_settings
-    "$OUT/window-probe" --click "Check again" >"$OUT/rex-recheck.json" 2>/dev/null || true
+    "$OUT/window-probe" --click "Check again" --click-last >"$OUT/rex-recheck.json" 2>/dev/null || true
     sleep 1
     capture_window "$OUT/screenshots/rex-toggle-removed.png"
     local watch state

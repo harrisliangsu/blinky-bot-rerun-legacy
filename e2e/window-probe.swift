@@ -39,7 +39,7 @@ func listedWindows() -> [ListedWindow] {
     return windows
 }
 
-func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, visits: inout Int) {
+func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, lastMatch: inout AXUIElement?, visits: inout Int) {
     if depth > 18 || visits > 4000 || notes.count > 500 { return }
     visits += 1
     var titleRef: CFTypeRef?
@@ -67,19 +67,22 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
             }
         }
     }
-    if let click, !clicked, label == click {
-        if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
-            clicked = true
+    if let click, label == click {
+        lastMatch = element
+        if !clicked {
+            if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+                clicked = true
+            }
         }
     }
     if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success, let children = childrenRef as? [AXUIElement] {
         for child in children.prefix(50) {
-            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, visits: &visits)
+            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, visits: &visits)
         }
     }
 }
 
-func accessibility(of windows: [ListedWindow], click: String?) -> (trusted: Bool, notes: [String], urlField: Bool, chrome: Bool, clicked: Bool) {
+func accessibility(of windows: [ListedWindow], click: String?, clickLast: Bool) -> (trusted: Bool, notes: [String], urlField: Bool, chrome: Bool, clicked: Bool) {
     guard AXIsProcessTrusted() else { return (false, [], false, false, false) }
     guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "bot.blinky.shell").first else {
         return (true, [], false, false, false)
@@ -88,14 +91,18 @@ func accessibility(of windows: [ListedWindow], click: String?) -> (trusted: Bool
     var urlField = false
     var chrome = false
     var clicked = false
+    var lastMatch: AXUIElement?
     var visits = 0
     let axApp = AXUIElementCreateApplication(app.processIdentifier)
     AXUIElementSetAttributeValue(axApp, "AXManualAccessibility" as CFString, kCFBooleanTrue)
     var ref: CFTypeRef?
     if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref) == .success, let axWindows = ref as? [AXUIElement] {
         for window in axWindows {
-            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, visits: &visits)
+            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, lastMatch: &lastMatch, visits: &visits)
         }
+    }
+    if clickLast, let lastMatch {
+        clicked = AXUIElementPerformAction(lastMatch, kAXPressAction as CFString) == .success
     }
     _ = windows
     return (true, notes, urlField, chrome, clicked)
@@ -111,7 +118,8 @@ func emit(_ payload: [String: Any], ok: Bool) {
 let windows = listedWindows()
 let blinky = windows.filter { $0.owner == "BlinkyBot" && $0.width >= 240 && $0.height >= 180 }
 let click = argValue("--click")
-let ax = accessibility(of: windows, click: click)
+let clickLast = CommandLine.arguments.contains("--click-last")
+let ax = accessibility(of: windows, click: click, clickLast: clickLast)
 let names = blinky.map(\.name)
 let urlInTitle = names.contains { name in
     let lower = name.lowercased()
