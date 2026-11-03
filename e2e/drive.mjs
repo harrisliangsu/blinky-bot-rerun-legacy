@@ -1,7 +1,8 @@
 import { chromium } from 'playwright'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { driveMissingEgo, drivePackagedClis, drivePackagedEgo } from './hooks.mjs'
+import { assertRexLaunch } from './rex-hook.mjs'
 
 const mode = process.argv[2]
 const out = process.env.E2E_OUT
@@ -18,7 +19,7 @@ if (!mode || !out) {
     console.error('drive.mjs needs a mode and E2E_OUT')
     process.exit(1)
 }
-if ((mode === 'core' || mode === 'persist') && (!ui || !engineUrl || !apiKey)) {
+if ((mode === 'core' || mode === 'persist' || mode === 'chat' || mode === 'runs') && (!ui || !engineUrl || !apiKey)) {
     console.error('drive.mjs core and persist need BLINKY_UI_URL, BLINKY_ENGINE_URL, and BLINKY_API_KEY')
     process.exit(1)
 }
@@ -36,6 +37,8 @@ try {
     else if (mode === 'clis') await clis()
     else if (mode === 'workspace') await workspace()
     else if (mode === 'rex') await rex()
+    else if (mode === 'chat') await chat()
+    else if (mode === 'runs') await runs()
     else throw new Error(`Unknown mode ${mode}`)
 } catch (error) {
     const detail = error instanceof Error ? error.stack || error.message : String(error)
@@ -66,11 +69,16 @@ async function core() {
         await page.getByText(`Tap a tile to place ${suggestion}`).waitFor({ timeout: 20_000 })
         const agent = await placeOnBoard(page, before)
         const seen = []
-        const watch = watchRuns(agent.id, seen)
+        const boardSeen = []
+        const watch = watchRuns(agent.id, seen, () => sampleBoard(page, agent.id, boardSeen))
         const stopVisible = await page.getByRole('button', { name: 'Stop the current run' }).waitFor({ state: 'visible', timeout: 20_000 }).then(() => true).catch(() => false)
         const run = await watch
         if (!seen.includes('running') || !seen.includes('done')) {
             throw new Error(`Run statuses were ${seen.join(' -> ') || 'empty'}. Last run: ${JSON.stringify(run)}`)
+        }
+        await waitBoard(page, agent.id, 'idle', boardSeen)
+        if (!boardSeen.includes('working') || boardSeen.at(-1) !== 'idle') {
+            throw new Error(`Board statuses were ${boardSeen.join(' -> ') || 'empty'}. Expected working, then idle.`)
         }
         if (run?.status !== 'done') throw new Error(run?.error || `Run statuses were ${seen.join(' -> ') || 'empty'}. Last run: ${JSON.stringify(run)}`)
         await page.getByText(reply).first().waitFor({ timeout: 20_000 })
@@ -85,7 +93,7 @@ async function core() {
             ok: true,
             detail: [
                 `Opened the local BlinkyBot workspace, created ${suggestion} from New coworker, and placed it on the board.`,
-                `The kickoff ran to completion through stub Codex. Statuses: ${seen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
+                `The kickoff ran to completion through stub Codex. Statuses: ${seen.join(' -> ')}. Board: ${boardSeen.join(' -> ')}. Stop control visible: ${stopVisible}.`,
                 `Stub reply ${reply} is on screen and stored on the session.`,
                 notes.filter(Boolean).slice(-8).join('\n'),
             ].join('\n\n'),
@@ -160,7 +168,133 @@ async function workspace() {
 }
 
 async function rex() {
-    throw new Error('The Rex toggle is on this tree, but this driver does not yet click it with a stub rex on PATH and again with rex missing.')
+    const logPath = process.env.BLINKY_REX_LOG
+    if (!logPath) throw new Error('BLINKY_REX_LOG is not set.')
+    const log = readFileSync(logPath, 'utf8')
+    const calls = log.trim().split('\n').filter(Boolean).map(line => JSON.parse(line))
+    const created = calls.find(call => call.args?.[0] === 'session' && call.args?.[1] === 'new')
+    const launched = calls.find(call => call.args?.[0] === 'run')
+    if (!created || !String(created.args[2] || '').startsWith('blinky-')) {
+        throw new Error(`Rex did not create a blinky-<handle> session. Log: ${log}`)
+    }
+    if (!launched) throw new Error('Rex did not receive rex run.')
+    const summary = assertRexLaunch(launched.args.join(' '))
+    if (calls.some(call => call.server)) throw new Error('A Rex invocation had REX_SERVER set.')
+    writeFileSync(join(out, 'rex.json'), JSON.stringify({
+        ok: true,
+        detail: `${summary} Session ${created.args[2]} was created with rex session new. REX_SERVER was unset, and the argv has no listen, tailscale, or anonymous server flag.`,
+    }, null, 2))
+}
+
+async function chat() {
+    const state = JSON.parse(readFileSync(statePath, 'utf8'))
+    const browser = await chromium.launch({ headless: false })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const page = await context.newPage()
+    try {
+        await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+        await openThread(page, state)
+        await page.getByRole('button', { name: /GPT-5\.6 Sol|Kimi|Grok/ }).first().click()
+        await page.getByText('Kimi for Coding', { exact: true }).waitFor({ timeout: 15_000 })
+        await page.getByText('Grok 4.7', { exact: true }).waitFor({ timeout: 5_000 })
+        await page.screenshot({ path: join(shots, 'model-picker.png') })
+        await page.getByText('Kimi for Coding', { exact: true }).click()
+        await sendChat(page, 'hello kimi')
+        await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
+        await page.screenshot({ path: join(shots, 'kimi-reply.png') })
+        await page.getByRole('button', { name: /Kimi for Coding/ }).first().click()
+        await page.getByText('Grok 4.7', { exact: true }).click()
+        await sendChat(page, 'hello grok')
+        await page.getByText(/Grok CLI is not logged in/).first().waitFor({ timeout: 30_000 })
+        await page.screenshot({ path: join(shots, 'grok-signed-out.png') })
+        const kimiPath = process.env.RERUN_KIMI_PATH
+        const hidden = `${kimiPath}.off`
+        await page.getByRole('button', { name: /Grok 4\.7/ }).first().click()
+        await page.getByText('Kimi for Coding', { exact: true }).click()
+        renameSync(kimiPath, hidden)
+        try {
+            await sendChat(page, 'hello missing kimi')
+            await page.getByText(/Kimi CLI is not installed/).first().waitFor({ timeout: 30_000 })
+            await page.screenshot({ path: join(shots, 'kimi-missing.png') })
+        } finally {
+            renameSync(hidden, kimiPath)
+        }
+        writeControl({ fail: 'quota', delayMs: 0 })
+        await sendChat(page, 'hello quota')
+        await page.getByText(/quota exceeded|Usage limit reached|usage limit/).first().waitFor({ timeout: 30_000 })
+        await page.screenshot({ path: join(shots, 'quota-notice.png') })
+        writeControl({})
+        writeFileSync(join(out, 'chat.json'), JSON.stringify({
+            ok: true,
+            detail: 'The model picker lists stub Kimi and Grok. A Kimi turn streamed a reply. Grok, with no key, showed the login notice. Removing the Kimi binary showed the install notice. A quota stderr showed the quota notice.',
+        }, null, 2))
+    } catch (error) {
+        await page.screenshot({ path: join(shots, 'chat-failed.png') }).catch(() => {})
+        throw error
+    } finally {
+        writeControl({})
+        await context.close()
+        await browser.close()
+    }
+}
+
+async function runs() {
+    const state = JSON.parse(readFileSync(statePath, 'utf8'))
+    const browser = await chromium.launch({ headless: false })
+    const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, recordVideo: { dir: join(out, 'video'), size: { width: 1280, height: 800 } } })
+    const page = await context.newPage()
+    try {
+        await page.goto(`${ui}/?agent=${state.agentId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
+        await openThread(page, state)
+        writeControl({ delayMs: 8000 })
+        await sendChat(page, 'please keep going')
+        const stop = page.getByRole('button', { name: /Stop the current run|^Stop$/ }).first()
+        await stop.waitFor({ timeout: 15_000 })
+        await stop.click()
+        await waitBoard(page, state.agentId, 'idle', [])
+        await page.screenshot({ path: join(shots, 'stopped-idle.png') })
+        writeControl({ fail: 'error', delayMs: 0 })
+        await sendChat(page, 'please fail')
+        await waitBoard(page, state.agentId, 'error', [])
+        await page.screenshot({ path: join(shots, 'run-error.png') })
+        writeControl({})
+        writeFileSync(join(out, 'runs.json'), JSON.stringify({
+            ok: true,
+            detail: 'Stopping a run returned the board to idle. A failed stub run left the tile on error.',
+        }, null, 2))
+    } catch (error) {
+        await page.screenshot({ path: join(shots, 'runs-failed.png') }).catch(() => {})
+        throw error
+    } finally {
+        writeControl({})
+        await context.close()
+        await browser.close()
+    }
+}
+
+async function openThread(page, state) {
+    await page.getByRole('button', { name: 'BlinkyBot', exact: true }).first().waitFor({ timeout: 60_000 })
+    if (!(await page.getByText(reply).first().waitFor({ timeout: 8_000 }).then(() => true).catch(() => false))) {
+        const session = await engine(`/agents/${state.agentId}/sessions/${state.sessionId}`)
+        await page.getByRole('button', { name: 'Chats', exact: true }).click()
+        await page.getByRole('button', { name: session.title || 'Untitled' }).last().click()
+        await page.getByText(reply).first().waitFor({ timeout: 30_000 })
+    }
+}
+
+async function sendChat(page, text) {
+    const box = page.getByRole('textbox').last()
+    await box.click()
+    await box.fill(text)
+    const send = page.getByRole('button', { name: 'Submit' })
+    if (await send.isEnabled().catch(() => false)) await send.click()
+    else await box.press('Enter')
+}
+
+function writeControl(value) {
+    const file = process.env.BLINKY_STUB_CONTROL
+    if (!file) throw new Error('BLINKY_STUB_CONTROL is not set.')
+    writeFileSync(file, JSON.stringify(value))
 }
 
 async function installCodex() {
@@ -207,10 +341,11 @@ async function waitForNewAgent(before, timeoutMs) {
     return null
 }
 
-async function watchRuns(agentId, seen) {
+async function watchRuns(agentId, seen, sample) {
     const deadline = Date.now() + 90_000
     let last = null
     while (Date.now() < deadline) {
+        if (sample) await sample().catch(() => {})
         const body = await engine(`/agents/${agentId}/runs`).catch(() => ({ runs: [] }))
         const run = body.runs?.[0]
         if (run) {
@@ -221,6 +356,33 @@ async function watchRuns(agentId, seen) {
         await sleep(250)
     }
     return last
+}
+
+async function sampleBoard(page, agentId, seen) {
+    const status = await boardStatus(page, agentId)
+    if (status && seen.at(-1) !== status) seen.push(status)
+}
+
+async function waitBoard(page, agentId, wanted, seen) {
+    const deadline = Date.now() + 20_000
+    let last = null
+    while (Date.now() < deadline) {
+        last = await boardStatus(page, agentId)
+        if (last && seen.at(-1) !== last) seen.push(last)
+        if (last === wanted) return last
+        await sleep(500)
+    }
+    throw new Error(`Board status stayed ${last || 'empty'} instead of ${wanted}. Saw ${seen.join(' -> ') || 'nothing'}.`)
+}
+
+async function boardStatus(page, agentId) {
+    const body = await page.evaluate(async () => {
+        const response = await fetch('/api/local-auth/board', { cache: 'no-store' })
+        if (!response.ok) return { error: response.status }
+        return response.json()
+    })
+    if (body?.error) throw new Error(`Board API returned ${body.error}.`)
+    return body?.agents?.find(agent => agent.id === agentId)?.status ?? null
 }
 
 async function engine(path, options = {}) {

@@ -14,6 +14,8 @@ const sections = [
     ['Window', readJson('window.json')],
     ['Onboarding', readJson('onboarding.json')],
     ['Coworker create', readJson('core.json')],
+    ['Chat providers', readJson('chat.json')],
+    ['Run controls', readJson('runs.json')],
     ['Chat CLIs', readJson('clis.json')],
     ['Persistence', readJson('persist.json')],
     ['Menu bar', readJson('menubar.json')],
@@ -21,7 +23,8 @@ const sections = [
     ['Ego routing', readJson('ego.json')],
     ['Ego missing', readJson('ego-missing.json')],
     ['Workspace clone', readJson('workspace.json')],
-    ['Rex', readJson('rex.json')],
+    ['Rex toggle', readJson('rex-ui.json')],
+    ['Rex launch', readJson('rex.json')],
     ['Sparkle', readJson('sparkle.json')],
 ]
 

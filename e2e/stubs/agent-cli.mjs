@@ -3,7 +3,7 @@
 // Exec/print mode prints the CLI's documented JSON. `app-server` speaks the
 // Codex JSON-RPC subset the engine's chat provider drives.
 
-import { appendFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 import { createInterface } from 'node:readline'
 import { basename } from 'node:path'
 
@@ -21,12 +21,34 @@ if (args[0] === '--version' || args[0] === 'version' || args[0] === '-v') {
     process.exit(0)
 }
 
+const ctl = control()
+if (ctl.fail === 'quota') {
+    process.stderr.write('quota exceeded\n')
+    process.exit(1)
+}
+if (ctl.fail === 'error') {
+    process.stderr.write('stub failed\n')
+    process.exit(1)
+}
+
 record({ mode: args.includes('app-server') ? 'app-server' : 'exec', argv: args })
 
 if (args.includes('app-server')) {
     await appServer()
 } else {
+    const delay = Number(control().delayMs || 0)
+    if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay))
     emit(promptFromArgs(args))
+}
+
+function control() {
+    const file = process.env.BLINKY_STUB_CONTROL
+    if (!file) return {}
+    try {
+        return JSON.parse(readFileSync(file, 'utf8'))
+    } catch {
+        return {}
+    }
 }
 
 function promptFromArgs(argv) {
@@ -47,6 +69,7 @@ function emit(prompt) {
         return
     }
     if (name === 'grok') {
+        if (args.includes('streaming-json')) write({ type: 'text', text })
         write({ type: 'result', response: text, session_id: sessionId })
         return
     }
@@ -66,7 +89,7 @@ function write(value) {
 async function appServer() {
     const lines = createInterface({ input: process.stdin, crlfDelay: Infinity })
     let threadId = 'thr-stub'
-    const delay = Number(process.env.BLINKY_STUB_DELAY_MS || '0')
+    const delay = Number(control().delayMs ?? process.env.BLINKY_STUB_DELAY_MS ?? '0')
     for await (const line of lines) {
         const trimmed = line.trim()
         if (!trimmed) continue

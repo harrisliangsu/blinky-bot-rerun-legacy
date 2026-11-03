@@ -131,7 +131,7 @@ jobs:
       - name: Packaged app end to end
         timeout-minutes: 25
         run: |
-          chmod +x e2e/run.sh e2e/ego-real.sh e2e/stubs/ego-browser
+          chmod +x e2e/run.sh e2e/ego-real.sh e2e/stubs/ego-browser e2e/stubs/rex
           ./e2e/run.sh "$HOME/Applications/BlinkyBot.app"
 
       - name: Upload E2E evidence

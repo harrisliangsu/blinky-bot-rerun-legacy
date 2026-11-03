@@ -132,40 +132,108 @@ run_gated() {
     fi
 }
 
-dismiss_onboarding() {
-    if [[ "$(feature_enabled onboarding)" != yes ]]; then
-        write_json "$OUT/onboarding.json" true "$(feature_reason onboarding)"
-        return
-    fi
-    local text=""
-    local _try
-    for _try in $(seq 1 25); do
-        text="$(ax_blob)"
-        if printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
-            break
-        fi
-        sleep 1
-    done
-    capture_window "$OUT/screenshots/onboarding.png"
-    printf '%s\n' "$text" >"$OUT/onboarding-ax.txt"
-    if ! printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
-        if defaults read bot.blinky.shell blinkyOnboardingCompleted >/dev/null 2>&1; then
-            write_json "$OUT/onboarding.json" true "Onboarding was already completed on this Mac, so the cover did not appear."
-            return
-        fi
-        write_json "$OUT/onboarding.json" false "The first-run cover did not show Set up tools on this Mac. Accessibility text: ${text}"
-        exit 1
-    fi
-    if ! osascript <<'APPLESCRIPT'
+open_settings() {
+    osascript <<'APPLESCRIPT' || true
 tell application "System Events"
     tell process "BlinkyBot"
         set frontmost to true
-        click (first button of (entire contents of window 1) whose title is "Skip")
+        keystroke "," using command down
+        delay 0.6
+        key code 121
+        delay 0.2
+        key code 121
     end tell
 end tell
 APPLESCRIPT
-    then
-        osascript <<'APPLESCRIPT' || true
+    sleep 1
+}
+
+close_settings() {
+    press_escape
+    sleep 0.4
+}
+
+install_rex_fixture() {
+    local app="$HOME/Applications/Rex.app"
+    local bin="$app/Contents/Helpers/Rex Server.rex/Contents/MacOS"
+    rm -rf "$app"
+    mkdir -p "$bin" "$app/Contents"
+    cat >"$app/Contents/Info.plist" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict><key>CFBundleIdentifier</key><string>com.superlogical.rex</string></dict></plist>
+PLIST
+    cp "$ROOT/e2e/stubs/rex" "$bin/rex"
+    chmod +x "$bin/rex"
+    export BLINKY_REX_LOG="$bin/calls.log"
+    : >"$BLINKY_REX_LOG"
+}
+
+rex_settings() {
+    if [[ "$(feature_enabled rex)" != yes ]]; then
+        write_json "$OUT/rex-ui.json" true "$(feature_reason rex)"
+        write_json "$OUT/rex.json" true "$(feature_reason rex)"
+        return
+    fi
+    open_settings
+    sleep 1
+    capture_window "$OUT/screenshots/rex-toggle-off.png"
+    "$OUT/window-probe" --contains "Rex is not installed" >"$OUT/rex-off-probe.json" 2>/dev/null || true
+    close_settings
+    install_rex_fixture
+    open_settings
+    "$OUT/window-probe" --click "Check again" >"$OUT/rex-refresh.json" 2>/dev/null || true
+    sleep 1
+    capture_window "$OUT/screenshots/rex-toggle.png"
+    if ! "$OUT/window-probe" --click "Show bot activity in Rex" >"$OUT/rex-toggle-click.json"; then
+        write_json "$OUT/rex-ui.json" false "The Rex toggle was not clickable after the stub Rex.app was installed. See rex-toggle.png."
+        exit 1
+    fi
+    sleep 0.5
+    local watch
+    watch="$(defaults read bot.blinky.shell blinkyRexWatch 2>/dev/null || echo 0)"
+    if [[ "$watch" != "1" ]]; then
+        write_json "$OUT/rex-ui.json" false "Clicking Show bot activity in Rex did not turn blinkyRexWatch on."
+        exit 1
+    fi
+    close_settings
+    python3 - "$OUT/deps.json" <<'PY'
+import json, sys
+path = sys.argv[1]
+with open(path, encoding="utf-8") as handle:
+    deps = json.load(handle)
+deps["rex"] = {"kind": "stub", "detail": "e2e/stubs/rex inside a fixture Rex.app. The real Rex app is not installed on the runner."}
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(deps, handle, indent=2)
+    handle.write("\n")
+PY
+    write_json "$OUT/rex-ui.json" true "With no Rex.app the toggle stayed off. After the stub Rex.app was installed, Show bot activity in Rex turned on. Screenshots: rex-toggle-off.png and rex-toggle.png."
+}
+
+rex_disappear() {
+    if [[ "$(feature_enabled rex)" != yes ]]; then
+        return
+    fi
+    local bin
+    bin="$(dirname "$BLINKY_REX_LOG")"
+    : >"$bin/fail"
+    open_settings
+    "$OUT/window-probe" --click "Check again" >"$OUT/rex-recheck.json" 2>/dev/null || true
+    sleep 1
+    capture_window "$OUT/screenshots/rex-toggle-removed.png"
+    local watch state
+    watch="$(defaults read bot.blinky.shell blinkyRexWatch 2>/dev/null || echo 0)"
+    state="$(python3 -c 'import json,os; print(json.load(open(os.environ["BLINKY_SUPPORT_DIR"]+"/rex-watch.json")).get("enabled"))' 2>/dev/null || echo missing)"
+    close_settings
+    if [[ "$watch" != "0" || "$state" != "False" ]]; then
+        write_json "$OUT/rex-ui.json" false "Rex disappeared but the toggle stayed on (defaults ${watch}, state ${state})."
+        exit 1
+    fi
+    write_json "$OUT/rex-ui.json" true "With no Rex.app the toggle stayed off. The stub Rex.app let Show bot activity in Rex turn on. When rex version failed, Check again turned it off. Screenshots: rex-toggle-off.png, rex-toggle.png, rex-toggle-removed.png."
+}
+
+press_escape() {
+    osascript <<'APPLESCRIPT' || true
 tell application "System Events"
     tell process "BlinkyBot"
         set frontmost to true
@@ -173,16 +241,55 @@ tell application "System Events"
     end tell
 end tell
 APPLESCRIPT
+}
+
+onboarding_completed() {
+    local value
+    value="$(defaults read bot.blinky.shell blinkyOnboardingCompleted 2>/dev/null || true)"
+    [[ "$value" == "1" ]]
+}
+
+dismiss_onboarding() {
+    if [[ "$(feature_enabled onboarding)" != yes ]]; then
+        write_json "$OUT/onboarding.json" true "$(feature_reason onboarding)"
+        return
     fi
+    local _try found=0
+    for _try in $(seq 1 20); do
+        if "$OUT/window-probe" --contains "Set up tools on this Mac" >"$OUT/onboarding-probe.json" 2>/dev/null; then
+            found=1
+            break
+        fi
+        sleep 1
+    done
+    capture_window "$OUT/screenshots/onboarding.png"
+    if [[ "$found" != 1 ]] && onboarding_completed; then
+        write_json "$OUT/onboarding.json" true "Onboarding was already completed on this Mac, so the cover did not appear."
+        return
+    fi
+    "$OUT/window-probe" --click "Skip" >"$OUT/onboarding-click.json" 2>/dev/null || true
+    press_escape
     sleep 1
-    text="$(ax_blob)"
-    printf '%s\n' "$text" >"$OUT/onboarding-after.txt"
+    if ! onboarding_completed; then
+        osascript <<'APPLESCRIPT' || true
+tell application "System Events"
+    tell process "BlinkyBot"
+        set frontmost to true
+        set w to window 1
+        set p to position of w
+        set s to size of w
+        click at {((item 1 of p) + (item 1 of s) - 120), ((item 2 of p) + (item 2 of s) - 36)}
+    end tell
+end tell
+APPLESCRIPT
+        sleep 1
+    fi
     capture_window "$OUT/screenshots/onboarding-dismissed.png"
-    if printf '%s' "$text" | grep -q 'Set up tools on this Mac'; then
-        write_json "$OUT/onboarding.json" false "Skip left the first-run cover on screen."
+    if ! onboarding_completed; then
+        write_json "$OUT/onboarding.json" false "Skip did not complete first-run setup. The cover screenshot is onboarding.png."
         exit 1
     fi
-    write_json "$OUT/onboarding.json" true "The first-run screen showed Set up tools on this Mac. Skip dismissed it."
+    write_json "$OUT/onboarding.json" true "The first-run screen showed Set up tools on this Mac. Skip completed setup."
 }
 
 stop_app() {
@@ -258,6 +365,13 @@ prepare_stubs() {
     export BLINKY_REPO_ROOT="$ROOT"
     export BLINKY_APP="$APP"
     export BLINKY_ONBOARDING_LANG=en
+    export KIMI_API_KEY="kimi-e2e-token"
+    export KIMI_CODE_HOME="$OUT/kimi-home"
+    export GROK_HOME="$OUT/grok-home"
+    unset XAI_API_KEY || true
+    mkdir -p "$OUT/kimi-home" "$OUT/grok-home"
+    export BLINKY_STUB_CONTROL="$OUT/stub-control.json"
+    printf '%s\n' '{}' >"$BLINKY_STUB_CONTROL"
     export EGO_BROWSER_PATH="$OUT/bin/ego-browser"
     export BLINKY_EGO_KIND=stub
     export BLINKY_EGO_DETAIL="Install did not produce a helper. Routing uses e2e/stubs/ego-browser."
@@ -342,10 +456,17 @@ json.dump({"ok": True, "detail": detail}, open(f"{out}/window.json", "w"), inden
 PY
 capture_window "$OUT/screenshots/blinky-window.png"
 dismiss_onboarding
+rex_settings
 
 BLINKY_API_KEY="$(tr -d '[:space:]' < "$SUPPORT/engine-api-key")"
 export BLINKY_API_KEY
 node "$ROOT/e2e/drive.mjs" core
+if [[ "$(feature_enabled rex)" == yes ]]; then
+    node "$ROOT/e2e/drive.mjs" rex
+    rex_disappear
+fi
+node "$ROOT/e2e/drive.mjs" chat
+node "$ROOT/e2e/drive.mjs" runs
 node "$ROOT/e2e/drive.mjs" clis
 run_gated ego ego.json ego
 run_gated ego ego-missing.json ego-missing

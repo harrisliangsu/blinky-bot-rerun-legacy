@@ -28,7 +28,7 @@ jobs:
       - run: pnpm --filter rerun-engine test
       - run: pnpm bundle:check
       - run: python3 Scripts/appcast_test.py
-      - run: node --test e2e/feature-gates.test.mjs e2e/stub.test.mjs e2e/report.test.mjs
+      - run: node --test e2e/feature-gates.test.mjs e2e/stub.test.mjs e2e/report.test.mjs e2e/rex-hook.test.mjs
       - run: python3 e2e/sparkle_sign_test.py
 
   mac-shell:

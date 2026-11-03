@@ -39,19 +39,27 @@ func listedWindows() -> [ListedWindow] {
     return windows
 }
 
-func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool) {
-    if depth > 6 { return }
+func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: inout Bool, chrome: inout Bool, click: String?, clicked: inout Bool, visits: inout Int) {
+    if depth > 18 || visits > 4000 || notes.count > 500 { return }
+    visits += 1
     var titleRef: CFTypeRef?
     var valueRef: CFTypeRef?
     var roleRef: CFTypeRef?
+    var descriptionRef: CFTypeRef?
     var childrenRef: CFTypeRef?
+    var label = ""
     if AXUIElementCopyAttributeValue(element, kAXTitleAttribute as CFString, &titleRef) == .success, let title = titleRef as? String, !title.isEmpty {
         notes.append(title)
+        label = title
         if chromeTitles.contains(title) { chrome = true }
+    }
+    if AXUIElementCopyAttributeValue(element, kAXDescriptionAttribute as CFString, &descriptionRef) == .success, let description = descriptionRef as? String, !description.isEmpty {
+        notes.append(description)
+        if label.isEmpty { label = description }
     }
     let role = (AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleRef) == .success) ? (roleRef as? String ?? "") : ""
     if AXUIElementCopyAttributeValue(element, kAXValueAttribute as CFString, &valueRef) == .success, let value = valueRef as? String, !value.isEmpty {
-        if role == "AXTextField" || role == "AXComboBox" || role == "AXTextArea" {
+        if role == "AXTextField" || role == "AXComboBox" || role == "AXTextArea" || role == "AXStaticText" {
             notes.append(value)
             let lower = value.lowercased()
             if lower.contains("127.0.0.1") || lower.contains("localhost") || lower.contains("http://") || lower.contains("https://") {
@@ -59,30 +67,38 @@ func walk(_ element: AXUIElement, depth: Int, notes: inout [String], urlField: i
             }
         }
     }
+    if let click, !clicked, label == click {
+        if AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+            clicked = true
+        }
+    }
     if AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef) == .success, let children = childrenRef as? [AXUIElement] {
-        for child in children.prefix(30) {
-            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome)
+        for child in children.prefix(50) {
+            walk(child, depth: depth + 1, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, visits: &visits)
         }
     }
 }
 
-func accessibility(of windows: [ListedWindow]) -> (trusted: Bool, notes: [String], urlField: Bool, chrome: Bool) {
-    guard AXIsProcessTrusted() else { return (false, [], false, false) }
+func accessibility(of windows: [ListedWindow], click: String?) -> (trusted: Bool, notes: [String], urlField: Bool, chrome: Bool, clicked: Bool) {
+    guard AXIsProcessTrusted() else { return (false, [], false, false, false) }
     guard let app = NSRunningApplication.runningApplications(withBundleIdentifier: "bot.blinky.shell").first else {
-        return (true, [], false, false)
+        return (true, [], false, false, false)
     }
     var notes: [String] = []
     var urlField = false
     var chrome = false
+    var clicked = false
+    var visits = 0
     let axApp = AXUIElementCreateApplication(app.processIdentifier)
+    AXUIElementSetAttributeValue(axApp, "AXManualAccessibility" as CFString, kCFBooleanTrue)
     var ref: CFTypeRef?
     if AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &ref) == .success, let axWindows = ref as? [AXUIElement] {
         for window in axWindows {
-            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome)
+            walk(window, depth: 0, notes: &notes, urlField: &urlField, chrome: &chrome, click: click, clicked: &clicked, visits: &visits)
         }
     }
     _ = windows
-    return (true, notes, urlField, chrome)
+    return (true, notes, urlField, chrome, clicked)
 }
 
 func emit(_ payload: [String: Any], ok: Bool) {
@@ -94,7 +110,8 @@ func emit(_ payload: [String: Any], ok: Bool) {
 
 let windows = listedWindows()
 let blinky = windows.filter { $0.owner == "BlinkyBot" && $0.width >= 240 && $0.height >= 180 }
-let ax = accessibility(of: windows)
+let click = argValue("--click")
+let ax = accessibility(of: windows, click: click)
 let names = blinky.map(\.name)
 let urlInTitle = names.contains { name in
     let lower = name.lowercased()
@@ -112,11 +129,17 @@ let windowPayload: [[String: Any]] = blinky.map { window in
 let payload: [String: Any] = [
     "windows": windowPayload,
     "axTrusted": ax.trusted,
-    "axNotes": Array(ax.notes.prefix(40)),
+    "axNotes": Array(ax.notes.prefix(200)),
     "urlField": ax.urlField,
     "browserChrome": ax.chrome,
     "urlInTitle": urlInTitle,
+    "clicked": ax.clicked,
 ]
+if let click {
+    var found = payload
+    found["click"] = click
+    emit(found, ok: ax.clicked)
+}
 if let needle = argValue("--contains") {
     let haystack = (names + ax.notes).joined(separator: "\n")
     var found = payload

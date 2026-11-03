@@ -64,7 +64,8 @@ test('this checkout runs the cases whose code is already on main', () => {
     assert.equal(features.crashDiagnostics.enabled, true)
     assert.equal(features.ego.enabled, true)
     assert.equal(features.workspaceClone.enabled, false)
-    assert.equal(features.rex.enabled, false)
+    assert.equal(features.rex.enabled, true)
+    assert.match(features.rex.reason, /blinky-rex-watch/)
 })
 
 function tree(files) {
