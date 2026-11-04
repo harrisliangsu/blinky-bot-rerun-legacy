@@ -62,6 +62,11 @@ def entry(path: Path, version: str) -> str | None:
     return body or None
 
 
+def has_updater(version: str) -> bool:
+    parts = tuple(int(part) for part in version.split("."))
+    return parts >= (0, 1, 2)
+
+
 def previous_version(version: str) -> str | None:
     """The version listed after `version` in CHANGELOG.md (newest first)."""
     if not CHANGELOG_EN.exists():
@@ -125,16 +130,15 @@ def build(version: str) -> str:
         else f"https://github.com/{repo}/releases/tag/v{version}"
     )
 
-    already_zh = (
-        f"**已经在用 {prev}？** 下载这个磁盘映像，替换「应用程序」里的 BlinkyBot。这一版还没有应用内更新。"
-        if prev
-        else "**首次安装？** 下载下方安装包即可。这一版还没有应用内更新。"
-    )
-    already_en = (
-        f"**Already using {prev}?** Download this disk image and replace BlinkyBot in Applications. This version has no in-app updater."
-        if prev
-        else "**First install?** Download the package below. This version has no in-app updater."
-    )
+    if not prev:
+        already_zh = "**首次安装？** 下载下方安装包即可。0.1.1 及更早版本没有应用内更新。"
+        already_en = "**First install?** Download the package below. 0.1.1 and earlier have no in-app updater."
+    elif has_updater(prev):
+        already_zh = f"**已经在用 {prev}？** 菜单里的「Check for Updates…」会装上这一版。也可以下载磁盘映像，替换「应用程序」里的 BlinkyBot。"
+        already_en = f"**Already using {prev}?** BlinkyBot → Check for Updates… installs this version. You can also download the disk image and replace BlinkyBot in Applications."
+    else:
+        already_zh = f"**已经在用 {prev}？** 下载这个磁盘映像，替换「应用程序」里的 BlinkyBot。{prev} 没有应用内更新。"
+        already_en = f"**Already using {prev}?** Download this disk image and replace BlinkyBot in Applications. {prev} has no in-app updater."
 
     parts = [
         f"[中文](#cn-blinkybot-{version}) | [English](#en-blinkybot-{version})",

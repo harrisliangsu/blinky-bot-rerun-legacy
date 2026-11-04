@@ -51,7 +51,7 @@ describe('VERSION', () => {
 
     it('matches the Mac shell marketing version and the server package versions', () => {
         const { version, problems } = alignmentProblems(repoRoot)
-        assert.equal(version, '0.1.3')
+        assert.equal(version, '0.1.4')
         assert.deepEqual(problems, [])
         const yml = readFileSync(join(repoRoot, 'apps/mac-shell/project.yml'), 'utf8')
         assert.equal(marketingVersion(yml), version)
@@ -349,7 +349,7 @@ describe('Scripts/bundle.sh', () => {
         const result = spawnSync('bash', [bundleSh, '--plan'], { cwd: repoRoot, encoding: 'utf8' })
         assert.equal(result.status, 0, result.stderr)
         assert.match(result.stdout, /Contents\/Resources\/runtime\/node\/bin\/node/)
-        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.3/)
+        assert.match(result.stdout, /CFBundleShortVersionString = 0\.1\.4/)
     })
 
     it('publishes the Sparkle feed without pushing to main', () => {
