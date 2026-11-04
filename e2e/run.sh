@@ -556,8 +556,8 @@ run_gated workspaceClone workspace.json workspace
 run_gated rex rex.json rex
 
 if [[ "$(feature_enabled menuBar)" == yes ]]; then
-    menu_titles=""
-    if ! menu_titles="$(osascript 2>&1 <<'APPLESCRIPT'
+    set +e
+    menu_titles=$(osascript 2>&1 <<'APPLESCRIPT'
 tell application "System Events"
     tell process "BlinkyBot"
         set frontmost to true
@@ -574,7 +574,10 @@ tell application "System Events"
     end tell
 end tell
 APPLESCRIPT
-)"; then
+)
+    menu_status=$?
+    set -e
+    if [[ "$menu_status" -ne 0 ]]; then
         write_json "$OUT/menubar.json" false "Menu bar / background mode is on this tree, but the status item was not there. ${menu_titles}"
         exit 1
     fi
