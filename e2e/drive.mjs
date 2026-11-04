@@ -73,7 +73,15 @@ async function core() {
         await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').waitFor()
         await page.screenshot({ path: join(shots, 'bot-list.png') })
         await page.locator('[data-testid="bot-edit"][aria-label*="Lighthouse"]').click()
-        await page.getByTestId('bot-name').fill('Lantern')
+        const name = page.getByTestId('bot-name')
+        await name.waitFor()
+        const deadline = Date.now() + 10_000
+        while (Date.now() < deadline) {
+            const value = await name.inputValue().catch(() => '')
+            if (value === 'Lighthouse') break
+            await page.waitForTimeout(200)
+        }
+        await name.fill('Lantern')
         await page.getByTestId('bot-save').click()
         await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').waitFor({ timeout: 20_000 })
         const saved = await engine(`/agents/${lantern.id}`)
@@ -92,6 +100,7 @@ async function core() {
             throw new Error(`Board statuses were ${boardSeen.join(' -> ') || 'empty'}. Expected working, then idle.`)
         }
         await page.getByText('lighthouse keeper').first().waitFor({ timeout: 20_000 })
+        await assertNoInternalPrompt(page, 'Lantern')
         await page.screenshot({ path: join(shots, 'task-reply.png') })
         const messages = await engine(`/agents/${lantern.id}/sessions/${run.sessionId}/messages`)
         const stored = JSON.stringify(messages)
@@ -319,7 +328,8 @@ async function chat() {
         await page.screenshot({ path: join(shots, 'model-picker.png') })
         await chooseModel(page, 'Kimi for Coding')
         await sendChat(page, 'hello kimi')
-        await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
+        await page.getByText(reply).first().waitFor({ timeout: 30_000 })
+        await assertNoInternalPrompt(page, 'Kimi')
         await page.screenshot({ path: join(shots, 'kimi-reply.png') })
         await chooseModel(page, 'Grok 4.7')
         await sendChat(page, 'hello grok')
@@ -434,6 +444,17 @@ async function chooseModel(page, label) {
     }
     await option.getByText(label, { exact: true }).click()
     await pill.filter({ hasText: pattern }).waitFor({ timeout: 10_000 })
+}
+
+async function assertNoInternalPrompt(page, where) {
+    assertNoInternalPromptText(await page.getByRole('main').innerText(), where)
+}
+
+function assertNoInternalPromptText(text, where) {
+    const leaks = ['Browser tasks use ego(lite) only', '</current_time>', '<identity>', '<vocabulary>', '<now>', 'User:', 'Assistant:']
+    for (const leak of leaks) {
+        if (text.includes(leak)) throw new Error(`${where} showed internal prompt text: ${leak}`)
+    }
 }
 
 async function dismissPermissionPrompt(page) {

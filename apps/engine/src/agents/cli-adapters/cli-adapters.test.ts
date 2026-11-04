@@ -257,7 +257,8 @@ describe('stub CLI contract', () => {
             { processEnv: envFor(id, log) },
         )
         expect(result.exitCode).toBe(0)
-        expect(result.parsed.text).toContain(prompt)
+        expect(result.parsed.text).toBe('BLINKY_E2E_REPLY')
+        expect(result.parsed.text).not.toContain(prompt)
         expect(result.parsed.sessionId).toBe(`stub-${id}-session`)
         expect(result.invocation.args.join(' ')).not.toContain(secret)
         const recorded = JSON.parse(readFileSync(log, 'utf8').trim()) as { argv: string[]; env: Record<string, string> }

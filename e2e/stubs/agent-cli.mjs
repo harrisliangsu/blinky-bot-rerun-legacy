@@ -51,6 +51,10 @@ function control() {
     }
 }
 
+function replyText(prompt) {
+    return prompt.includes('lighthouse keeper') ? 'BLINKY_E2E_REPLY lighthouse keeper' : 'BLINKY_E2E_REPLY'
+}
+
 function promptFromArgs(argv) {
     const divider = argv.indexOf('--')
     if (divider !== -1 && argv[divider + 1]) return argv[divider + 1]
@@ -61,7 +65,7 @@ function promptFromArgs(argv) {
 }
 
 function emit(prompt) {
-    const text = `stub-ok:${name}:${prompt}`
+    const text = replyText(prompt)
     const sessionId = sessions[name] ?? `stub-${name}-session`
     if (name === 'kimi') {
         write({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text }] } })
