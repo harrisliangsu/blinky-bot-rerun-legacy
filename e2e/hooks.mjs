@@ -75,8 +75,8 @@ export async function drivePackagedClis({ app, bin, stubLog, cwd }) {
                 },
             },
         )
-        if (!result.parsed?.text?.includes(`roundtrip-${id}`)) {
-            throw new Error(`${id} did not parse the stub reply: ${JSON.stringify(result.parsed)}`)
+        if (!result.parsed?.text?.includes('BLINKY_E2E_REPLY') || result.parsed.text.includes(`roundtrip-${id}`)) {
+            throw new Error(`${id} echoed its prompt instead of a reply: ${JSON.stringify(result.parsed)}`)
         }
         if (`${result.stdout}${result.stderr}`.includes(secret) || result.invocation.args.some(arg => String(arg).includes(secret))) {
             throw new Error(`${id} put a secret on the command line or in its output.`)

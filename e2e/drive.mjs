@@ -92,12 +92,14 @@ async function core() {
             throw new Error(`Board statuses were ${boardSeen.join(' -> ') || 'empty'}. Expected working, then idle.`)
         }
         await page.getByText('lighthouse keeper').first().waitFor({ timeout: 20_000 })
+        await assertNoInternalPrompt(page, 'Lantern')
         await page.screenshot({ path: join(shots, 'task-reply.png') })
         const messages = await engine(`/agents/${lantern.id}/sessions/${run.sessionId}/messages`)
         const stored = JSON.stringify(messages)
         if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
             throw new Error('Lantern did not store the question and the persona reply.')
         }
+        assertNoInternalPromptText(stored, 'Lantern’s stored transcript')
         await page.goto(`${ui}/?agent=${harbor.id}`, { waitUntil: 'domcontentloaded' })
         await page.getByTestId('bot-list').waitFor({ timeout: 60_000 })
         await sendChat(page, 'who are you')
@@ -319,7 +321,8 @@ async function chat() {
         await page.screenshot({ path: join(shots, 'model-picker.png') })
         await chooseModel(page, 'Kimi for Coding')
         await sendChat(page, 'hello kimi')
-        await page.getByText(/stub-ok:kimi:|BLINKY_E2E_REPLY/).first().waitFor({ timeout: 30_000 })
+        await page.getByText(reply).first().waitFor({ timeout: 30_000 })
+        await assertNoInternalPrompt(page, 'Kimi')
         await page.screenshot({ path: join(shots, 'kimi-reply.png') })
         await chooseModel(page, 'Grok 4.7')
         await sendChat(page, 'hello grok')
@@ -434,6 +437,18 @@ async function chooseModel(page, label) {
     }
     await option.getByText(label, { exact: true }).click()
     await pill.filter({ hasText: pattern }).waitFor({ timeout: 10_000 })
+}
+
+const PROMPT_LEAKS = ['Browser tasks use ego(lite) only', '</current_time>', '<identity>', '<vocabulary>', '<now>', 'User:', 'Assistant:']
+
+async function assertNoInternalPrompt(page, where) {
+    assertNoInternalPromptText(await page.getByRole('main').innerText(), where)
+}
+
+function assertNoInternalPromptText(text, where) {
+    for (const leak of PROMPT_LEAKS) {
+        if (text.includes(leak)) throw new Error(`${where} showed internal prompt text: ${leak}`)
+    }
 }
 
 async function dismissPermissionPrompt(page) {
