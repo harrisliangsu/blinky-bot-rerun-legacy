@@ -73,7 +73,15 @@ async function core() {
         await page.locator('[data-testid="bot-list-item"][data-bot-name="Harbor"]').waitFor()
         await page.screenshot({ path: join(shots, 'bot-list.png') })
         await page.locator('[data-testid="bot-edit"][aria-label*="Lighthouse"]').click()
-        await page.getByTestId('bot-name').fill('Lantern')
+        const name = page.getByTestId('bot-name')
+        await name.waitFor()
+        const deadline = Date.now() + 10_000
+        while (Date.now() < deadline) {
+            const value = await name.inputValue().catch(() => '')
+            if (value === 'Lighthouse') break
+            await page.waitForTimeout(200)
+        }
+        await name.fill('Lantern')
         await page.getByTestId('bot-save').click()
         await page.locator('[data-testid="bot-list-item"][data-bot-name="Lantern"]').waitFor({ timeout: 20_000 })
         const saved = await engine(`/agents/${lantern.id}`)
