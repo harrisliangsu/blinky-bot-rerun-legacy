@@ -418,6 +418,17 @@ prepare_stubs() {
     cp "$ROOT/e2e/stubs/ego-browser" "$OUT/bin/ego-browser"
     cp "$ROOT/e2e/stubs/gh" "$OUT/bin/gh"
     chmod +x "$OUT/bin/ego-browser" "$OUT/bin/gh"
+    # The app puts Homebrew and /usr/local/bin ahead of the inherited PATH, and the
+    # runner's real gh lives there and is not signed in. The node directory stays first.
+    if [[ -n "${BLINKY_NODE:-}" && -d "$(dirname "$BLINKY_NODE")" ]]; then
+        cp "$ROOT/e2e/stubs/gh" "$(dirname "$BLINKY_NODE")/gh"
+        chmod +x "$(dirname "$BLINKY_NODE")/gh"
+    fi
+    local app_node="${BLINKY_APP:-$HOME/Applications/BlinkyBot.app}/Contents/Resources/runtime/node/bin"
+    if [[ -d "$app_node" ]]; then
+        cp "$ROOT/e2e/stubs/gh" "$app_node/gh"
+        chmod +x "$app_node/gh"
+    fi
     prepare_git_fixtures
     : >"$OUT/stub.log"
     export PATH="$OUT/bin:${PATH}"
