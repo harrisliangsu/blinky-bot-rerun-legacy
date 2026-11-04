@@ -33,8 +33,15 @@ jobs:
       - name: Choose the app under test
         id: source
         run: |
+          tag=""
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.release }}" ]; then
+            tag="${{ inputs.release }}"
+          elif [ -f e2e/RELEASE_DMG ]; then
+            tag="$(tr -d '[:space:]' < e2e/RELEASE_DMG)"
+          fi
+          if [ -n "$tag" ]; then
             echo "mode=release" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
           else
             echo "mode=build" >> "$GITHUB_OUTPUT"
           fi
@@ -99,7 +106,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          tag="${{ inputs.release }}"
+          tag="${{ steps.source.outputs.tag }}"
           tag="${tag#v}"
           dir="$RUNNER_TEMP/blinky-dmg"
           mkdir -p "$dir"
