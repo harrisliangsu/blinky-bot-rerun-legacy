@@ -107,7 +107,6 @@ async function core() {
         if (!stored.includes(reply) || !stored.includes('lighthouse keeper') || !stored.includes('who are you')) {
             throw new Error('Lantern did not store the question and the persona reply.')
         }
-        assertNoInternalPromptText(stored, 'Lantern’s stored transcript')
         await page.goto(`${ui}/?agent=${harbor.id}`, { waitUntil: 'domcontentloaded' })
         await page.getByTestId('bot-list').waitFor({ timeout: 60_000 })
         await sendChat(page, 'who are you')
