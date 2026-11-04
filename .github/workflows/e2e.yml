@@ -1,0 +1,143 @@
+name: E2E
+
+# The packaged BlinkyBot.app, installed and launched on macos-14, is the
+# acceptance gate. Pull requests and main build that app. A manual run can
+# install a release disk image instead, for example v0.1.4.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release tag whose DMG to install, such as v0.1.4. Leave empty to package this commit.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  packaged-app:
+    name: Installed app end to end
+    runs-on: macos-14
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Choose the app under test
+        id: source
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.release }}" ]; then
+            echo "mode=release" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Free disk space
+        if: steps.source.outputs.mode == 'build'
+        run: |
+          rm -rf ~/Library/Developer/CoreSimulator || true
+          sudo rm -rf /Library/Developer/CoreSimulator || true
+          df -h /
+
+      - uses: pnpm/action-setup@v4
+        if: steps.source.outputs.mode == 'build'
+      - uses: actions/setup-node@v4
+        if: steps.source.outputs.mode == 'build'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: XcodeGen
+        if: steps.source.outputs.mode == 'build'
+        run: brew install xcodegen
+
+      - name: Official Node for the app bundle
+        if: steps.source.outputs.mode == 'build'
+        run: |
+          set -euo pipefail
+          host_arch="$(uname -m)"
+          case "$host_arch" in
+            arm64) arch=arm64 ;;
+            x86_64) arch=x64 ;;
+            *) echo "::error::Unsupported architecture ${host_arch}"; exit 1 ;;
+          esac
+          version=22.23.4
+          tarball="node-v${version}-darwin-${arch}.tar.gz"
+          mkdir -p build.noindex
+          curl -fsSL -o build.noindex/SHASUMS256.txt "https://nodejs.org/dist/v${version}/SHASUMS256.txt"
+          curl -fsSL -o "build.noindex/${tarball}" "https://nodejs.org/dist/v${version}/${tarball}"
+          (
+            cd build.noindex
+            grep -F "  ${tarball}" SHASUMS256.txt | shasum -a 256 -c -
+          )
+          rm -rf build.noindex/node-dist
+          mkdir -p build.noindex/node-dist
+          tar -xzf "build.noindex/${tarball}" -C build.noindex/node-dist --strip-components=1
+          test -x build.noindex/node-dist/bin/node
+          echo "BLINKY_NODE=$PWD/build.noindex/node-dist/bin/node" >> "$GITHUB_ENV"
+
+      - name: Package
+        if: steps.source.outputs.mode == 'build'
+        run: |
+          pnpm install --frozen-lockfile
+          ./Scripts/bundle.sh --zip
+          rm -rf "$HOME/Applications/BlinkyBot.app"
+          mkdir -p "$HOME/Applications"
+          cp -cR build.noindex/BlinkyBot.app "$HOME/Applications/BlinkyBot.app"
+          xattr -dr com.apple.quarantine "$HOME/Applications/BlinkyBot.app" || true
+
+      - name: Install the release DMG
+        if: steps.source.outputs.mode == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.release }}"
+          tag="${tag#v}"
+          dir="$RUNNER_TEMP/blinky-dmg"
+          mkdir -p "$dir"
+          gh release download "v${tag}" --repo "${{ github.repository }}" --pattern "BlinkyBot-${tag}.dmg" --dir "$dir"
+          dmg="$dir/BlinkyBot-${tag}.dmg"
+          attached="$(hdiutil attach -nobrowse -readonly "$dmg")"
+          mount="$(printf '%s\n' "$attached" | awk '/\/Volumes\// { print substr($0, index($0, "/Volumes/")); exit }')"
+          app="$(find "$mount" -maxdepth 2 -type d -name 'BlinkyBot.app' | head -n 1)"
+          test -n "$app"
+          rm -rf "$HOME/Applications/BlinkyBot.app"
+          mkdir -p "$HOME/Applications"
+          cp -R "$app" "$HOME/Applications/BlinkyBot.app"
+          hdiutil detach "$mount" -quiet
+          xattr -dr com.apple.quarantine "$HOME/Applications/BlinkyBot.app" || true
+          echo "Installed BlinkyBot ${tag} from the release disk image." >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v4
+        if: steps.source.outputs.mode == 'release'
+        with:
+          node-version: 22
+
+      - name: E2E browser
+        run: |
+          cd e2e
+          npm ci
+          npx playwright install chromium
+
+      - name: Packaged app end to end
+        timeout-minutes: 25
+        run: |
+          chmod +x e2e/run.sh e2e/ego-real.sh e2e/stubs/ego-browser e2e/stubs/rex e2e/stubs/gh
+          ./e2e/run.sh "$HOME/Applications/BlinkyBot.app"
+
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blinky-e2e
+          path: |
+            e2e/out
+          if-no-files-found: ignore

@@ -132,18 +132,24 @@ jobs:
           du -sh build.noindex/BlinkyBot.app
 
       # The packaged server.js is already smoked inside bundle.sh. This opens
-      # the signed .app the release is about to publish and fails the tag if
-      # Compose does not answer.
-      - name: Open BlinkyBot and check Compose
+      # the signed .app the release is about to publish. A failed suite stops
+      # the tag before any asset is uploaded.
+      - name: E2E browser
         run: |
-          chmod +x Scripts/open-smoke.sh
-          BLINKY_OPEN_SMOKE_DIR=/tmp/blinky-open-smoke ./Scripts/open-smoke.sh build.noindex/BlinkyBot.app
-      - name: Upload Compose logs
-        if: failure()
+          cd e2e
+          npm ci
+          npx playwright install chromium
+      - name: Packaged app end to end
+        timeout-minutes: 25
+        run: |
+          chmod +x e2e/run.sh e2e/ego-real.sh e2e/stubs/ego-browser e2e/stubs/rex e2e/stubs/gh
+          ./e2e/run.sh build.noindex/BlinkyBot.app
+      - name: Upload E2E evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compose-open-logs
-          path: /tmp/blinky-open-smoke
+          name: blinky-e2e
+          path: e2e/out
           if-no-files-found: ignore
 
       - name: Release notes

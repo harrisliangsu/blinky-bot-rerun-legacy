@@ -28,11 +28,12 @@ jobs:
       - run: pnpm --filter rerun-engine test
       - run: pnpm bundle:check
       - run: python3 Scripts/appcast_test.py
+      - run: node --test e2e/feature-gates.test.mjs e2e/stub.test.mjs e2e/report.test.mjs e2e/rex-hook.test.mjs
+      - run: python3 e2e/sparkle_sign_test.py
 
   mac-shell:
-    name: Mac shell build, tests, and bundle
-    # Same image as the release job. macos-latest is cancelled while still
-    # queued on this repo (no runner, no steps), so the open check never starts.
+    name: Mac shell tests
+    # Swift tests only. The packaged app is installed and exercised by the E2E workflow.
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -43,67 +44,47 @@ jobs:
         run: |
           swift build
           swift test
-      - name: XcodeGen
-        run: brew install xcodegen
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+
+  real-cli-smoke:
+    name: Real agent CLI smoke
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - id: secrets
+        env:
+          CODEX: ${{ secrets.CODEX_API_KEY }}
+          KIMI: ${{ secrets.KIMI_API_KEY }}
+          GROK: ${{ secrets.XAI_API_KEY }}
+          CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "${CODEX}${KIMI}${GROK}${CLAUDE}${ANTHROPIC}" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No Codex, Kimi, Grok, or Claude secret is configured. Skipping the real CLI smoke." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: steps.secrets.outputs.present == 'true'
+        uses: pnpm/action-setup@v4
+      - if: steps.secrets.outputs.present == 'true'
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - name: Official Node for the app bundle
+      - if: steps.secrets.outputs.present == 'true'
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          KIMI_API_KEY: ${{ secrets.KIMI_API_KEY }}
+          XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BLINKY_REAL_CLI: "1"
         run: |
           set -euo pipefail
-          host_arch="$(uname -m)"
-          case "$host_arch" in
-            arm64) arch=arm64 ;;
-            x86_64) arch=x64 ;;
-            *) echo "::error::Unsupported architecture ${host_arch}"; exit 1 ;;
-          esac
-          echo "host_arch=${host_arch} node_dist_arch=${arch}"
-          version=22.23.4
-          tarball="node-v${version}-darwin-${arch}.tar.gz"
-          mkdir -p build.noindex
-          curl -fsSL -o build.noindex/SHASUMS256.txt "https://nodejs.org/dist/v${version}/SHASUMS256.txt"
-          curl -fsSL -o "build.noindex/${tarball}" "https://nodejs.org/dist/v${version}/${tarball}"
-          (
-            cd build.noindex
-            grep -F "  ${tarball}" SHASUMS256.txt | shasum -a 256 -c -
-          )
-          rm -rf build.noindex/node-dist
-          mkdir -p build.noindex/node-dist
-          tar -xzf "build.noindex/${tarball}" -C build.noindex/node-dist --strip-components=1
-          test -x build.noindex/node-dist/bin/node
-          echo "BLINKY_NODE=$PWD/build.noindex/node-dist/bin/node" >> "$GITHUB_ENV"
-      - name: Package
-        run: |
-          ./Scripts/bundle.sh --zip
-          ./Scripts/dmg.sh --reuse
-          test -x build.noindex/BlinkyBot.app/Contents/MacOS/BlinkyBot
-          test -f build.noindex/BlinkyBot-*.zip
-          test -f build.noindex/BlinkyBot-*.dmg
-          test -d build.noindex/BlinkyBot.app/Contents/Frameworks/Sparkle.framework
-          test "$(plutil -extract SUPublicEDKey raw build.noindex/BlinkyBot.app/Contents/Info.plist)" = "$(tr -d '[:space:]' < Scripts/sparkle-public-key.txt)"
-          plutil -extract SUFeedURL raw build.noindex/BlinkyBot.app/Contents/Info.plist | grep -q '/releases/latest/download/appcast.xml'
-      - name: Open BlinkyBot and check Compose
-        run: |
-          chmod +x Scripts/open-smoke.sh
-          BLINKY_OPEN_SMOKE_DIR=/tmp/blinky-open-smoke ./Scripts/open-smoke.sh build.noindex/BlinkyBot.app
-      - name: Upload Compose logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: compose-open-logs
-          path: /tmp/blinky-open-smoke
-          if-no-files-found: ignore
-      - name: Onboarding screenshots
-        continue-on-error: true
-        run: |
-          chmod +x Scripts/onboarding-screenshots.sh
-          perl -e 'alarm shift; exec @ARGV' 90 bash Scripts/onboarding-screenshots.sh build.noindex/BlinkyBot.app
-      - name: Upload onboarding screenshots
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: onboarding-screenshots
-          path: build.noindex/onboarding-screenshots
-          if-no-files-found: ignore
+          if [ -n "${CODEX_API_KEY:-}" ] && ! command -v codex >/dev/null; then npm install -g @openai/codex; fi
+          if [ -n "${KIMI_API_KEY:-}" ] && ! command -v kimi >/dev/null; then npm install -g @moonshot-ai/kimi-code; fi
+          if [ -n "${XAI_API_KEY:-}" ] && ! command -v grok >/dev/null; then npm install -g @xai-official/grok; fi
+          if { [ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ] || [ -n "${ANTHROPIC_API_KEY:-}" ]; } && ! command -v claude >/dev/null; then npm install -g @anthropic-ai/claude-code; fi
+          pnpm install --frozen-lockfile
+          pnpm --filter @rerun/contracts build
+          pnpm --filter rerun-engine exec vitest run src/agents/cli-adapters/real-cli.smoke.test.ts

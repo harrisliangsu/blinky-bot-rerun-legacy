@@ -1206,6 +1206,7 @@ export const IsoGrid = memo(function IsoGrid(props: IsoGridProps) {
             ref={containerRef}
             role={interactive ? 'group' : undefined}
             aria-label={interactive ? 'Coworker board' : undefined}
+            data-testid={interactive ? 'coworker-board' : undefined}
             data-iso-paused={paused || !onScreen ? '' : undefined}
             className={`absolute inset-0 overflow-hidden select-none ${cursorClass}${className ? ` ${className}` : ''}`}
             style={{

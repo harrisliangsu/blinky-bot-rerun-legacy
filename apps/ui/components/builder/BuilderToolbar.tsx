@@ -74,9 +74,11 @@ export function BuilderToolbar() {
                                 </span>
                             </TooltipLabeled>
                         )}
-                        <Shimmer as="span" duration={1.6} className="text-sm font-medium whitespace-nowrap [--color-muted-foreground:#9ca3af] [--color-background:#ffffff]">
-                            {placementPrompt}
-                        </Shimmer>
+                        <span data-testid="placement-prompt">
+                            <Shimmer as="span" duration={1.6} className="text-sm font-medium whitespace-nowrap [--color-muted-foreground:#9ca3af] [--color-background:#ffffff]">
+                                {placementPrompt}
+                            </Shimmer>
+                        </span>
                         <ChromeButton label="Cancel" onClick={cancelPlacement} />
                     </div>
                 ) : (
@@ -97,7 +99,7 @@ export function BuilderToolbar() {
                                             </DropdownMenuTrigger>
                                         </TooltipDisabledReason>
                                         <DropdownMenuContent side="top" align="center" sideOffset={12}>
-                                            <DropdownMenuItem onSelect={openNewAgent} className="gap-2 whitespace-nowrap">
+                                            <DropdownMenuItem onSelect={openNewAgent} className="gap-2 whitespace-nowrap" data-testid="new-coworker">
                                                 <CirclePlusIcon className="size-4" />
                                                 {copy.newBot}
                                             </DropdownMenuItem>

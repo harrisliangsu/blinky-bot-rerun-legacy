@@ -5,10 +5,13 @@ import { agentProcessEnv } from '../process-env.js'
 import { resolveCliCwd } from '../../workspace/cwd.js'
 import { omitForeignAgentEnv } from '../../workspace/env.js'
 import { claudeAdapter } from './claude.js'
+import { parseCliStdout } from './parse.js'
 import { codexAdapter } from './codex.js'
 import { grokAdapter } from './grok.js'
 import { kimiAdapter } from './kimi.js'
 import { CLI_RUNTIME_IDS, CliAdapterError, type CliAdapterInfo, type CliInvocation, type CliRunRequest, type CliRunResult, type CliRuntimeId } from './types.js'
+
+type SpawnedCli = Omit<CliRunResult, 'parsed'>
 
 const ADAPTERS = {
     codex: codexAdapter,
@@ -58,7 +61,8 @@ export async function runLocalCli(id: CliRuntimeId, request: CliRunRequest, opti
     }
     const scoped = scopeCliRun(options.agentId ? { ...request, agentId: options.agentId } : request, inherited)
     const invocation = cliInvocation(id, scoped.request, scoped.processEnv)
-    return spawnCli(invocation, { ...options, processEnv: scoped.processEnv }, scoped.request)
+    const result = await spawnCli(invocation, { ...options, processEnv: scoped.processEnv }, scoped.request)
+    return { ...result, parsed: parseCliStdout(id, result.stdout) }
 }
 
 function scopeCliRun(request: CliRunRequest, processEnv: NodeJS.ProcessEnv): { request: CliRunRequest; processEnv: NodeJS.ProcessEnv } {
@@ -82,7 +86,7 @@ function assertCliRequest(request: CliRunRequest): void {
     if (request.session?.kind === 'resume' && request.session.id.trim() === '') throw new CliAdapterError('CLI adapter resume id is empty.')
 }
 
-function spawnCli(invocation: CliInvocation, options: RunLocalCliOptions, request: CliRunRequest): Promise<CliRunResult> {
+function spawnCli(invocation: CliInvocation, options: RunLocalCliOptions, request: CliRunRequest): Promise<SpawnedCli> {
     const processEnv = options.processEnv ?? process.env
     if (options.signal?.aborted) return Promise.reject(new CliAdapterError(`CLI adapter "${invocation.id}" was aborted.`))
     return runAgentProcess({

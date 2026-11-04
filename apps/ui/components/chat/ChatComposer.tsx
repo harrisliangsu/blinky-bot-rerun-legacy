@@ -421,6 +421,7 @@ export function ChatComposer({
                         <div className="relative w-full">
                             <PromptInputTextarea
                                 ref={inputRef}
+                                data-testid="composer"
                                 placeholder={placeholder}
                                 className={cn(expandable && 'pr-9', links.hasTokens && 'text-transparent caret-foreground [scrollbar-gutter:stable]')}
                                 {...textareaProps}
@@ -494,7 +495,7 @@ export function ChatComposer({
                             />
                         )}
                         {showStop && (
-                            <PromptInputButton tooltip="Stop the current run" aria-label="Stop the current run" onClick={onStop}>
+                            <PromptInputButton tooltip="Stop the current run" aria-label="Stop the current run" data-testid="stop-run" onClick={onStop}>
                                 <SquareIcon className="size-4" />
                             </PromptInputButton>
                         )}
