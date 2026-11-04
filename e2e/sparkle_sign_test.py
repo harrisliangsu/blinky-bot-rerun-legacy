@@ -25,14 +25,15 @@ class FixtureSignTests(unittest.TestCase):
             signature = base64.b64decode(self.signature_from_feed(directory / "appcast.xml"))
             pem = directory / "throwaway-ed25519.pem"
             pub_pem = directory / "pub.pem"
-            subprocess.check_call(["openssl", "pkey", "-in", str(pem), "-pubout", "-out", str(pub_pem)], stdout=subprocess.DEVNULL)
+            openssl = sparkle_sign.openssl_bin()
+            subprocess.check_call([openssl, "pkey", "-in", str(pem), "-pubout", "-out", str(pub_pem)], stdout=subprocess.DEVNULL)
             sig_file = directory / "sig"
             sig_file.write_bytes(signature)
             subprocess.check_call(
-                ["openssl", "pkeyutl", "-verify", "-pubin", "-inkey", str(pub_pem), "-rawin", "-in", str(archive), "-sigfile", str(sig_file)],
+                [openssl, "pkeyutl", "-verify", "-pubin", "-inkey", str(pub_pem), "-rawin", "-in", str(archive), "-sigfile", str(sig_file)],
                 stdout=subprocess.DEVNULL,
             )
-            der = subprocess.check_output(["openssl", "pkey", "-in", str(pem), "-pubout", "-outform", "DER"])
+            der = subprocess.check_output([openssl, "pkey", "-in", str(pem), "-pubout", "-outform", "DER"])
             self.assertEqual(base64.b64encode(der[-32:]).decode("ascii"), public)
             shipped = sparkle_sign.REAL_PUBLIC_KEY.read_text(encoding="utf-8").strip()
             self.assertEqual(shipped, sparkle_sign.REAL_PUBLIC_VALUE)

@@ -674,6 +674,9 @@ fi
 sparkle_dir="$OUT/sparkle"
 mkdir -p "$sparkle_dir"
 enclosure="http://127.0.0.1:${FEED_PORT}/BlinkyBot-9.9.9.zip"
+if ! openssl version 2>/dev/null | grep -q '^OpenSSL 3' && [[ ! -x /opt/homebrew/opt/openssl@3/bin/openssl && ! -x /usr/local/opt/openssl@3/bin/openssl ]]; then
+    brew install openssl@3
+fi
 python3 "$ROOT/e2e/sparkle_sign.py" "$sparkle_dir" "$enclosure" >"$sparkle_dir/printed-public-key.txt"
 python3 -m http.server "$FEED_PORT" --bind 127.0.0.1 --directory "$sparkle_dir" >"$OUT/sparkle-http.log" 2>&1 &
 FEED_PID=$!

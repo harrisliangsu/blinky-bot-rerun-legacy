@@ -9,6 +9,7 @@ never reads or writes Scripts/sparkle-public-key.txt or SPARKLE_PRIVATE_KEY.
 from __future__ import annotations
 
 import base64
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,14 +19,35 @@ REAL_PUBLIC_KEY = ROOT / "Scripts" / "sparkle-public-key.txt"
 REAL_PUBLIC_VALUE = "M/xUmNfKp+sEloy822L8X4lVdOLM1pv9srD7fw/bgb8="
 
 
+def openssl_bin() -> str:
+    # macOS puts LibreSSL on PATH. It can generate an Ed25519 key and then
+    # rejects `pkeyutl -rawin`, which is how the fixture signs the archive.
+    candidates = []
+    if os.environ.get("OPENSSL"):
+        candidates.append(os.environ["OPENSSL"])
+    candidates.extend([
+        "/opt/homebrew/opt/openssl@3/bin/openssl",
+        "/usr/local/opt/openssl@3/bin/openssl",
+        "openssl",
+    ])
+    for candidate in candidates:
+        try:
+            version = subprocess.check_output([candidate, "version"], text=True, stderr=subprocess.DEVNULL)
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        if version.startswith("OpenSSL 3"):
+            return candidate
+    sys.exit("Ed25519 signing needs OpenSSL 3. The openssl on PATH does not support pkeyutl -rawin.")
+
+
 def generate_keypair(directory: Path) -> tuple[str, Path]:
     directory.mkdir(parents=True, exist_ok=True)
     pem = directory / "throwaway-ed25519.pem"
     subprocess.check_call(
-        ["openssl", "genpkey", "-algorithm", "ED25519", "-out", str(pem)],
+        [openssl_bin(), "genpkey", "-algorithm", "ED25519", "-out", str(pem)],
         stdout=subprocess.DEVNULL,
     )
-    der = subprocess.check_output(["openssl", "pkey", "-in", str(pem), "-pubout", "-outform", "DER"])
+    der = subprocess.check_output([openssl_bin(), "pkey", "-in", str(pem), "-pubout", "-outform", "DER"])
     if len(der) < 32:
         sys.exit("Ed25519 public key DER was shorter than 32 bytes.")
     public = base64.b64encode(der[-32:]).decode("ascii")
@@ -38,7 +60,7 @@ def generate_keypair(directory: Path) -> tuple[str, Path]:
 def sign_file(archive: Path, pem: Path) -> str:
     signature = archive.with_name(archive.name + ".ed25519")
     subprocess.check_call(
-        ["openssl", "pkeyutl", "-sign", "-inkey", str(pem), "-rawin", "-in", str(archive), "-out", str(signature)],
+        [openssl_bin(), "pkeyutl", "-sign", "-inkey", str(pem), "-rawin", "-in", str(archive), "-out", str(signature)],
         stdout=subprocess.DEVNULL,
     )
     encoded = base64.b64encode(signature.read_bytes()).decode("ascii")
