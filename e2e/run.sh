@@ -35,6 +35,9 @@ HOLDER_PID=""
 finish() {
     local status=$?
     set +e
+    if [[ ! -f "$OUT/finished" && "$status" -eq 0 ]]; then
+        status=1
+    fi
     stop_app
     if [[ -n "$REC_PID" ]]; then
         kill "$REC_PID" 2>/dev/null || true
@@ -556,8 +559,7 @@ run_gated workspaceClone workspace.json workspace
 run_gated rex rex.json rex
 
 if [[ "$(feature_enabled menuBar)" == yes ]]; then
-    set +e
-    menu_titles=$(osascript 2>&1 <<'APPLESCRIPT'
+    cat >"$OUT/menu.applescript" <<'APPLESCRIPT'
 tell application "System Events"
     tell process "BlinkyBot"
         set frontmost to true
@@ -574,7 +576,8 @@ tell application "System Events"
     end tell
 end tell
 APPLESCRIPT
-)
+    set +e
+    menu_titles=$(osascript "$OUT/menu.applescript" 2>&1)
     menu_status=$?
     set -e
     if [[ "$menu_status" -ne 0 ]]; then
@@ -725,4 +728,5 @@ if [[ -z "$found" ]]; then
     exit 1
 fi
 write_json "$OUT/sparkle.json" true "Packaged SUPublicEDKey is ${PUBLIC_KEY} and SUFeedURL is the release appcast. A copy signed with a throwaway key detected 9.9.9 (${found}). The shipped key file was not modified."
+touch "$OUT/finished"
 stop_app
