@@ -2,26 +2,26 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
     <channel>
         <title>BlinkyBot</title>
-        <link>https://raw.githubusercontent.com/harrisliangsu/blinky-bot/main/appcast-zh.xml</link>
+        <link>https://github.com/harrisliangsu/blinky-bot/releases/latest/download/appcast-zh.xml</link>
         <description>Updates for BlinkyBot.</description>
         <language>en</language>
-            <item>
-            <title>0.1.3</title>
-            <pubDate>Tue, 03 Nov 2026 16:51:09 -0000</pubDate>
-            <sparkle:version>0.1.3</sparkle:version>
-            <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
+                <item>
+            <title>0.1.4</title>
+            <pubDate>Wed, 04 Nov 2026 01:24:07 -0000</pubDate>
+            <sparkle:version>0.1.4</sparkle:version>
+            <sparkle:shortVersionString>0.1.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <link>https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.3</link>
+            <link>https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.4</link>
             <description><![CDATA[<style>
   h2 { font-size: 1.05em; margin: 0 0 .5em; }
   ul { margin: 0; padding-left: 1.2em; }
   li { margin: .3em 0; }
   p { margin: .8em 0 0; }
-</style><h2>BlinkyBot 0.1.3</h2><ul><li><strong>Compose 能打开了。</strong> 打包后的应用在 Next 启动时找不到 <code>@swc/helpers</code>，窗口停在「Compose is not open yet.」。现在独立服务器会把 Next 启动时要加载的包链到它能找到的位置。</li><li><strong>Mac 打开检查挡住坏包。</strong> CI 会启动打好的 BlinkyBot.app，并要求 <code>http://127.0.0.1:3000/api/version</code> 有响应。缺模块会让任务失败，发布不会继续。</li></ul><p><a href="https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.3">在 GitHub 查看更新说明</a></p>]]></description>
-            <enclosure url="https://github.com/harrisliangsu/blinky-bot/releases/download/v0.1.3/BlinkyBot-0.1.3.zip"
-                       length="314982401"
+</style><h2>BlinkyBot 0.1.4</h2><ul><li><strong>现在叫 Bot，不再叫同事。</strong> 侧边栏列出每一个 Bot。可以新建、改名，删除时要输入它的名字。</li><li><strong>每个 Bot 有自己的文件。</strong> 可以挂上一个 GitHub 仓库，也可以粘贴任意 git 地址。检出目录在这个 Bot 自己的文件夹里，删掉 Bot 时一并去掉。</li><li><strong>第一次打开会在这台 Mac 上准备工具。</strong> Codex、Kimi、Grok 和 ego(lite)。已经装好的话可以跳过。</li><li><strong>BlinkyBot 留在菜单栏。</strong> 关掉窗口它还在运行。如果端口已经被别的程序占用，窗口会说明原因，并提供重试和复制诊断信息。</li><li><strong>聊天可以用 Kimi 和 Grok。</strong> 在模型菜单里选择。没有安装 CLI、Grok 没登录、用量到顶，都会在对话里说清楚。看板会显示 Bot 正在工作。</li><li><strong>一次运行可以在 Rex 里打开。</strong> 设置里有「在 Rex 中显示 Bot 活动」。每个 Bot 有自己的本地 Rex 会话；没装 Rex 时这项保持关闭。</li><li><strong>浏览器任务走 ego(lite)。</strong> BlinkyBot 不会改用别的浏览器。</li></ul><p><a href="https://github.com/harrisliangsu/blinky-bot/releases/tag/v0.1.4">在 GitHub 查看更新说明</a></p>]]></description>
+            <enclosure url="https://github.com/harrisliangsu/blinky-bot/releases/download/v0.1.4/BlinkyBot-0.1.4.zip"
+                       length="315712428"
                        type="application/octet-stream"
-                       sparkle:edSignature="uk3TPDCSj3JHOvNDpxL4oY8QUf0M2+/kW+K3GXcvqJmwGvFyT6GAYjjfaDr0ybeNIKjrjIX2GVocwg8Pf6CDBA==" />
+                       sparkle:edSignature="9XIaI064tFyBTO6n7kCff0MWIsM+jndyoMDspfHkYphNLK/pYe1k/vp8bjwAmuwnahZfLZDLPDgEzGktROarAA==" />
         </item>
     </channel>
 </rss>
