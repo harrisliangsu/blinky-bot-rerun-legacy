@@ -8,6 +8,16 @@ GitHub Release 由 [Scripts/release-notes.py](Scripts/release-notes.py) 生成�
 
 应用版本就是这个标题，与 `VERSION` 文件以及 tag `v` 加该版本一致。
 
+## 0.1.4
+
+- **现在叫 Bot，不再叫同事。** 侧边栏列出每一个 Bot。可以新建、改名，删除时要输入它的名字。
+- **每个 Bot 有自己的文件。** 可以挂上一个 GitHub 仓库，也可以粘贴任意 git 地址。检出目录在这个 Bot 自己的文件夹里，删掉 Bot 时一并去掉。
+- **第一次打开会在这台 Mac 上准备工具。** Codex、Kimi、Grok 和 ego(lite)。已经装好的话可以跳过。
+- **BlinkyBot 留在菜单栏。** 关掉窗口它还在运行。如果端口已经被别的程序占用，窗口会说明原因，并提供重试和复制诊断信息。
+- **聊天可以用 Kimi 和 Grok。** 在模型菜单里选择。没有安装 CLI、Grok 没登录、用量到顶，都会在对话里说清楚。看板会显示 Bot 正在工作。
+- **一次运行可以在 Rex 里打开。** 设置里有「在 Rex 中显示 Bot 活动」。每个 Bot 有自己的本地 Rex 会话；没装 Rex 时这项保持关闭。
+- **浏览器任务走 ego(lite)。** BlinkyBot 不会改用别的浏览器。
+
 ## 0.1.3
 
 - **Compose 能打开了。** 打包后的应用在 Next 启动时找不到 `@swc/helpers`，窗口停在「Compose is not open yet.」。现在独立服务器会把 Next 启动时要加载的包链到它能找到的位置。

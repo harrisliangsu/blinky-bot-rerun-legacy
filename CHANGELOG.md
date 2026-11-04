@@ -10,6 +10,16 @@ bullets, `**bold**`, `` `code` `` and `[links](https://example.com)`.
 
 The app version is this heading. It matches the `VERSION` file and the tag `v` + that version.
 
+## 0.1.4
+
+- **Bots, not coworkers.** The sidebar lists every Bot. Create one, rename it, and delete it by typing its name.
+- **Each Bot keeps its own files.** Attach a GitHub repository, or paste any git address. The checkout lives in that Bot's folder, and deleting the Bot removes it.
+- **The first launch sets up the tools on this Mac.** Codex, Kimi, Grok, and ego(lite). Skip is there when they are already installed.
+- **BlinkyBot stays in the menu bar.** Closing the window leaves it running. If something else already has its port, the window says so and offers Retry and Copy Diagnostics.
+- **Chat can use Kimi and Grok.** Pick them in the model menu. A missing CLI, a signed-out Grok, and a usage limit each say so in the thread. The board shows when a Bot is working.
+- **A Bot's run can open in Rex.** Settings has Show bot activity in Rex. Each Bot gets its own local Rex session, and the switch stays off when Rex is not installed.
+- **Browser tasks go through ego(lite).** BlinkyBot does not open another browser instead.
+
 ## 0.1.3
 
 - **Compose starts.** The packaged app was missing `@swc/helpers` on the path Next uses, so the window stayed on "Compose is not open yet." The standalone server now links the packages Next loads at startup.
