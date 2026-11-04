@@ -186,6 +186,8 @@ describe('resolveConfiguredModel', () => {
 
     it('still maps a bare provider onto the oldest connection of that provider', async () => {
         const first = await connect('anthropic', { ANTHROPIC_API_KEY: 'k1' })
+        // createdAt is millisecond precision. A tie is broken by id, not by creation order.
+        await new Promise(resolve => setTimeout(resolve, 20))
         await connect('anthropic', { ANTHROPIC_API_KEY: 'k2' })
         const resolved = await resolveConfiguredModel(agentConfigSchema.parse({ name: 'a1', provider: 'anthropic', model: 'claude-opus-4-8' }))
         expect(resolved.connection?.id).toBe(first.id)
