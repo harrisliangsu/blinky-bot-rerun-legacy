@@ -638,26 +638,25 @@ if [[ "$(feature_enabled crashDiagnostics)" == yes ]]; then
     HOLDER_PID=$!
     sleep 0.5
     launch_app "$OUT/app-crash.out"
-    text=""
+    found_port=0
     for _try in $(seq 1 20); do
-        text="$(ax_blob)"
-        printf '%s\n' "$text" >"$OUT/crash-ax.txt"
-        if printf '%s' "$text" | grep -q 'That port is already in use'; then
+        if "$OUT/window-probe" --contains "That port is already in use" >"$OUT/crash-probe.json" 2>/dev/null; then
+            found_port=1
             break
         fi
         sleep 1
     done
     capture_window "$OUT/screenshots/crash.png"
-    if printf '%s' "$text" | grep -q -E 'Traceback|EXC_BAD|fatal error'; then
-        write_json "$OUT/crash.json" false "The failure view showed a raw crash instead of a friendly message. Accessibility text: ${text}"
+    if "$OUT/window-probe" --contains "Traceback" >/dev/null 2>&1 || "$OUT/window-probe" --contains "EXC_BAD" >/dev/null 2>&1; then
+        write_json "$OUT/crash.json" false "The failure view showed a raw crash instead of a friendly message."
         exit 1
     fi
-    if ! printf '%s' "$text" | grep -q 'That port is already in use'; then
-        write_json "$OUT/crash.json" false "Held the engine port but the window did not show That port is already in use. Accessibility text: ${text}"
+    if [[ "$found_port" != 1 ]]; then
+        write_json "$OUT/crash.json" false "Held the engine port but the window did not show That port is already in use. See crash-probe.json."
         exit 1
     fi
-    if ! printf '%s' "$text" | grep -q 'Retry' || ! printf '%s' "$text" | grep -q 'Copy Diagnostics'; then
-        write_json "$OUT/crash.json" false "The port failure did not offer Retry and Copy Diagnostics. Accessibility text: ${text}"
+    if ! "$OUT/window-probe" --contains "Retry" >/dev/null 2>&1 || ! "$OUT/window-probe" --contains "Copy Diagnostics" >/dev/null 2>&1; then
+        write_json "$OUT/crash.json" false "The port failure did not offer Retry and Copy Diagnostics. See crash-probe.json."
         exit 1
     fi
     if ! kill -0 "$APP_PID" 2>/dev/null; then
