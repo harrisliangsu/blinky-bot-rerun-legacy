@@ -447,14 +447,13 @@ async function chooseModel(page, label) {
     await pill.filter({ hasText: pattern }).waitFor({ timeout: 10_000 })
 }
 
-const PROMPT_LEAKS = ['Browser tasks use ego(lite) only', '</current_time>', '<identity>', '<vocabulary>', '<now>', 'User:', 'Assistant:']
-
 async function assertNoInternalPrompt(page, where) {
     assertNoInternalPromptText(await page.getByRole('main').innerText(), where)
 }
 
 function assertNoInternalPromptText(text, where) {
-    for (const leak of PROMPT_LEAKS) {
+    const leaks = ['Browser tasks use ego(lite) only', '</current_time>', '<identity>', '<vocabulary>', '<now>', 'User:', 'Assistant:']
+    for (const leak of leaks) {
         if (text.includes(leak)) throw new Error(`${where} showed internal prompt text: ${leak}`)
     }
 }
